@@ -1,0 +1,74 @@
+MODULATING TITLE LAYOUT
+
+---
+  title: "Shiny HTML Doc"
+author: "theforestecologist"
+date: "Apr 14, 2017"
+output:  html_document
+runtime: shiny
+---
+  
+  <style type="text/css">
+  
+  h1.title {
+    font-size: 38px;
+    color: DarkRed;
+    text-align: center;
+  }
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkBlue;
+  text-align: center;
+}
+</style>
+  
+----------------------------------------------------------------------------
+
+INSERTING CLICK BUTTON
+
+<details><summary>Click here</summary>
+Some text
+
+```{r code}
+# even code
+print("Hello world!")
+```
+</details>
+
+----------------------------------------------------------------------------
+
+EXTRACTING TWEETS
+
+To learn more about text mining in R we recommend this book.
+
+In general, we can extract data directly from twitter using the \emph{rtweet} package. However, in this case, a group has already compiled data for us and made it available at http://www.trumptwitterarchive.com.
+
+url <- 'http://www.trumptwitterarchive.com/data/realdonaldtrump/%s.json'
+
+trump_tweets <- map(2009:2017, ~sprintf(url, .x)) %>%
+  map_df(jsonlite::fromJSON, simplifyDataFrame = TRUE) %>%
+  filter(!is_retweet & !str_detect(text, '^"')) %>%
+  mutate(created_at = parse_date_time(created_at, orders = "a b! d! H!:M!:S! z!* Y!", tz="EST")) 
+
+
+---------------------------------------------------------------------------- 
+
+FUNCTION extract()
+
+```{r Extracting tweets}
+df <- trump_tweets %>% 
+  extract(source, "source", "Twitter for (.*)") %>%
+  count(source) 
+```
+
+----------------------------------------------------------------------------
+
+
+  
