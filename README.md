@@ -1,4 +1,4 @@
-## This project is just in  preparation 
+## This project is just in  preparation.
 ## It is about President Trump's tweets during previous election campaign.
 
 ### Question
