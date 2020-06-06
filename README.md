@@ -1,6 +1,8 @@
 ## This project is just in  preparation 
-## It is about President Trump's tweets during previous election campaign: 
-## is it possible to separate tweets based on the device that sent them: Android or iPhone?
+## It is about President Trump's tweets during previous election campaign.
+
+### Question
+Is it possible to separate tweets based on the device that sent them: Android or iPhone?
 
 ### Provisional content
 
