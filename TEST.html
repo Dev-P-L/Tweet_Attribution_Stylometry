@@ -11,7 +11,7 @@
 
 <meta name="author" content="Philippe Lambot" />
 
-<meta name="date" content="2020-05-15" />
+<meta name="date" content="2020-06-15" />
 
 <title>Popularity Prediction</title>
 
@@ -1300,8 +1300,8 @@ window.initializeCodeFolding = function(show) {
 
     // create a collapsable div to wrap the code in
     var div = $('<div class="collapse r-code-collapse"></div>');
-    if (show || $(this)[0].classList.contains('fold-show'))
-      div.addClass('in');
+    show = (show || $(this).hasClass('fold-show')) && !$(this).hasClass('fold-hide');
+    if (show) div.addClass('in');
     var id = 'rcode-643E0F36' + currentIndex++;
     div.attr('id', id);
     $(this).before(div);
@@ -3511,12 +3511,30 @@ window.onload = function() {
 })();
 
 </script>
-<style type="text/css">#wcLabel {position: absolute;border: 2px solid #fff;box-shadow: 0 0 4px 0 #008;padding: 2px;pointer-events: none; }#wcSpan {position: absolute;top: 100%;left: 0;background-color: rgba(255, 255, 255, 0.8);color: #333;margin-top: 6px;padding: 0 0.5em;border-radius: 0.5em;white-space: nowrap; }</style>
+<style type="text/css">
+.wcLabel {
+position: absolute;
+border: 2px solid #fff;
+box-shadow: 0 0 4px 0 #008;
+padding: 2px;
+
+pointer-events: none; }
+.wcSpan {
+position: absolute;
+top: 100%;
+left: 0;
+background-color: rgba(255, 255, 255, 0.8);
+color: #333;
+margin-top: 6px;
+padding: 0 0.5em;
+border-radius: 0.5em;
+white-space: nowrap; }
+</style>
 <script>/*!
  * wordcloud2.js
  * http://timdream.org/wordcloud2.js/
  *
- * Copyright 2011 - 2013 Tim Chien
+ * Copyright 2011 - 2019 Tim Guan-tin Chien and contributors.
  * Released under the MIT license
  */
 
@@ -3610,6 +3628,9 @@ if (!window.clearImmediate) {
     }
 
     var ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return false;
+    }
     if (!ctx.getImageData) {
       return false;
     }
@@ -3700,6 +3721,8 @@ if (!window.clearImmediate) {
       backgroundColor: '#fff',  // opaque white = rgba(255, 255, 255, 1)
 
       gridSize: 8,
+      drawOutOfBound: false,
+      shrinkToFit: false,
       origin: null,
 
       drawMask: false,
@@ -3712,6 +3735,7 @@ if (!window.clearImmediate) {
 
       minRotation: - Math.PI / 2,
       maxRotation: Math.PI / 2,
+      rotationSteps: 0,
 
       shuffle: true,
       rotateRatio: 0.1,
@@ -3770,13 +3794,23 @@ if (!window.clearImmediate) {
         */
 
         case 'diamond':
-        case 'square':
           // http://www.wolframalpha.com/input/?i=plot+r+%3D+1%2F%28cos%28mod+
           // %28t%2C+PI%2F2%29%29%2Bsin%28mod+%28t%2C+PI%2F2%29%29%29%2C+t+%3D
           // +0+..+2*PI
           settings.shape = function shapeSquare(theta) {
             var thetaPrime = theta % (2 * Math.PI / 4);
             return 1 / (Math.cos(thetaPrime) + Math.sin(thetaPrime));
+          };
+          break;
+
+        case 'square':
+          // http://www.wolframalpha.com/input/?i=plot+r+%3D+min(1%2Fabs(cos(t
+          // )),1%2Fabs(sin(t)))),+t+%3D+0+..+2*PI
+          settings.shape = function shapeSquare(theta) {
+            return Math.min(
+              1 / Math.abs(Math.cos(theta)),
+              1 / Math.abs(Math.sin(theta))
+            );
           };
           break;
 
@@ -3832,6 +3866,7 @@ if (!window.clearImmediate) {
 
     /* normalize rotation settings */
     var rotationRange = Math.abs(settings.maxRotation - settings.minRotation);
+    var rotationSteps = Math.abs(Math.floor(settings.rotationSteps));
     var minRotation = Math.min(settings.maxRotation, settings.minRotation);
 
     /* information/object available to all functions, set when start() */
@@ -3869,6 +3904,12 @@ if (!window.clearImmediate) {
           getTextColor = settings.color;
         }
         break;
+    }
+
+    /* function for getting the font-weight of the text */
+    var getTextFontWeight;
+    if (typeof settings.fontWeight === 'function') {
+      getTextFontWeight = settings.fontWeight;
     }
 
     /* function for getting the classes of the text */
@@ -3990,7 +4031,15 @@ if (!window.clearImmediate) {
         return minRotation;
       }
 
-      return minRotation + Math.random() * rotationRange;
+      if (rotationSteps > 0) {
+        // Min rotation + zero or more steps * span of one step
+        return minRotation +
+          Math.floor(Math.random() * rotationSteps) *
+          rotationRange / (rotationSteps - 1);
+      }
+      else {
+        return minRotation + Math.random() * rotationRange;
+      }
     };
 
     var getTextInfo = function getTextInfo(word, weight, rotateDeg) {
@@ -4017,10 +4066,18 @@ if (!window.clearImmediate) {
         })();
       }
 
+      // Get fontWeight that will be used to set fctx.font
+      var fontWeight;
+      if (getTextFontWeight) {
+        fontWeight = getTextFontWeight(word, weight, fontSize);
+      } else {
+        fontWeight = settings.fontWeight;
+      }
+
       var fcanvas = document.createElement('canvas');
       var fctx = fcanvas.getContext('2d', { willReadFrequently: true });
 
-      fctx.font = settings.fontWeight + ' ' +
+      fctx.font = fontWeight + ' ' +
         (fontSize * mu).toString(10) + 'px ' + settings.fontFamily;
 
       // Estimate the dimension of the text with measureText().
@@ -4073,7 +4130,7 @@ if (!window.clearImmediate) {
 
       // Once the width/height is set, ctx info will be reset.
       // Set it again here.
-      fctx.font = settings.fontWeight + ' ' +
+      fctx.font = fontWeight + ' ' +
         (fontSize * mu).toString(10) + 'px ' + settings.fontFamily;
 
       // Fill the text into the fcanvas.
@@ -4178,7 +4235,14 @@ if (!window.clearImmediate) {
         var px = gx + occupied[i][0];
         var py = gy + occupied[i][1];
 
-        if (px >= ngx || py >= ngy || px < 0 || py < 0 || !grid[px][py]) {
+        if (px >= ngx || py >= ngy || px < 0 || py < 0) {
+          if (!settings.drawOutOfBound) {
+            return false;
+          }
+          continue;
+        }
+
+        if (!grid[px][py]) {
           return false;
         }
       }
@@ -4193,15 +4257,21 @@ if (!window.clearImmediate) {
       var color;
       if (getTextColor) {
         color = getTextColor(word, weight, fontSize, distance, theta);
-      } else if (settings.color instanceof Array) {
-        color = settings.color.shift() || 'black'; // pass a array in setting, default 'black'
       } else {
         color = settings.color;
       }
 
+      // get fontWeight that will be used to set ctx.font and font style rule
+      var fontWeight;
+      if (getTextFontWeight) {
+        fontWeight = getTextFontWeight(word, weight, fontSize);
+      } else {
+        fontWeight = settings.fontWeight;
+      }
+
       var classes;
       if (getTextClasses) {
-        classes = getTextClasses(word, weight, fontSize, distance, theta);
+        classes = getTextClasses(word, weight, fontSize);
       } else {
         classes = settings.classes;
       }
@@ -4224,7 +4294,7 @@ if (!window.clearImmediate) {
           ctx.save();
           ctx.scale(1 / mu, 1 / mu);
 
-          ctx.font = settings.fontWeight + ' ' +
+          ctx.font = fontWeight + ' ' +
                      (fontSize * mu).toString(10) + 'px ' + settings.fontFamily;
           ctx.fillStyle = color;
 
@@ -4267,7 +4337,7 @@ if (!window.clearImmediate) {
           var styleRules = {
             'position': 'absolute',
             'display': 'block',
-            'font': settings.fontWeight + ' ' +
+            'font': fontWeight + ' ' +
                     (fontSize * info.mu) + 'px ' + settings.fontFamily,
             'left': ((gx + info.gw / 2) * g + info.fillTextOffsetX) + 'px',
             'top': ((gy + info.gh / 2) * g + info.fillTextOffsetY) + 'px',
@@ -4345,8 +4415,14 @@ if (!window.clearImmediate) {
 
       var i = occupied.length;
       while (i--) {
-        fillGridAt(gx + occupied[i][0], gy + occupied[i][1],
-                   drawMask, dimension, item);
+        var px = gx + occupied[i][0];
+        var py = gy + occupied[i][1];
+
+        if (px >= ngx || py >= ngy || px < 0 || py < 0) {
+          continue;
+        }
+
+        fillGridAt(px, py, drawMask, dimension, item);
       }
 
       if (drawMask) {
@@ -4381,12 +4457,15 @@ if (!window.clearImmediate) {
         return false;
       }
 
-      // Skip the loop if we have already know the bounding box of
+      // If drawOutOfBound is set to false,
+      // skip the loop if we have already know the bounding box of
       // word is larger than the canvas.
-      var bounds = info.bounds;
-      if ((bounds[1] - bounds[3] + 1) > ngx ||
-        (bounds[2] - bounds[0] + 1) > ngy) {
-        return false;
+      if (!settings.drawOutOfBound) {
+        var bounds = info.bounds;
+        if ((bounds[1] - bounds[3] + 1) > ngx ||
+          (bounds[2] - bounds[0] + 1) > ngy) {
+          return false;
+        }
       }
 
       // Determine the position to put the text by
@@ -4435,24 +4514,34 @@ if (!window.clearImmediate) {
           return true;
         }
       }
+      if (settings.shrinkToFit) {
+        if (Array.isArray(item)) {
+          item[1] = item[1] * 3 / 4;
+        } else {
+          item.weight = item.weight * 3 / 4;
+        }
+        return putWord(item);
+      }
       // we tried all distances but text won't fit, return false
       return false;
     };
 
     /* Send DOM event to all elements. Will stop sending event and return
        if the previous one is canceled (for cancelable events). */
-    var sendEvent = function sendEvent(type, cancelable, detail) {
+    var sendEvent = function sendEvent(type, cancelable, details) {
       if (cancelable) {
         return !elements.some(function(el) {
-          var evt = document.createEvent('CustomEvent');
-          evt.initCustomEvent(type, true, cancelable, detail || {});
-          return !el.dispatchEvent(evt);
+          var event = new CustomEvent(type, {
+            detail: details || {}
+          });
+          return !el.dispatchEvent(event);
         }, this);
       } else {
         elements.forEach(function(el) {
-          var evt = document.createEvent('CustomEvent');
-          evt.initCustomEvent(type, true, cancelable, detail || {});
-          el.dispatchEvent(evt);
+          var event = new CustomEvent(type, {
+            detail: details || {}
+          });
+          el.dispatchEvent(event);
         }, this);
       }
     };
@@ -4464,12 +4553,12 @@ if (!window.clearImmediate) {
       var canvas = elements[0];
 
       if (canvas.getContext) {
-        ngx = Math.floor(canvas.width / g);
-        ngy = Math.floor(canvas.height / g);
+        ngx = Math.ceil(canvas.width / g);
+        ngy = Math.ceil(canvas.height / g);
       } else {
         var rect = canvas.getBoundingClientRect();
-        ngx = Math.floor(rect.width / g);
-        ngy = Math.floor(rect.height / g);
+        ngx = Math.ceil(rect.width / g);
+        ngy = Math.ceil(rect.height / g);
       }
 
       // Sending a wordcloudstart event which cause the previous loop to stop.
@@ -4501,6 +4590,7 @@ if (!window.clearImmediate) {
           } else {
             el.textContent = '';
             el.style.backgroundColor = settings.backgroundColor;
+            el.style.position = 'relative';
           }
         });
 
@@ -4574,10 +4664,6 @@ if (!window.clearImmediate) {
 
         if (settings.click) {
           canvas.addEventListener('click', wordcloudclick);
-          canvas.addEventListener('touchstart', wordcloudclick);
-          canvas.addEventListener('touchend', function (e) {
-            e.preventDefault();
-          });
           canvas.style.webkitTapHighlightColor = 'rgba(0, 0, 0, 0)';
         }
 
@@ -4653,6 +4739,7 @@ if (!window.clearImmediate) {
 
   // Expose the library as an AMD module
   if (typeof define === 'function' && define.amd) {
+    global.WordCloud = WordCloud;
     define('wordcloud', [], function() { return WordCloud; });
   } else if (typeof module !== 'undefined' && module.exports) {
     module.exports = WordCloud;
@@ -4660,21 +4747,26 @@ if (!window.clearImmediate) {
     global.WordCloud = WordCloud;
   }
 
-})(this); //jshint ignore:line
-</script>
+})(this); //jshint ignore:line</script>
 <script>// create element
 function newlabel(el){
   var newDiv = document.createElement("div");
   var newSpan = document.createElement("span");
-  newDiv.id = 'wcLabel';
-  newSpan.id = "wcSpan";
+  var id = el.id
+  newDiv.id = id + "wcLabel";
+  newDiv.className += "wcLabel";
+  newSpan.id = id + "wcSpan";
+  newSpan.className += "wcSpan";
   el.appendChild(newDiv);
-  document.getElementById("wcLabel").appendChild(newSpan);
+  document.getElementById(id + "wcLabel").appendChild(newSpan);
 }
 
 // hover function
 function cv_handleHover(item, dimension, evt) {
-  var el = document.getElementById("wcLabel");
+  var path = evt.path || (evt.composedPath && evt.composedPath());
+  var id = path[1].id
+  var el = document.getElementById(id + "wcLabel");
+  var target = evt.target || evt.srcElement;
   if (!item) {
     el.setAttribute('hidden', true);
 
@@ -4682,94 +4774,98 @@ function cv_handleHover(item, dimension, evt) {
   }
 
   el.removeAttribute('hidden');
-  // console.log(evt.srcElement.offsetLeft);
 
-  el.style.left = dimension.x + evt.srcElement.offsetLeft + 'px';
-  el.style.top = dimension.y + evt.srcElement.offsetTop + 'px';
+  el.style.left = dimension.x + target.offsetLeft + 'px';
+  el.style.top = dimension.y + target.offsetTop + 'px';
   el.style.width = dimension.w + 'px';
   el.style.height = dimension.h + 'px';
 
   this.hoverDimension = dimension;
 
-  document.getElementById("wcSpan").setAttribute(
+  document.getElementById(id + "wcSpan").setAttribute(
     'data-l10n-args', JSON.stringify({ word: item[0], count: item[1] }));
-  document.getElementById("wcSpan").innerHTML =item[0]+":" + item[1];
+  document.getElementById(id + "wcSpan").innerHTML =item[0]+":" + item[1];
 
 }
-
-function updateCanvasMask(maskCanvas) {
-    var ctx = maskCanvas.getContext('2d');
-    var imageData = ctx.getImageData(
-        0, 0, maskCanvas.width, maskCanvas.height);
-    var newImageData = ctx.createImageData(imageData);
-
-    var toneSum = 0;
-    var toneCnt = 0;
-    for (var i = 0; i < imageData.data.length; i += 4) {
-        var alpha = imageData.data[i + 3];
-        if (alpha > 128) {
-            var tone = imageData.data[i]
-                + imageData.data[i + 1]
-                + imageData.data[i + 2];
-            toneSum += tone;
-            ++toneCnt;
-        }
-    }
-    var threshold = toneSum / toneCnt;
-
-    for (var i = 0; i < imageData.data.length; i += 4) {
-        var tone = imageData.data[i]
-            + imageData.data[i + 1]
-            + imageData.data[i + 2];
-        var alpha = imageData.data[i + 3];
-
-        if (alpha < 128 || tone > threshold) {
-            // Area not to draw
-            newImageData.data[i] = 0;
-            newImageData.data[i + 1] = 0;
-            newImageData.data[i + 2] = 0;
-            newImageData.data[i + 3] = 0;
-        }
-        else {
-            // Area to draw
-            // The color must be same with backgroundColor
-            newImageData.data[i] = 255;
-            newImageData.data[i + 1] = 255;
-            newImageData.data[i + 2] = 255;
-            newImageData.data[i + 3] = 255;
-        }
-    }
-
-    ctx.putImageData(newImageData, 0, 0);
-    console.log(maskCanvas.toDataURL());
-}
-
-
 
 //mask function
 function maskInit(el,x){
-  console.log(1)
   str = x.figBase64;
-  //console.log(str)
   var newImg = new Image();
   newImg.src = str;
   newImg.style.position = 'absolute';
   newImg.style.left = 0;
-  // console.log(el.clientHeight);
   newImg.width = el.clientWidth;
   newImg.height = el.clientHeight;
   // maskCanvas = init(el, x, newImg);
   vvalue = 128
+  var maskCanvas = document.createElement('canvas');
+  maskCanvas.width = newImg.width;
+  maskCanvas.height = newImg.height;
+  var ctx = maskCanvas.getContext('2d');
+  ctx.drawImage(newImg, 0, 0, newImg.width, newImg.height);
+  var imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+  var newImageData = ctx.createImageData(imageData);
+  // M = 0
+  for (var i = 0; i < imageData.data.length; i += 4) {
+    var tone = imageData.data[i] +
+      imageData.data[i + 1] +
+      imageData.data[i + 2];
+    var alpha = imageData.data[i + 3];
+
+    if (alpha < vvalue || tone > vvalue * 3) {
+      // Area not to draw
+      newImageData.data[i] =
+        newImageData.data[i + 1] =
+        newImageData.data[i + 2] = 255;
+      newImageData.data[i + 3] = 0;
+    } else {
+      // Area to draw
+      newImageData.data[i] =
+        newImageData.data[i + 1] =
+        newImageData.data[i + 2] = 0;
+      newImageData.data[i + 3] = 255;
+    }
+
+  }
+
+  ctx.putImageData(newImageData, 0, 0);
+//mask(el, x, maskCanvas);
+  var bctx = document.createElement('canvas').getContext('2d');
+  bctx.fillStyle = x.backgroundColor || '#fff';
+  bctx.fillRect(0, 0, 1, 1);
+  var bgPixel = bctx.getImageData(0, 0, 1, 1).data;
+  var maskCanvasScaled = document.createElement('canvas');
+  maskCanvasScaled.width = el.clientWidth;
+  maskCanvasScaled.height = el.clientHeight;
+  ctx = maskCanvasScaled.getContext('2d');
+  ctx.drawImage(maskCanvas,
+    0, 0, maskCanvas.width, maskCanvas.height);
+
+  imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  newImageData = ctx.createImageData(imageData);
+  for (var j = 0; j < imageData.data.length; j += 4) {
+    if (imageData.data[j + 3] > vvalue) {
+      newImageData.data[j] = bgPixel[0];
+      newImageData.data[j + 1] = bgPixel[1];
+      newImageData.data[j + 2] = bgPixel[2];
+      newImageData.data[j + 3] = bgPixel[3];
+    } else {
+      // This color must not be the same w/ the bgPixel.
+      newImageData.data[j] = bgPixel[0];
+      newImageData.data[j + 1] = bgPixel[1];
+      newImageData.data[j + 2] = bgPixel[2];
+      newImageData.data[j + 3] = bgPixel[3] ? (bgPixel[3] - 1) : 0;
+    }
+  }
+
+  ctx.putImageData(newImageData, 0, 0);
 
   ctx = el.firstChild.getContext('2d');
+  ctx.drawImage(maskCanvasScaled, 0, 0);
 
-                ctx.drawImage(newImg, 0, 0, canvas.width, canvas.height);
-                updateCanvasMask(ctx);
-
-
-
-
-
+  maskCanvasScaled = ctx = imageData = newImageData = bctx = bgPixel = undefined;
             WordCloud(el.firstChild, { list: listData,
                   fontFamily: x.fontFamily,
                   fontWeight: x.fontWeight,
@@ -4785,13 +4881,10 @@ function maskInit(el,x){
                   rotateRatio: x.rotateRatio,
                   ellipticity: x.ellipticity,
                   clearCanvas: false,
-                  drawMask: true,
                   hover: x.hover || cv_handleHover,
                   abortThreshold: 3000
                   });
-}
-
-</script>
+}</script>
 <script>HTMLWidgets.widget({
 
   name: 'wordcloud2',
@@ -5177,7 +5270,7 @@ div.tocify {
 <h1 class="title toc-ignore">Popularity Prediction</h1>
 <h3 class="subtitle">New York Times Blog Articles</h3>
 <h4 class="author">Philippe Lambot</h4>
-<h4 class="date">May 15, 2020</h4>
+<h4 class="date">June 15, 2020</h4>
 
 </div>
 
@@ -5186,13 +5279,16 @@ div.tocify {
 <a class="sourceLine" id="cb1-2" title="2">knitr<span class="op">::</span>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">echo =</span> T, <span class="dt">message =</span> F, <span class="dt">warning =</span> F)</a>
 <a class="sourceLine" id="cb1-3" title="3"></a>
 <a class="sourceLine" id="cb1-4" title="4"><span class="co"># Regulating figure layout.</span></a>
-<a class="sourceLine" id="cb1-5" title="5">knitr<span class="op">::</span>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">out.width =</span> <span class="st">&quot;60%&quot;</span>, <span class="dt">fig.align =</span> <span class="st">&quot;center&quot;</span>)</a>
+<a class="sourceLine" id="cb1-5" title="5">knitr<span class="op">::</span>opts_chunk<span class="op">$</span><span class="kw">set</span>(<span class="dt">out.width =</span> <span class="st">&quot;100%&quot;</span>, <span class="dt">fig.align =</span> <span class="st">&quot;center&quot;</span>)</a>
 <a class="sourceLine" id="cb1-6" title="6"></a>
 <a class="sourceLine" id="cb1-7" title="7"><span class="co"># Facilitating table layout in HTML.</span></a>
 <a class="sourceLine" id="cb1-8" title="8"><span class="kw">options</span>(<span class="dt">knitr.table.format =</span> <span class="st">&quot;html&quot;</span>)</a>
 <a class="sourceLine" id="cb1-9" title="9"></a>
 <a class="sourceLine" id="cb1-10" title="10"><span class="co"># Output language</span></a>
-<a class="sourceLine" id="cb1-11" title="11"><span class="kw">invisible</span>(<span class="kw">Sys.setlocale</span>(<span class="st">&quot;LC_ALL&quot;</span>, <span class="st">&quot;C&quot;</span>))</a></code></pre></div>
+<a class="sourceLine" id="cb1-11" title="11"><span class="kw">invisible</span>(<span class="kw">Sys.setlocale</span>(<span class="st">&quot;LC_ALL&quot;</span>, <span class="st">&quot;C&quot;</span>))</a>
+<a class="sourceLine" id="cb1-12" title="12"></a>
+<a class="sourceLine" id="cb1-13" title="13"><span class="cf">if</span>(<span class="op">!</span><span class="kw">require</span>(wordcloud2)) <span class="kw">install.packages</span>(<span class="st">&quot;wordcloud2&quot;</span>, <span class="dt">repos =</span> <span class="st">&quot;http://cran.us.r-project.org&quot;</span>)</a></code></pre></div>
+<pre><code>## Loading required package: wordcloud2</code></pre>
 <style type="text/css">                  # Title colors
 h1 {color: #08457E}
 h2 {color: #08457E}
@@ -5214,117 +5310,144 @@ div#TOC li {
 body {
 text-align: justify}
 </style>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1"><span class="co"># Cleaning up workspace for RAM management.</span></a>
-<a class="sourceLine" id="cb2-2" title="2"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
-<a class="sourceLine" id="cb2-3" title="3"><span class="kw">rm</span>(<span class="dt">list=</span><span class="kw">ls</span>())</a>
-<a class="sourceLine" id="cb2-4" title="4"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="co"># Cleaning up workspace for RAM management.</span></a>
+<a class="sourceLine" id="cb3-2" title="2"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
+<a class="sourceLine" id="cb3-3" title="3"><span class="kw">rm</span>(<span class="dt">list=</span><span class="kw">ls</span>())</a>
+<a class="sourceLine" id="cb3-4" title="4"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
 <div style="page-break-after: always;"></div>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">library</span>(tidyverse)</a>
-<a class="sourceLine" id="cb3-2" title="2"><span class="kw">library</span>(wordcloud2)</a>
-<a class="sourceLine" id="cb3-3" title="3">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">mot =</span> <span class="kw">c</span>(<span class="st">&quot;toto&quot;</span>, <span class="st">&quot;%&quot;</span>, <span class="st">&quot;$&quot;</span>), <span class="dt">freq =</span> <span class="kw">c</span>(<span class="dv">250</span>, <span class="dv">100</span>, <span class="dv">50</span>))</a>
-<a class="sourceLine" id="cb3-4" title="4"><span class="co"># set.seed(1)</span></a>
-<a class="sourceLine" id="cb3-5" title="5"><span class="kw">wordcloud2</span>(df, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">minSize =</span> <span class="dv">0</span>, <span class="dt">gridSize =</span>  <span class="dv">0</span>,</a>
-<a class="sourceLine" id="cb3-6" title="6">           <span class="dt">fontFamily =</span> <span class="st">&#39;Segoe UI&#39;</span>, <span class="dt">fontWeight =</span> <span class="st">&#39;bold&#39;</span>,</a>
-<a class="sourceLine" id="cb3-7" title="7">           <span class="dt">color =</span> <span class="st">&#39;random-dark&#39;</span>, <span class="dt">backgroundColor =</span> <span class="st">&quot;blue&quot;</span>,</a>
-<a class="sourceLine" id="cb3-8" title="8">           <span class="dt">minRotation =</span> <span class="op">-</span>pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">maxRotation =</span> pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">shuffle =</span> <span class="ot">TRUE</span>,</a>
-<a class="sourceLine" id="cb3-9" title="9">           <span class="dt">rotateRatio =</span> <span class="fl">0.4</span>, <span class="dt">shape =</span> <span class="st">&#39;circle&#39;</span>, <span class="dt">ellipticity =</span> <span class="fl">0.65</span>)</a></code></pre></div>
-<div id="htmlwidget-c590386255a002602920" style="width:60%;height:480px;" class="wordcloud2 html-widget"></div>
-<script type="application/json" data-for="htmlwidget-c590386255a002602920">{"x":{"word":["toto","%","$"],"freq":[250,100,50],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":0.72,"backgroundColor":"blue","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1"><span class="kw">library</span>(tidyverse)</a>
+<a class="sourceLine" id="cb4-2" title="2">devtools<span class="op">::</span><span class="kw">install_github</span>(<span class="st">&quot;gaospecial/wordcloud2&quot;</span>)</a>
+<a class="sourceLine" id="cb4-3" title="3"></a>
+<a class="sourceLine" id="cb4-4" title="4">  fake &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">words =</span> <span class="kw">c</span>(<span class="st">&quot;toto&quot;</span>, <span class="st">&quot;%&quot;</span>, <span class="st">&quot;$&quot;</span>), <span class="dt">freq =</span> <span class="kw">c</span>(<span class="dv">250</span>, <span class="dv">100</span>, <span class="dv">50</span>))</a>
+<a class="sourceLine" id="cb4-5" title="5">  <span class="kw">set.seed</span>(<span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb4-6" title="6">  <span class="kw">wordcloud2</span>(fake, </a>
+<a class="sourceLine" id="cb4-7" title="7">           <span class="dt">fontFamily =</span> <span class="st">&#39;Segoe UI&#39;</span>, <span class="dt">fontWeight =</span> <span class="st">&#39;bold&#39;</span>,</a>
+<a class="sourceLine" id="cb4-8" title="8">           <span class="dt">color =</span> <span class="st">&#39;random-dark&#39;</span>, <span class="dt">backgroundColor =</span> <span class="st">&quot;powderblue&quot;</span>,</a>
+<a class="sourceLine" id="cb4-9" title="9">           <span class="dt">minRotation =</span> <span class="op">-</span>pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">maxRotation =</span> pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">shuffle =</span> <span class="ot">TRUE</span>,</a>
+<a class="sourceLine" id="cb4-10" title="10">           <span class="dt">rotateRatio =</span> <span class="fl">0.4</span>, <span class="dt">shape =</span> <span class="st">&#39;circle&#39;</span>, <span class="dt">ellipticity =</span> <span class="fl">0.65</span>)</a></code></pre></div>
+<div id="htmlwidget-f843a680a1fcd62a0dd1" style="width:100%;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f843a680a1fcd62a0dd1">{"x":{"word":["toto","%","$"],"freq":[250,100,50],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":0.72,"backgroundColor":"powderblue","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":[]}</script>
+<div id="texte" class="section level1">
+<h1><span class="header-section-number">1</span> Texte</h1>
+<p>Ceci est un test pour l’option smart. Cec Ceci est un test pour l’option smart. i est un test pour l’option smart. Ceci est un test pour l’option smart. Ceci est un test pour l’option smart. Ceci est un test pour l’option smart. Ceci est un test pour l’option smart.</p>
+<p>’’’’’’’’ straight apostrophes</p>
+<p>&quot; &quot; &quot;&quot;&quot;&quot; quotes () parentheses</p>
+<p>{} curly brackets</p>
+<p>___________________________ underscore</p>
+<p>————————- dashes</p>
+<p>— dashes</p>
+<p>– dashes</p>
+<ul>
+<li>dash</li>
+</ul>
+<p>………… dots</p>
+<p>… dot</p>
+<p>This is the end of the editorial test.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
+<a class="sourceLine" id="cb5-2" title="2"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
+<div style="page-break-after: always;"></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
+<a class="sourceLine" id="cb6-2" title="2"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
+<div style="page-break-after: always;"></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">library</span>(wordcloud2)</a>
+<a class="sourceLine" id="cb7-2" title="2">figPath &lt;-<span class="st"> &quot;E:/12_Data_Science_R/70_Sentiment_Analysis__Tweet_Attribution/Final/t.png&quot;</span></a>
+<a class="sourceLine" id="cb7-3" title="3"><span class="kw">wordcloud2</span>(demoFreq,  <span class="dt">size =</span> <span class="fl">1.5</span>,<span class="dt">color =</span> <span class="st">&quot;skyblue&quot;</span>)</a></code></pre></div>
+<div id="htmlwidget-ba32e0541469b5ed4906" style="width:100%;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-ba32e0541469b5ed4906">{"x":{"word":["oil","said","prices","opec","mln","the","last","bpd","dlrs","crude","market","reuter","saudi","will","one","barrel","kuwait","new","official","pct","price","barrels","government","production","sheikh","industry","meeting","minister","world","also","billion","futures","month","output","petroleum","quota","sources","accord","analysts","but","group","gulf","january","markets","report","today","december","demand","economic","economy","energy","help","international","may","nazer","nymex","posted","present","they","traders","158","ability","agreement","ali","april","arabia","budget","emergency","exchange","hold","imports","members","recent","riyals","says","sell","years","abdulaziz","agency","arab","ceiling","company","contract","daily","emirates","expected","expenditure","exports","growth","now","opecs","plans","qatar","quoted","research","reserve","reserves","states","study","united","way","week","west","year","150","according","added","among","asked","brings","buyers","can","change","corp","cut","day","development","effective","exploration","fall","february","fell","free","higher","increase","levels","meet","must","never","per","policy","power","problem","producing","protect","pumping","reduced","revenue","revenues","rise","saying","set","since","spa","strategic","texas","this","total","transaction","weak","yesterday","13nation","1985","198586","1986","1987","198788","address","agreed","alkhalifa","alqabas","alsabah","announced","appears","arabian","arabias","around","average","back","bank","bbl","boost","called","commitment","companies","compared","countrys","current","decrease","denied","dollars","domestic","due","efp","estimate","estimates","export","fixed","foreign","four","future","grade","guard","high","hisham","however","inc","indonesia","indonesias","intermediate","kingdoms","kuwaits","local","low","lower","lowered","made","main","march","mckiernan","measures","mizrahi","moves","much","named","next","officials","plant","position","president","pressure","producer","projected","published","real","refinery","reiterated","remain","rule","say","sector","several","sharp","ship","six","slightly","smaller","spokeswoman","state","sweet","texaco","three","trading","two","weeks","york","1518","198687","20s","285000","500","725","750","948000","activity","adhering","agriculture","along","apparently","appeared","approved","architect","areas","aspen","bankers","based","benchmark","benefits","canada","canadian","cash","changed","changes","circumstance","clearly","closed","coast","come","committee","commodity","consumption","countries","country","crossroads","crucial","cubic","currently","customers","deal","decembers","decline","deficit","deposits","deputy","diamond","differentials","difficulties","direction","discounted","dlr","early","ecuador","effect","embargo","embassy","entering","even","falling","feb","first","fiscal","fiscales","forced","fully","gcc","general","given","grades","halt","hit","hope","humanistic","impact","import","increased","increasing","instead","institute","interview","investment","jersey","june","keep","late","light","limit","limits","line","lost","louisiana","lowest","major","marketing","member","mid","million","ministers","mitigate","months","nearing","net","neutral","none","nuclear","organisation","organization","outlook","overseas","pact","pay","petroliferos","planned","port","positive","postings","predicted","press","pricing","private","probably","problems","pronounced","protected","public","put","quotes","raise","rate","reduction","referring","remarks","reports","return","review","risks","riyal","selfimposed","selling","share","shortfall","spot","steady","stick","strongly","studies","support","take","taken","techniques","throughput","trade","trust","trying","uncertainty","union","value","wam","wanted","weakness","winter","yacimientos","yanbu","zero","zone","100000","108","111","115","12217","1232","1381","13member","156","1600","1635","1650","1667","168","1685","1752","180000","200000","200foot","2226","24hour","2766","300","3749598","3750003","4133","534","5472","614","658","6745","678","718","738","able","abroad","accept","across","add","addressed","adherence","advantage","advisers","after","agricultural","aground","allocated","allocations","allow","almost","already","althani","although","alvite","amidst","analysis","analyst","annual","anything","apparent","aramco","argentine","arrangement","asia","asian","assesses","assign","assigned","associates","attract","available","averaging","aware","bahrain","bahrains","balance","baseless","basic","basis","because","beginning","bijan","bin","bit","bodys","briefly","broadened","brothers","buildings","burden","buy","buyer","calendar","cambridge","capacity","capozza","carrying","center","century","cera","certain","cftc","chairman","challenge","characterized","charging","cheap","cheating","chevron","chv","cited","citing","clever","close","closer","closes","coming","commission","communications","companys","completed","complex","condition","conditions","considered","construction","contacts","continuation","continue","continued","continues","contracted","contributed","control","cooperation","coordination","copany","corps","council","counter","coupled","covered","creek","critical","cts","currency","custom","cuts","cutting","cypriot","daniel","david","days","debtburdened","debut","decided","declared","declines","deemed","defence","delaware","delivered","delivering","departments","deregulate","deregulation","determination","devalue","device","differential","difficulty","dillard","director","discuss","discussing","distribution","distributions","divided","doha","dollar","drawbacks","drop","dropped","earlier","earnings","eastern","easy","ecuadors","editor","edmontonswann","education","eight","either","elaborate","elections","electricity","end","engineers","entitlements","environment","equally","estimated","european","exceed","exceeding","excess","excesses","excessive","exerted","exist","expanded","expansion","expartners","expectations","expects","explained","exporting","exxon","face","faced","faces","facilities","facing","failed","fallen","favours","fee","fernando","figure","figures","finance","firmer","floating","followed","for","forces","foremost","fourth","frank","full","fundamentals","gas","generally","geneva","get","globalization","glut","guaranteed","halting","harvard","heads","health","hedge","hedged","helped","hemisphere","highly","hills","hitting","hoped","housing","houston","immediately","implementation","improve","improvement","include","including","independent","indications","initiate","initiative","institutions","interbank","interest","investments","issue","jamaica","jan","juaymah","jubail","jump","just","khalifa","lack","largest","later","latest","launched","lead","leading","learn","least","lending","less","lesson","level","liberalised","lift","liftings","like","lines","liquidity","little","loan","lodged","longterm","ltd","lukman","lull","maintain","make","manager","manipulate","many","marathon","marathons","marker","mcfadden","means","mercantile","metrers","metres","mid1960s","mid1986","mideast","minus","mlotok","mob","mobil","momentum","money","monopolies","monthend","moussavarrahmani","movement","nation","natural","need","needs","negative","negotiate","neither","network","news","newspaper","nigerian","nine","nonoil","northern","notes","offset","onetwelfth","oneweek","open","opens","operations","opposite","optimism","optimistic","option","order","organiaation","our","outlining","outside","overproducing","part","parties","partly","party","past","paths","paul","paulsboro","payments","pegged","performance","period","pertains","pessimistic","philadelphia","physical","placed","plastics","platinum","point","policies","political","population","positions","postponed","pressures","previous","primarily","primary","principal","procedure","produce","produced","producers","product","products","program","projection","projects","prompted","proposed","proved","providing","provision","publish","purposes","quarter","quiet","quietly","quotas","rallied","ran","ranging","ras","rates","rationalise","readdress","reaffirmed","reasonable","recommending","recovering","recurrent","reference","refineries","refining","reflect","refloat","reform","reforms","regain","regard","regarding","region","regional","reiterate","relaxation","relieve","reluctant","remainder","remained","reported","request","resistance","resisting","resources","respectively","responsibilites","restored","restraint","restrictions","result","reuters","revealed","reviews","right","rilwanu","rising","river","rocks","rosemary","rumour","rushing","sales","salomon","santos","satisfied","saw","scheduled","scheme","seapride","season","secretary","security","seeing","seek","september","series","serve","services","session","sets","seven","severely","shamrock","sharply","shoulder","show","showed","shown","signed","signs","situation","sixmonth","slackens","slide","slump","social","sold","soon","sort","sour","south","southeast","spend","spill","spoke","spokesman","spotnext","spriggs","stabilise","stabilize","stable","start","statement","steel","steering","steps","stiff","storage","strong","subsequently","substitution","succeed","suffer","suffering","suhartos","sunday","sundays","supply","supporting","suppose","surrounding","swift","talks","tanker","tanurah","tapers","teach","telephone","terminals","test","there","third","thomas","though","thought","threemonth","tide","together","told","totalled","tower","trader","trades","traditional","traditionally","transacted","transmission","transport","trends","trusts","try","turmoil","twofold","uae","uncertain","unchanged","under","unions","unitholders","universitys","unlikely","unocal","unusually","urged","use","virtual","wants","water","wealth","wednesday","weekend","welcomed","when","whether","wishes","worldwide","xon","yergin","yesterdays"],"freq":[85,73,48,42,31,26,24,23,23,21,20,20,18,18,17,15,14,14,14,14,13,11,11,11,11,10,10,10,10,9,9,9,9,9,9,9,9,8,8,8,8,8,8,8,8,8,7,7,7,7,7,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"fontFamily":"Segoe UI","fontWeight":"bold","color":"skyblue","minSize":0,"weightFactor":3.17647058823529,"backgroundColor":"white","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":[]}</script>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb8-1" title="1"><span class="st">&quot;pourquoi il saute plus bas?&quot;</span></a></code></pre></div>
+<pre><code>## [1] &quot;pourquoi il saute plus bas?&quot;</code></pre>
 <hr />
 <p><br></p>
+</div>
 <div id="executive-summary" class="section level1 unnumbered">
 <h1>Executive summary</h1>
 </div>
 <div id="data-preparation" class="section level1">
-<h1><span class="header-section-number">1</span> DATA PREPARATION</h1>
+<h1><span class="header-section-number">2</span> DATA PREPARATION</h1>
 <div id="pourquoi-pas" class="section level2">
-<h2><span class="header-section-number">1.1</span> Pourquoi pas ?</h2>
+<h2><span class="header-section-number">2.1</span> Pourquoi pas ?</h2>
 <div id="et-si" class="section level3">
-<h3><span class="header-section-number">1.1.1</span> Et si !</h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1">df &lt;-<span class="st"> </span><span class="kw">summary</span>(cars) </a>
-<a class="sourceLine" id="cb4-2" title="2"><span class="kw">str</span>(df)</a></code></pre></div>
+<h3><span class="header-section-number">2.1.1</span> Et si !</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" title="1">df &lt;-<span class="st"> </span><span class="kw">summary</span>(cars) </a>
+<a class="sourceLine" id="cb10-2" title="2"><span class="kw">str</span>(df)</a></code></pre></div>
 <pre><code>##  &#39;table&#39; chr [1:6, 1:2] &quot;Min.   : 4.0  &quot; &quot;1st Qu.:12.0  &quot; &quot;Median :15.0  &quot; ...
 ##  - attr(*, &quot;dimnames&quot;)=List of 2
 ##   ..$ : chr [1:6] &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
 ##   ..$ : chr [1:2] &quot;    speed&quot; &quot;     dist&quot;</code></pre>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1"><span class="co"># Calculating quartiles.</span></a>
-<a class="sourceLine" id="cb6-2" title="2">s &lt;-<span class="st"> </span><span class="kw">summary</span>(cars)</a>
-<a class="sourceLine" id="cb6-3" title="3"></a>
-<a class="sourceLine" id="cb6-4" title="4">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">intervals =</span> <span class="kw">c</span>(<span class="st">&quot;Min&quot;</span>, <span class="st">&quot;1st&quot;</span>, <span class="st">&quot;Median&quot;</span>, <span class="st">&quot;Mean&quot;</span>, <span class="st">&quot;3rd&quot;</span>, <span class="st">&quot;Max&quot;</span>), </a>
-<a class="sourceLine" id="cb6-5" title="5">                 <span class="dt">values =</span> <span class="kw">matrix</span>(s, <span class="dt">nrow =</span> <span class="dv">6</span>, <span class="dt">ncol =</span> <span class="dv">2</span>), </a>
-<a class="sourceLine" id="cb6-6" title="6">                 <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>)</a>
-<a class="sourceLine" id="cb6-7" title="7"></a>
-<a class="sourceLine" id="cb6-8" title="8"><span class="co"># Removing the mean from the data frame to only keep quartiles, minimum and maximum.</span></a>
-<a class="sourceLine" id="cb6-9" title="9">row.to.remove &lt;-<span class="st"> </span><span class="kw">which</span>(df<span class="op">$</span>intervals <span class="op">%in%</span><span class="st"> &quot;Mean&quot;</span>)</a>
-<a class="sourceLine" id="cb6-10" title="10">df &lt;-<span class="st"> </span>df[<span class="op">-</span><span class="st"> </span>row.to.remove,] </a>
-<a class="sourceLine" id="cb6-11" title="11"></a>
-<a class="sourceLine" id="cb6-12" title="12"><span class="co"># Enlarging range to be sure of including minimum and maximum.</span></a>
-<a class="sourceLine" id="cb6-13" title="13">v &lt;-<span class="st"> </span>df<span class="op">$</span>values</a>
-<a class="sourceLine" id="cb6-14" title="14">v[<span class="dv">1</span>] &lt;-<span class="st"> </span>v[<span class="dv">1</span>]</a>
-<a class="sourceLine" id="cb6-15" title="15"></a>
-<a class="sourceLine" id="cb6-16" title="16"><span class="co"># Rounding quartiles to upgrade clarity in graph and table.</span></a>
-<a class="sourceLine" id="cb6-17" title="17"><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>(<span class="kw">length</span>(v) <span class="op">-</span><span class="st"> </span><span class="dv">2</span>))  {</a>
-<a class="sourceLine" id="cb6-18" title="18">  v[i <span class="op">+</span><span class="st"> </span><span class="dv">1</span>] &lt;-<span class="st"> </span>v[i <span class="op">+</span><span class="st"> </span><span class="dv">1</span>]</a>
-<a class="sourceLine" id="cb6-19" title="19">}</a>
-<a class="sourceLine" id="cb6-20" title="20"></a>
-<a class="sourceLine" id="cb6-21" title="21"><span class="kw">library</span>(tidyverse)</a>
-<a class="sourceLine" id="cb6-22" title="22">df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">values =</span> v)</a>
-<a class="sourceLine" id="cb6-23" title="23">df</a></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb12-1" title="1"><span class="co"># Calculating quartiles.</span></a>
+<a class="sourceLine" id="cb12-2" title="2">s &lt;-<span class="st"> </span><span class="kw">summary</span>(cars)</a>
+<a class="sourceLine" id="cb12-3" title="3">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">intervals =</span> <span class="kw">c</span>(<span class="st">&quot;Min&quot;</span>, <span class="st">&quot;1st&quot;</span>, <span class="st">&quot;Median&quot;</span>, <span class="st">&quot;Mean&quot;</span>, <span class="st">&quot;3rd&quot;</span>,</a>
+<a class="sourceLine" id="cb12-4" title="4">                               <span class="st">&quot;Max&quot;</span>), </a>
+<a class="sourceLine" id="cb12-5" title="5">                 <span class="dt">values =</span> <span class="kw">matrix</span>(s, <span class="dt">nrow =</span> <span class="dv">6</span>, <span class="dt">ncol =</span> <span class="dv">2</span>), </a>
+<a class="sourceLine" id="cb12-6" title="6">                 <span class="dt">stringsAsFactors =</span> <span class="ot">FALSE</span>)</a>
+<a class="sourceLine" id="cb12-7" title="7"></a>
+<a class="sourceLine" id="cb12-8" title="8"><span class="co"># Removing the mean from the data frame to only keep quartiles, minimum and maximum.</span></a>
+<a class="sourceLine" id="cb12-9" title="9">row.to.remove &lt;-<span class="st"> </span><span class="kw">which</span>(df<span class="op">$</span>intervals <span class="op">%in%</span><span class="st"> &quot;Mean&quot;</span>)</a>
+<a class="sourceLine" id="cb12-10" title="10">df &lt;-<span class="st"> </span>df[<span class="op">-</span><span class="st"> </span>row.to.remove,] </a>
+<a class="sourceLine" id="cb12-11" title="11"></a>
+<a class="sourceLine" id="cb12-12" title="12"><span class="co"># Enlarging range to be sure of including minimum and maximum.</span></a>
+<a class="sourceLine" id="cb12-13" title="13">v &lt;-<span class="st"> </span>df<span class="op">$</span>values</a>
+<a class="sourceLine" id="cb12-14" title="14">v[<span class="dv">1</span>] &lt;-<span class="st"> </span>v[<span class="dv">1</span>]</a>
+<a class="sourceLine" id="cb12-15" title="15"></a>
+<a class="sourceLine" id="cb12-16" title="16"><span class="co"># Rounding quartiles to upgrade clarity in graph and table.</span></a>
+<a class="sourceLine" id="cb12-17" title="17"><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span>(<span class="kw">length</span>(v) <span class="op">-</span><span class="st"> </span><span class="dv">2</span>))  {</a>
+<a class="sourceLine" id="cb12-18" title="18">  v[i <span class="op">+</span><span class="st"> </span><span class="dv">1</span>] &lt;-<span class="st"> </span>v[i <span class="op">+</span><span class="st"> </span><span class="dv">1</span>]</a>
+<a class="sourceLine" id="cb12-19" title="19">}</a>
+<a class="sourceLine" id="cb12-20" title="20"></a>
+<a class="sourceLine" id="cb12-21" title="21"><span class="kw">library</span>(tidyverse)</a>
+<a class="sourceLine" id="cb12-22" title="22">df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">values =</span> v)</a>
+<a class="sourceLine" id="cb12-23" title="23">df</a></code></pre></div>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
 {"columns":[{"label":["intervals"],"name":[1],"type":["chr"],"align":["left"]},{"label":["values.1"],"name":[2],"type":["chr"],"align":["left"]},{"label":["values.2"],"name":[3],"type":["chr"],"align":["left"]}],"data":[{"1":"Min","2":"Min.   : 4.0","3":"Min.   :  2.00"},{"1":"1st","2":"1st Qu.:12.0","3":"1st Qu.: 26.00"},{"1":"Median","2":"Median :15.0","3":"Median : 36.00"},{"1":"3rd","2":"3rd Qu.:19.0","3":"3rd Qu.: 56.00"},{"1":"Max","2":"Max.   :25.0","3":"Max.   :120.00"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
-<a class="sourceLine" id="cb7-2" title="2"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
-<div style="page-break-after: always;"></div>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb8-1" title="1"><span class="kw">library</span>(wordcloud2)</a>
-<a class="sourceLine" id="cb8-2" title="2">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">mot =</span> <span class="kw">c</span>(<span class="st">&quot;toto&quot;</span>, <span class="st">&quot;%&quot;</span>, <span class="st">&quot;$&quot;</span>), <span class="dt">freq =</span> <span class="kw">c</span>(<span class="dv">250</span>, <span class="dv">100</span>, <span class="dv">50</span>))</a>
-<a class="sourceLine" id="cb8-3" title="3"><span class="co"># set.seed(1)</span></a>
-<a class="sourceLine" id="cb8-4" title="4"><span class="kw">wordcloud2</span>(df, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">minSize =</span> <span class="dv">0</span>, <span class="dt">gridSize =</span>  <span class="dv">0</span>,</a>
-<a class="sourceLine" id="cb8-5" title="5">           <span class="dt">fontFamily =</span> <span class="st">&#39;Segoe UI&#39;</span>, <span class="dt">fontWeight =</span> <span class="st">&#39;bold&#39;</span>,</a>
-<a class="sourceLine" id="cb8-6" title="6">           <span class="dt">color =</span> <span class="st">&#39;random-dark&#39;</span>, <span class="dt">backgroundColor =</span> <span class="st">&quot;blue&quot;</span>,</a>
-<a class="sourceLine" id="cb8-7" title="7">           <span class="dt">minRotation =</span> <span class="op">-</span>pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">maxRotation =</span> pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">shuffle =</span> <span class="ot">TRUE</span>,</a>
-<a class="sourceLine" id="cb8-8" title="8">           <span class="dt">rotateRatio =</span> <span class="fl">0.4</span>, <span class="dt">shape =</span> <span class="st">&#39;circle&#39;</span>, <span class="dt">ellipticity =</span> <span class="fl">0.65</span>)</a></code></pre></div>
-<div id="htmlwidget-93e5d3d73e54e21c8022" style="width:60%;height:480px;" class="wordcloud2 html-widget"></div>
-<script type="application/json" data-for="htmlwidget-93e5d3d73e54e21c8022">{"x":{"word":["toto","%","$"],"freq":[250,100,50],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":0.72,"backgroundColor":"blue","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb13-1" title="1">fake &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">words =</span> <span class="kw">c</span>(<span class="st">&quot;toto&quot;</span>, <span class="st">&quot;%&quot;</span>, <span class="st">&quot;$&quot;</span>), <span class="dt">freq =</span> <span class="kw">c</span>(<span class="dv">250</span>, <span class="dv">100</span>, <span class="dv">50</span>))</a>
+<a class="sourceLine" id="cb13-2" title="2"><span class="kw">set.seed</span>(<span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb13-3" title="3"><span class="kw">wordcloud2</span>(fake, </a>
+<a class="sourceLine" id="cb13-4" title="4">           <span class="dt">fontFamily =</span> <span class="st">&#39;Segoe UI&#39;</span>, <span class="dt">fontWeight =</span> <span class="st">&#39;bold&#39;</span>,</a>
+<a class="sourceLine" id="cb13-5" title="5">           <span class="dt">color =</span> <span class="st">&#39;random-dark&#39;</span>, <span class="dt">backgroundColor =</span> <span class="st">&quot;mistyrose&quot;</span>,</a>
+<a class="sourceLine" id="cb13-6" title="6">           <span class="dt">minRotation =</span> <span class="op">-</span>pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">maxRotation =</span> pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">shuffle =</span> <span class="ot">TRUE</span>,</a>
+<a class="sourceLine" id="cb13-7" title="7">           <span class="dt">rotateRatio =</span> <span class="dv">1</span><span class="op">/</span><span class="dv">3</span>, <span class="dt">shape =</span> <span class="st">&#39;circle&#39;</span>, <span class="dt">ellipticity =</span> <span class="fl">0.65</span>)</a></code></pre></div>
+<div id="htmlwidget-484ed42468d86de4a421" style="width:100%;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-484ed42468d86de4a421">{"x":{"word":["toto","%","$"],"freq":[250,100,50],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":0.72,"backgroundColor":"mistyrose","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.333333333333333,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":[]}</script>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb14-1" title="1"><span class="kw">plot</span>(pressure)</a></code></pre></div>
+<p><img src="data:image/png;base64,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" width="100%" style="display: block; margin: auto;" /></p>
 </div>
 </div>
 <div id="including-plots" class="section level2">
-<h2><span class="header-section-number">1.2</span> Including Plots</h2>
+<h2><span class="header-section-number">2.2</span> Including Plots</h2>
 <p>You can also embed plots, for example:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb9-1" title="1"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
-<a class="sourceLine" id="cb9-2" title="2"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb15-1" title="1"><span class="kw">invisible</span>(<span class="cf">if</span>(<span class="op">!</span><span class="kw">is.null</span>(<span class="kw">dev.list</span>())) <span class="kw">dev.off</span>())</a>
+<a class="sourceLine" id="cb15-2" title="2"><span class="kw">cat</span>(<span class="st">&quot;</span><span class="ch">\014</span><span class="st">&quot;</span>)</a></code></pre></div>
 <div style="page-break-after: always;"></div>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" title="1"><span class="kw">library</span>(wordcloud2)</a>
-<a class="sourceLine" id="cb10-2" title="2">df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">mot =</span> <span class="kw">c</span>(<span class="st">&quot;toto&quot;</span>, <span class="st">&quot;%&quot;</span>, <span class="st">&quot;$&quot;</span>), <span class="dt">freq =</span> <span class="kw">c</span>(<span class="dv">250</span>, <span class="dv">100</span>, <span class="dv">50</span>))</a>
-<a class="sourceLine" id="cb10-3" title="3"><span class="co"># set.seed(1)</span></a>
-<a class="sourceLine" id="cb10-4" title="4"><span class="kw">wordcloud2</span>(df, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">minSize =</span> <span class="dv">0</span>, <span class="dt">gridSize =</span>  <span class="dv">0</span>,</a>
-<a class="sourceLine" id="cb10-5" title="5">           <span class="dt">fontFamily =</span> <span class="st">&#39;Segoe UI&#39;</span>, <span class="dt">fontWeight =</span> <span class="st">&#39;bold&#39;</span>,</a>
-<a class="sourceLine" id="cb10-6" title="6">           <span class="dt">color =</span> <span class="st">&#39;random-dark&#39;</span>, <span class="dt">backgroundColor =</span> <span class="st">&quot;blue&quot;</span>,</a>
-<a class="sourceLine" id="cb10-7" title="7">           <span class="dt">minRotation =</span> <span class="op">-</span>pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">maxRotation =</span> pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">shuffle =</span> <span class="ot">TRUE</span>,</a>
-<a class="sourceLine" id="cb10-8" title="8">           <span class="dt">rotateRatio =</span> <span class="fl">0.4</span>, <span class="dt">shape =</span> <span class="st">&#39;circle&#39;</span>, <span class="dt">ellipticity =</span> <span class="fl">0.65</span>)</a></code></pre></div>
-<div id="htmlwidget-6e0517ca66b4debee730" style="width:60%;height:480px;" class="wordcloud2 html-widget"></div>
-<script type="application/json" data-for="htmlwidget-6e0517ca66b4debee730">{"x":{"word":["toto","%","$"],"freq":[250,100,50],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":0.72,"backgroundColor":"blue","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb11-1" title="1"><span class="kw">plot</span>(pressure)</a></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb16-1" title="1">  temp &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">words =</span> <span class="kw">c</span>(<span class="st">&quot;et&quot;</span>, <span class="st">&quot;oui&quot;</span>, <span class="st">&quot;non&quot;</span>), <span class="dt">freq =</span> <span class="kw">c</span>(<span class="dv">50</span>, <span class="dv">10</span>, <span class="dv">5</span>))</a>
+<a class="sourceLine" id="cb16-2" title="2">  <span class="kw">set.seed</span>(<span class="dv">2</span>)</a>
+<a class="sourceLine" id="cb16-3" title="3">  <span class="kw">wordcloud2</span>(temp, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">minSize =</span> <span class="dv">0</span>, <span class="dt">gridSize =</span>  <span class="dv">0</span>,</a>
+<a class="sourceLine" id="cb16-4" title="4">           <span class="dt">fontFamily =</span> <span class="st">&#39;Segoe UI&#39;</span>, <span class="dt">fontWeight =</span> <span class="st">&#39;bold&#39;</span>,</a>
+<a class="sourceLine" id="cb16-5" title="5">           <span class="dt">color =</span> <span class="st">&#39;random-dark&#39;</span>, <span class="dt">backgroundColor =</span> <span class="st">&quot;orange&quot;</span>,</a>
+<a class="sourceLine" id="cb16-6" title="6">           <span class="dt">minRotation =</span> <span class="op">-</span>pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">maxRotation =</span> pi<span class="op">/</span><span class="dv">4</span>, <span class="dt">shuffle =</span> <span class="ot">TRUE</span>,</a>
+<a class="sourceLine" id="cb16-7" title="7">           <span class="dt">rotateRatio =</span> <span class="fl">0.4</span>, <span class="dt">shape =</span> <span class="st">&#39;circle&#39;</span>, <span class="dt">ellipticity =</span> <span class="fl">0.65</span>)</a></code></pre></div>
+<div id="htmlwidget-697d58abce2053a24549" style="width:100%;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-697d58abce2053a24549">{"x":{"word":["et","oui","non"],"freq":[50,10,5],"fontFamily":"Segoe UI","fontWeight":"bold","color":"random-dark","minSize":0,"weightFactor":3.6,"backgroundColor":"orange","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"circle","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":[]}</script>
 <p>Note that the <code>echo = FALSE</code> parameter was added to the code chunk to prevent je je sais pas ce qu’il faut faire et je voudrais le savoir printing of the R code that generated the plot nnnn. nn nn nn nn Note that the parameter was added to the code chunk to prevent printing of the R code that generated the plot. oui ou non c’est ce qu’il faut savoir</p>
 </div>
 <div id="et-pourquoi-pas" class="section level2">
-<h2><span class="header-section-number">1.3</span> Et pourquoi pas ?</h2>
+<h2><span class="header-section-number">2.3</span> Et pourquoi pas ?</h2>
 <p>Eh</p>
 <div id="non" class="section level4">
-<h4><span class="header-section-number">1.3.0.1</span> Non</h4>
+<h4><span class="header-section-number">2.3.0.1</span> Non</h4>
 </div>
 </div>
 </div>
 <div id="a-nouveau-au-niveau-1" class="section level1">
-<h1><span class="header-section-number">2</span> A nouveau au niveau 1</h1>
+<h1><span class="header-section-number">3</span> A nouveau au niveau 1</h1>
 <div id="on-veut-voir" class="section level2">
-<h2><span class="header-section-number">2.1</span> On veut voir</h2>
+<h2><span class="header-section-number">3.1</span> On veut voir</h2>
 <div id="si-ça-va" class="section level3">
-<h3><span class="header-section-number">2.1.1</span> Si ça va</h3>
+<h3><span class="header-section-number">3.1.1</span> Si ça va</h3>
 <div id="aussi-bien" class="section level4">
-<h4><span class="header-section-number">2.1.1.1</span> Aussi bien</h4>
+<h4><span class="header-section-number">3.1.1.1</span> Aussi bien</h4>
 </div>
 </div>
 </div>
@@ -5385,7 +5508,7 @@ $(document).ready(function ()  {
       theme: "bootstrap3",
       context: '.toc-content',
       hashGenerator: function (text) {
-        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
       },
       ignoreSelector: ".toc-ignore",
       scrollTo: 0
