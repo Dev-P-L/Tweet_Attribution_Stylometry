@@ -19,6 +19,9 @@ if(!require(textreg)) install.packages("textreg", repos = "http://cran.us.r-proj
 if(!require(remotes)) install.packages("remotes", repos = "http://cran.us.r-project.org")
 if(!require(tidytext)) install.packages("tidytext", repos = "http://cran.us.r-project.org")
 if(!require(textdata)) install.packages("textdata", repos = "http://cran.us.r-project.org")
+if(!require(devtools)) install.packages("devtools", repos = "http://cran.us.r-project.org")
+
+# install ???? shiny httpuv xtable sourcetools fastmap
 
 # Requiring libraries.
 library(tidyverse)
@@ -41,17 +44,30 @@ library(textreg)
 library(remotes)
 library(tidytext)
 library(textdata)
+library(devtools)
 
+devtools::install_github("gaospecial/wordcloud2")
+
+# If getting into trouble with downloading ncr lexicon. 
 # install_github("EmilHvitfeldt/textdata")
 # install_github("juliasilge/tidytext")
 # textdata::lexicon_nrc(delete = TRUE)
 # textdata::lexicon_nrc()
 # https://github.com/juliasilge/tidytext/issues/146
 
+# If getting into trouble with knitting several wordcould2.
+# https://github.com/Lchiffon/wordcloud2/issues/65
+# Thank you to gaospecial
+# devtools::install_github("gaospecial/wordcloud2")
+
+# To fix up the problem of the bird
+# https://github.com/Lchiffon/wordcloud2/issues/12
+# devtools::install_github("lchiffon/wordcloud2")
+
 Sys.setlocale("LC_ALL", "C")
 
 # The palette with black:
-cbf_b_Palette <- c("#E69F00", "#0072B2", "#000000", "#56B4E9",  
+cbf_b_Palette <- c("#E69F00", "#0072B2", "#000000", #56b4e9,  
                 "#009E73", "#D55E00", "#CC79A7")
 
 cbf_y_Palette <- c("#E69F00", "#0072B2", "#000000",  
@@ -587,6 +603,12 @@ grep(" great ", names)
 
 # WORDCLOUD
 
+list_crude <- 
+  temp %>% 
+  select(text) %>%
+  unnest_tokens(words, text) %>% count(words, sort = TRUE)
+list_crude
+
 list_compact <- 
   compact %>% 
   select(text) %>%
@@ -674,6 +696,9 @@ wordcloud(words, freq, min.freq = 10,
           max.words = 10, random.order = FALSE, random.color = FALSE,
           colors = rev(cbf_b_Palette), 
           rot.per = 1/3, scale = c(8,.5))
+wordcloud2(list_compact_Android, color = cbf_y_Palette, 
+           backgroundColor = "powderblue", 
+           shuffle = FALSE)
 
 # Wordcloud compact iPhone
 words <- list_compact_iPhone$words
@@ -685,6 +710,23 @@ wordcloud(words, freq, min.freq = 10,
           rot.per = 1/4, colors = rev(cbf_b_Palette), 
           scale = c(6,.5))
 
+# Wordcloud CRUDE
+words <- list_crude$words
+freq <- list_crude$n
+dev.new(width = 1000, height = 1000, unit = "px")
+set.seed(1)
+wordcloud(words, freq, min.freq = 10, 
+          max.words = 10, random.order = FALSE, random.color = FALSE,
+          rot.per = 1/4, colors = rev(cbf_b_Palette), 
+          scale = c(8,.5))
+
+df <- list_crude %>% 
+  arrange(desc(n)) %>% head(., 12) %>%
+  `colnames<-`(c("word", "freq"))
+set.seed(1)
+wordcloud2(df, color = cbf_y_Palette, backgroundColor = "blue", 
+           shuffle = FALSE)
+
 # Wordcloud2 compact Android
 df <- list_compact_Android %>% 
   arrange(desc(n)) %>% head(., 12) %>%
@@ -694,11 +736,11 @@ wordcloud2(df, color = cbf_b_Palette, backgroundColor = "white",
            shuffle = FALSE)
 
 # Wordcloud2 compact iPhone
-df <- list_compact_iPhone %>% 
+buffer <- list_compact_iPhone %>% 
   arrange(desc(n)) %>% head(., 12) %>%
-  `colnames<-`(c("word", "freq"))
+  `colnames<-`(c("words", "freqs"))
 set.seed(1)
-wordcloud2(df, color = cbf_b_Palette, backgroundColor = "grey", 
+wordcloud2(buffer, color = cbf_b_Palette, backgroundColor = "grey", 
            shuffle=FALSE)
 
 ##########################################
@@ -711,7 +753,7 @@ grep(" adulate ", s$word)
 s <- get_sentiments("nrc") %>%
   as.data.frame() %>%
   mutate(word = paste(" ", word, " ", sep = ""))
-grep(" never ", s$word)
+grep(" love ", s$word)
 
 s <- get_sentiments("afinn") %>%
   as.data.frame() %>%
@@ -728,9 +770,17 @@ s <- get_sentiments("loughran") %>%
   mutate(word = paste(" ", word, " ", sep = ""))
 grep(" not ", s$word)
 
+test_Android <- temp %>% 
+  select(text, device) %>%
+  mutate(text = paste(" ", text, " ", sep = "")) %>%
+  filter(device == "Android") 
+grep(" aren't ", test_Android$text)
 
-
-
+test_iPhone <- temp %>% 
+  select(text, device) %>%
+  mutate(text = paste(" ", text, " ", sep = "")) %>%
+  filter(device == "iPhone") 
+grep(" aren't ", test_iPhone$text)
 
 
 
