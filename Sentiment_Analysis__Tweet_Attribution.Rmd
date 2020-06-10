@@ -92,7 +92,7 @@ GITHUB: https://github.com/Dev-P-L/Sentiment_Analysis__Tweet_Attribution
 
 <br>
 
-# I. WELCOMING READERS
+# WELCOMING READERS
 
 Dear Readers,
 
@@ -107,18 +107,20 @@ Starting from their cbbPalette of eight colors, I have first of all picked up tw
 When used as background colors, orange and blue have each their subset of colors from ccbPalette. 
 
 ```{r Palettes}
+# Duo palette just with orange and skye blue, the colors assigned to respectively Android and iPhone
+duo_Palette <- c("#E69F00", "#0072B2")
+
 # Palette for white background color: orange, tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
-cbf_Palette_w_b <- c("#E69F00", "#0072B2", "#000000", #56b4e9,  
+cbf_Palette_w_b <- c("#E69F00", "#0072B2", "#000000", #56b4e9",  
                 "#009E73", "#D55E00", "#CC79A7")
 
 # Palette for orange background color: tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
-cbf_Palette_o_b <- c("#0072B2", "#000000", #56b4e9,  
+cbf_Palette_o_b <- c("#0072B2", "#000000", #56b4e9",  
                      "#009E73", "#D55E00", "#CC79A7")
 
 # Palette for sky blue background color: orange, tense blue, black, yellow, bluish green, vermilion and reddish purple
 cbf_Palette_b_b <- c("#E69F00", "#0072B2", "#000000", "#F0E442",  
                      "#009E73", "#D55E00", "#CC79A7")
-
 ```
 
 For code, in the YAML, for highlight the value chosen is espresso, which, to my best knowledge, takes previous pieces of advice into account and, I hope, can be read with satisfaction by everyone. If code were not readily readable, you only have to change the value of *highlight* (please see available values at ... ) in the YALM and knit it again. 
@@ -138,7 +140,7 @@ They are repeated in comments on the code below and also further in this documen
 
 <br>
 
-# II. DOWNLOADING DATA & R PACKAGES
+# DOWNLOADING DATA & R PACKAGES
 
 <br>
 
@@ -288,7 +290,7 @@ rm(tweets)
 
 <br>
 
-# III. SPLITTING DATASET INTO TRAINING SET AND VALIDATION SET
+# SPLITTING DATASET INTO TRAINING SET AND VALIDATION SET
 
 <br>
 
@@ -347,7 +349,9 @@ Now, let's get insights from the four groups of predictors:
 
 <br>
 
-# IV. EDA of TIME COMPONENTS
+# EDA of TIME COMPONENTS
+
+## Decomposing Datetime Information
 
 <br>
 
@@ -373,6 +377,84 @@ train_tweets <- train_tweets %>%
   select(device, everything()) 
 ```
 
+## Month Evolution
+
+All datetime values have been aggregated by month beginning. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
+
+```{r Graph of activity per month and per device}
+graph <- train_tweets %>%
+  select(device, month) %>%
+  group_by(device, month) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, color = device)) +
+  geom_line(size = 3) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  ggtitle("Tweet Activity per Month per Device") +
+  labs(y = "% of Tweets per Month",
+       color = "Device") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  scale_color_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
+```
+
+<br>
+
+Interpreting curve evolution would probably require additional information; it is out of the scope of this project. 
+
+General tendency is rather similar up to July 2016; afterwards, Android activity plummets while Iphone activity soars. 
+
+Moreover, in levels, at the beginning of the period, the activity percentage of the Android device is higher than the one from the iPhone. 
+
+These differences qualify this feature as a candidate predictor in tweet attribution. 
+
+
+---------------------------------------------------------------------------------
+
+EVOLUTION OF TWEET PUBLICATION
+
+```{r Graph Tweet publication count}
+graph <- elect_tweets %>%
+  mutate(week = round_date(with_tz(created_at, "EST"), unit = "week")) %>%
+  select(device, week) %>%
+  group_by(device, week) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(week, n, color = device)) +
+  geom_line(size = 2) +
+  labs(x = "",
+       y = "% of Tweets per Device",
+       color = "") +
+  theme_economist(base_size = 12) +
+  scale_colour_manual(values = cbbPalette) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
+```
+
+-------------------------------------------------------------------
+
+```{r Graph retweet_count}
+graph <- elect_tweets %>%
+  mutate(month = floor_date(with_tz(created_at, "EST"), unit = "month")) %>%
+  select(device, month, retweet_count) %>%
+  group_by(device, month) %>%
+  summarize(avg = mean(n())) %>%
+  ggplot(aes(month, avg, color = device)) +
+
+    geom_line(size = 2) +
+  labs(x = "",
+       y = "% of Tweets per Device",
+       fill = "Parts of the Day") +
+  theme_economist(base_size = 12) +
+  scale_color_manual(values = cbbPalette) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
+```
 
 
 ```{r Graph am_pm 24 hour-clock}
@@ -431,6 +513,26 @@ Let's check up this assumption without amalgamating all days, which can be misle
 
 ```{r Adapting opts_chunk to enlarge display width for a set of graphs}
 knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
+```
+
+```{r Graph % AM per month for iPhone}
+graph <- train_tweets %>%
+  mutate(month = round_date(with_tz(created_at, "EST"), unit = "month")) %>%
+  select(device, month, am_pm) %>%
+  filter(device == "iPhone") %>%
+  group_by(month, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, fill = am_pm)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = percent_format(suffix = " %")) +
+  labs(x = "",
+       y = "% of Tweets per Device",
+       fill = "Parts of the Day") +
+  theme_economist(base_size = 12) +
+  scale_fill_manual(values = cbf_Palette_b_b) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
 ```
 
 ```{r Graph hour for busy days}
@@ -492,85 +594,6 @@ The factual statement of leads and lags is used in this EDA section to character
 
 -----------------------------------------------------------------------------
 
-```{r Graph % AM per month for Android}
-graph <- elect_tweets %>%
-  mutate(month = round_date(with_tz(created_at, "EST"), unit = "month")) %>%
-  select(device, month, am_pm) %>%
-  filter(device == "Android") %>%
-  group_by(month, am_pm) %>%
-  summarize(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(month, percent, fill = am_pm)) +
-  geom_bar(stat = "identity") +
-  scale_y_continuous(labels = percent_format(suffix = " %")) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_fill_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
-
-```{r Graph % AM per month for iPhone}
-graph <- elect_tweets %>%
-  mutate(month = round_date(with_tz(created_at, "EST"), unit = "month")) %>%
-  select(device, month, am_pm) %>%
-  filter(device == "iPhone") %>%
-  group_by(month, am_pm) %>%
-  summarize(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(month, percent, fill = am_pm)) +
-  geom_bar(stat = "identity") +
-  scale_y_continuous(labels = percent_format(suffix = " %")) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_fill_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
-
----------------------------------------------------------------------------------
-
-EVOLUTION OF TWEET PUBLICATION
-
-```{r Graph Tweet publication count}
-graph <- elect_tweets %>%
-  mutate(week = round_date(with_tz(created_at, "EST"), unit = "week")) %>%
-  select(device, week) %>%
-  group_by(device, week) %>%
-  summarize(n = n()) %>%
-  ggplot(aes(week, n, color = device)) +
-  geom_line(size = 2) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       color = "") +
-  theme_economist(base_size = 12) +
-  scale_colour_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
-
--------------------------------------------------------------------
-
-```{r Graph retweet_count}
-graph <- elect_tweets %>%
-  mutate(month = floor_date(with_tz(created_at, "EST"), unit = "month")) %>%
-  select(device, month, retweet_count) %>%
-  group_by(device, month) %>%
-  summarize(avg = mean(n())) %>%
-  ggplot(aes(month, avg, color = device)) +
-  geom_line(size = 2) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_color_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
 
 Now we will study how their tweets differ. 
 
