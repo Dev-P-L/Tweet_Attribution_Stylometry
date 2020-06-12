@@ -104,17 +104,25 @@ Starting from their cbbPalette of eight colors, I have first of all picked up tw
 When used as background colors, orange and blue have each their subset of colors from ccbPalette. 
 
 ```{r Palettes}
-# Duo palette just with orange and skye blue, the colors assigned to respectively Android and iPhone
-duo_Palette <- c("#E69F00", "#0072B2")
+# Picking up the main two colors: orange for Android and deep blue for iPhone. When used as background, they are used separately. 
+orange <- "#E69F00"
+deep_blue <- "#0072B2"
 
-# Palette for white background color: orange, tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
-cbf_Palette_w_b <- c("#E69F00", "#0072B2", "#000000", #56b4e9",  
+# When used as main colors on one figure, both colors are combined in a duo palette just with orange and deep blue, the colors assigned to respectively Android and iPhone. Let's use a named vector as recommended.
+duo_Palette <- c(Android = "#E69F00", iPhone = "#0072B2")
+# This palette will be associated with sky blue background:
+sky_blue <- "#56b4e9"
+
+# Palette for white background color: orange, deep blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
+cbf_Palette_w_b <- c("#E69F00", "#0072B2", "#000000", "#56b4e9",  
                 "#009E73", "#D55E00", "#CC79A7")
-# Palette for orange background color: tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
+
+# Palette for orange background color: tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted ... as well as orange)
 cbf_Palette_o_b <- c("#0072B2", "#000000", #56b4e9",  
                      "#009E73", "#D55E00", "#CC79A7")
-# Palette for sky blue background color: orange, tense blue, black, yellow, bluish green, vermilion and reddish purple
-cbf_Palette_b_b <- c("#E69F00", "#0072B2", "#000000", "#F0E442",  
+
+# Palette for deep blue background color: orange, sky blue, black, yellow, bluish green, vermilion and reddish purple
+cbf_Palette_b_b <- c("#E69F00", "#56b4e9", "#000000", "#F0E442",  
                      "#009E73", "#D55E00", "#CC79A7")
 ```
 
@@ -364,6 +372,9 @@ train_tweets <- train_tweets %>%
 
 All datetime values have been aggregated by month beginning. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
 
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+
 ```{r Graph of activity per month and per device}
 graph <- train_tweets %>%
   select(device, month) %>%
@@ -383,7 +394,7 @@ graph <- train_tweets %>%
         axis.text.y = element_text(size = 12),
         legend.text = element_text(size = 12)) +
   scale_color_manual(values = duo_Palette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
+  theme(panel.background = element_rect(fill = sky_blue)) 
 graph
 ```
 
@@ -496,25 +507,6 @@ Let's check up this assumption without amalgamating all days, which can be misle
 knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
 ```
 
-```{r Graph % AM per month for iPhone}
-graph <- train_tweets %>%
-  mutate(month = round_date(with_tz(created_at, "EST"), unit = "month")) %>%
-  select(device, month, am_pm) %>%
-  filter(device == "iPhone") %>%
-  group_by(month, am_pm) %>%
-  summarize(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(month, percent, fill = am_pm)) +
-  geom_bar(stat = "identity") +
-  scale_y_continuous(labels = percent_format(suffix = " %")) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_fill_manual(values = cbf_Palette_b_b) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
 
 ```{r Graph hour for busy days}
 buffer <- elect_tweets %>% 
@@ -524,7 +516,7 @@ sample <- buffer %>%
      group_by(day) %>%
      summarize(n = n()) %>%
      arrange(desc(n)) %>%
-     head(12) %>%
+     head(3) %>%
      arrange(day) 
 v <- sample %>% .$day
 percentage <- 
@@ -556,6 +548,27 @@ marrangeGrob(l, nrow = 1, ncol = 1,
 
 ```{r Adapting opts_chunk to enlarge display width for graphs}
 knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
+```
+
+
+```{r Graph % AM per month for iPhone}
+graph <- train_tweets %>%
+  mutate(month = round_date(with_tz(created_at, "EST"), unit = "month")) %>%
+  select(device, month, am_pm) %>%
+  filter(device == "iPhone") %>%
+  group_by(month, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, fill = am_pm)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = percent_format(suffix = " %")) +
+  labs(x = "",
+       y = "% of Tweets per Device",
+       fill = "Parts of the Day") +
+  theme_economist(base_size = 12) +
+  scale_fill_manual(values = cbf_Palette_b_b) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
 ```
 
 Provisional conclusion 
@@ -762,11 +775,20 @@ android_iphone_or %>% inner_join(nrc, by = "word") %>%
   geom_bar(stat="identity", show.legend = FALSE) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
 ------------------------------------------------------------------
+
 COLORS
+
 The first two references deal with color-blind-friendly issues. 
+
 http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/
+
 https://venngage.com/blog/color-blind-friendly-palette/#2
+
 http://www.sthda.com/english/wiki/ggplot2-themes-and-background-colors-the-3-elements
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+
 ---------------------------------------------------------------------
 tidytext package
 https://www.tidytextmining.com/
