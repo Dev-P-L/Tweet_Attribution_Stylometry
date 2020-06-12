@@ -103,6 +103,12 @@ Starting from their cbbPalette of eight colors, I have first of all picked up tw
 
 When used as background colors, orange and blue have each their subset of colors from ccbPalette. 
 
+```{r Cleaning up workspace for RAM management}
+invisible(if(!is.null(dev.list())) dev.off())
+rm(list=ls())
+cat("\014")
+```
+
 ```{r Palettes}
 # Picking up the main two colors: orange for Android and deep blue for iPhone. When used as background, they are used separately. 
 orange <- "#E69F00"
@@ -118,7 +124,7 @@ cbf_Palette_w_b <- c("#E69F00", "#0072B2", "#000000", "#56b4e9",
                 "#009E73", "#D55E00", "#CC79A7")
 
 # Palette for orange background color: tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted ... as well as orange)
-cbf_Palette_o_b <- c("#0072B2", "#000000", #56b4e9",  
+cbf_Palette_o_b <- c("#0072B2", "#000000", "#56b4e9",  
                      "#009E73", "#D55E00", "#CC79A7")
 
 # Palette for deep blue background color: orange, sky blue, black, yellow, bluish green, vermilion and reddish purple
@@ -150,10 +156,6 @@ They are repeated in comments on the code below and also further in this documen
 Besides R packages related to data, *tidyverse*, Machine Learning, wordclouds, etc., there are very different packages related to texts: *textreg*, *tm*, *quanteda*, *tidytext*, *stringr*, *textdata*, etc. 
 
 ```{r Cleaning up workspace and downloading packages}
-# Cleaning up workspace for RAM management.
-invisible(if(!is.null(dev.list())) dev.off())
-rm(list=ls())
-cat("\014")
 # Package containing the dataset
 if(!require(dslabs)) install.packages("dslabs", repos = "http://cran.us.r-project.org")
 # Packages associated with tidyverse 
@@ -387,9 +389,11 @@ graph <- train_tweets %>%
   ggtitle("Tweet Activity per Month per Device") +
   labs(y = "% of Tweets per Month",
        color = "Device") +
-  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold"),
         axis.title.x = element_blank(), 
         axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
         axis.text.x = element_text(angle = 45, hjust = 1, size = 12), 
         axis.text.y = element_text(size = 12),
         legend.text = element_text(size = 12)) +
@@ -407,6 +411,11 @@ General tendency is rather similar up to July 2016; afterwards, Android activity
 Moreover, in levels, at the beginning of the period, the activity percentage of the Android device is higher than the one from the iPhone. 
 
 These differences qualify this feature as a candidate predictor in tweet attribution. 
+
+
+
+
+
 
 
 ---------------------------------------------------------------------------------
@@ -509,18 +518,27 @@ knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
 
 
 ```{r Graph hour for busy days}
-buffer <- elect_tweets %>% 
-  mutate(day = floor_date(with_tz(created_at, "EST"), unit = "day")) %>%
-  mutate(hour = floor_date(with_tz(created_at, "EST"), unit = "hour"))
-sample <- buffer %>% 
+tweets_per_day <- train_tweets %>% 
+     select(device, day) %>%
      group_by(day) %>%
-     summarize(n = n()) %>%
-     arrange(desc(n)) %>%
-     head(3) %>%
-     arrange(day) 
+     summarize(n = n())
+
+# Let's pick up a sample at random.
+sample_size <- 6
+set.seed(1)
+seq <- sample(1:nrow(tweets_per_day), sample_size, replace = FALSE)
+random_sample <- tweets_per_day[seq, ]
+  
+# Now, let's determine the size of three other samples based on tweet activity.
+sample_size <- 3
+
+# Let's build up a sample based on global tweet activity per day.
+sample_g <- tweets_per_day %>%
+  arrange(desc(n)) %>%
+  head(sample_size) %>%
+  arrange(day) 
 v <- sample %>% .$day
-percentage <- 
-  label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
+
 l <- list(1) 
 for (i in 1:length(v)) {
   d <- v[i]
@@ -550,6 +568,8 @@ marrangeGrob(l, nrow = 1, ncol = 1,
 knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
 ```
 
+percentage <- 
+  label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
 
 ```{r Graph % AM per month for iPhone}
 graph <- train_tweets %>%
