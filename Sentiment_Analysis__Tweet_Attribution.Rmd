@@ -21,13 +21,10 @@ output:
 ```{r Setup}
 # Avoiding messages and warnings: anyway, they have already been dealt with.  
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
-
 # Regulating figure layout.
 knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
-
 # Facilitating table layout in HTML.
 options(knitr.table.format = "html")
-
 # Output language
 invisible(Sys.setlocale("LC_ALL", "C"))
 ```
@@ -113,11 +110,9 @@ duo_Palette <- c("#E69F00", "#0072B2")
 # Palette for white background color: orange, tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
 cbf_Palette_w_b <- c("#E69F00", "#0072B2", "#000000", #56b4e9",  
                 "#009E73", "#D55E00", "#CC79A7")
-
 # Palette for orange background color: tense blue, black, sky blue, bluish green, vermilion and reddish purple (yellow has been omitted)
 cbf_Palette_o_b <- c("#0072B2", "#000000", #56b4e9",  
                      "#009E73", "#D55E00", "#CC79A7")
-
 # Palette for sky blue background color: orange, tense blue, black, yellow, bluish green, vermilion and reddish purple
 cbf_Palette_b_b <- c("#E69F00", "#0072B2", "#000000", "#F0E442",  
                      "#009E73", "#D55E00", "#CC79A7")
@@ -151,10 +146,8 @@ Besides R packages related to data, *tidyverse*, Machine Learning, wordclouds, e
 invisible(if(!is.null(dev.list())) dev.off())
 rm(list=ls())
 cat("\014")
-
 # Package containing the dataset
 if(!require(dslabs)) install.packages("dslabs", repos = "http://cran.us.r-project.org")
-
 # Packages associated with tidyverse 
 # Other packages could be added to this group but have been
 # linked to text processing.
@@ -162,11 +155,9 @@ if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-
 if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
 if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
 if(!require(ggthemes)) install.packages("ggthemes", repos = "http://cran.us.r-project.org")
-
 # Packages associated with R Markdown
 if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
 if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
-
 # Packages related to NLP, Text Mining or Sentiment Analysis
 # If you get into trouble while trying to access lexicon ncr
 # from package textdata, I suggest having a look at 
@@ -178,7 +169,6 @@ if(!require(textreg)) install.packages("textreg", repos = "http://cran.us.r-proj
 if(!require(quanteda)) install.packages("quanteda", repos = "http://cran.us.r-project.org")
 if(!require(tidytext)) install.packages("tidytext", repos = "http://cran.us.r-project.org")
 if(!require(textdata)) install.packages("textdata", repos = "http://cran.us.r-project.org")
-
 # Packages associated with worclouds
 # If you get into trouble with package and function wordcloud2,
 # I suggest having a look at 
@@ -191,23 +181,19 @@ if(!require(httpuv)) install.packages("httpuv", repos = "http://cran.us.r-projec
 if(!require(xtable)) install.packages("xtable", repos = "http://cran.us.r-project.org")
 if(!require(sourcetools)) install.packages("sourcetools", repos = "http://cran.us.r-project.org")
 if(!require(fastmap)) install.packages("fastmap", repos = "http://cran.us.r-project.org")
-
 # Packages for Machine Learning
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(kernlab)) install.packages("kernlab", repos = "http://cran.us.r-project.org")
 if(!require(xgboost)) install.packages("xgboost", repos = "http://cran.us.r-project.org")
 if(!require(pROC)) install.packages("pROC", repos = "http://cran.us.r-project.org")
-
 # Requiring libraries.
 library(dslabs)
 library(tidyverse)
 library(scales)
 library(lubridate)
 library(ggthemes)
-
 library(kableExtra)
 library(gridExtra)
-
 library(utf8)
 library(stringr)
 library(tm)
@@ -215,7 +201,6 @@ library(textreg)
 library(quanteda)
 library(tidytext)
 library(textdata)
-
 library(wordcloud)
 library(wordcloud2)
 library(devtools)
@@ -224,12 +209,10 @@ library(httpuv)
 library(xtable)
 library(sourcetools)
 library(fastmap)
-
 library(caret)
 library(kernlab)
 library(xgboost)
 library(pROC)
-
 # Prevents silently failing after the first wordcloud2.
 # Please see https://github.com/Lchiffon/wordcloud2/issues/65 .
 devtools::install_github("gaospecial/wordcloud2")
@@ -445,7 +428,6 @@ graph <- elect_tweets %>%
   group_by(device, month) %>%
   summarize(avg = mean(n())) %>%
   ggplot(aes(month, avg, color = device)) +
-
     geom_line(size = 2) +
   labs(x = "",
        y = "% of Tweets per Device",
@@ -483,7 +465,6 @@ Now in hour.
 # Orange, blue, black, light blue, green, yellow, vermilion, reddish purple
 cbbPalette <- c("#E69F00", "#0072B2", "#000000", "#56B4E9", 
                 "#009E73", "#F0E442",  "#D55E00", "#CC79A7")
-
 graph <- elect_tweets %>%
   mutate(hour = hour(with_tz(created_at, "EST"))) %>%
   select(device, hour) %>%
@@ -539,21 +520,16 @@ graph
 buffer <- elect_tweets %>% 
   mutate(day = floor_date(with_tz(created_at, "EST"), unit = "day")) %>%
   mutate(hour = floor_date(with_tz(created_at, "EST"), unit = "hour"))
-
 sample <- buffer %>% 
      group_by(day) %>%
      summarize(n = n()) %>%
      arrange(desc(n)) %>%
      head(12) %>%
      arrange(day) 
-
 v <- sample %>% .$day
-
 percentage <- 
   label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
-
 l <- list(1) 
-
 for (i in 1:length(v)) {
   d <- v[i]
   
@@ -574,7 +550,6 @@ for (i in 1:length(v)) {
   
   l[[i]] <- graph
 }  
-
 marrangeGrob(l, nrow = 1, ncol = 1, 
   top = "")
 ```
@@ -608,7 +583,6 @@ The main function needed to achieve this is unnest_tokens. A token refers to the
 ```{r Exercise}
 v <- data.frame(text = elect_tweets$text) 
 v %>% unnest_tokens(word, text)
-
 pattern <- "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))"
 elect_tweets[i,] %>% 
   mutate(text = str_replace_all(text, "https://t.co/[A-Za-z\\d]+|&amp;", ""))  %>%
@@ -764,9 +738,7 @@ log_or <- sentiment_counts %>%
   arrange(desc(log_or))
   
 log_or
-
 A graphical visualization shows some sentiments that are clearly overrepresented:
-
 log_or %>%
   mutate(sentiment = reorder(sentiment, log_or),) %>%
   ggplot(aes(x = sentiment, ymin = conf.low, ymax = conf.high)) +
@@ -774,17 +746,12 @@ log_or %>%
   geom_point(aes(sentiment, log_or)) +
   ylab("Log odds ratio for association between Android and sentiment") +
   coord_flip() 
-
 We see that the disgust, anger, negative sadness and fear sentiments are associated with the Android in a way that is hard to explain by chance alone. Words not associated to a sentiment were strongly associated with the iPhone source, whic is in agreement with the original claim about hyperbolic tweets.
-
 If we are interested in exploring which specific words are driving these differences, we can back to our android_iphone_or object:
-
 android_iphone_or %>% inner_join(nrc) %>%
   filter(sentiment == "disgust" & Android + iPhone > 10) %>%
   arrange(desc(or))
-
 We can make a graph
-
 android_iphone_or %>% inner_join(nrc, by = "word") %>%
   mutate(sentiment = factor(sentiment, levels = log_or$sentiment)) %>%
   mutate(log_or = log(or)) %>%
@@ -794,44 +761,26 @@ android_iphone_or %>% inner_join(nrc, by = "word") %>%
   facet_wrap(~sentiment, scales = "free_x", nrow = 2) + 
   geom_bar(stat="identity", show.legend = FALSE) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
-
-
-
 ------------------------------------------------------------------
-
 COLORS
-
 The first two references deal with color-blind-friendly issues. 
-
 http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/
-
 https://venngage.com/blog/color-blind-friendly-palette/#2
-
 http://www.sthda.com/english/wiki/ggplot2-themes-and-background-colors-the-3-elements
-
 ---------------------------------------------------------------------
-
 tidytext package
 https://www.tidytextmining.com/
-
-
 janeaustenr package !!!!
 https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
-
-
 REGEX
 https://bookdown.org/rdpeng/rprogdatascience/regular-expressions.html
-
 Removing unwanted characters from a corpus with tm package
 https://community.rstudio.com/t/tm-package-removing-unwanted-characters-works-in-r-but-not-knitr/26734
-
 Extracting the 12 hour interval as am/pm values has been done using a piece of advice of Jaap's on Stack Overflow
 https://stackoverflow.com/questions/37896824/grouping-time-and-counting-instances-by-12-hour-bins-in-r
 
 NLP
-
 https://cran.r-project.org/web/views/NaturalLanguageProcessing.html
-
 https://stackoverflow.com/questions/21533899/in-r-use-gsub-to-remove-all-punctuation-except-period/39745610
 The \\1 is syntax for the last capture in a regular expression using the () 
 It says whatever was matched, replace it with that. 
@@ -851,25 +800,22 @@ instead of interpreting it as one escape character.
 v <- str_extract_all(train_tweets$text, "#\\S+")
 
 SPLITTING BETWEEN LOWER CASE AND UPPER CASE
+
 https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
 We can use regex lookaround to match lower case letters 
 (positive lookbehind - (?<=[a-z])) followed by upper case letters 
 (positive lookahead -(?=[A-Z]))
-
 Not used but ...
 https://cran.r-project.org/web/packages/textclean/textclean.pdf
 
 ---
-
 https://blog.datazar.com/first-debate-2016-sentimental-analysis-of-candidates-58d87092fc6a
-
 twitter authentication
 web scraping
 sentiment analysis
 simplistic in comments?
 
 https://www.kaggle.com/erikbruin/text-mining-the-clinton-and-trump-election-tweets
-
 awesome!
 
 LIMITS OF LEXICONS
@@ -880,36 +826,48 @@ Pas moyen d'ouvrir nrc
 
 https://github.com/juliasilge/tidytext/issues/146
 
+Vocabulary
+
+https://www.vocabulary.com/dictionary/wrath
+
+https://www.fluentu.com/blog/english/american-english-slang-words-esl/
+This one refers to other lists. 
+
+President Trum linguistically is unadorned, oddly adolescent.
+https://www.youtube.com/watch?v=phsU1vVHOQI
+Professor John McWhorter
+He uses tags at the end of a sentence: "believe me"
+and enforcers 
+more than ever before
+more than we've seen before
+
+
+Informal English
+https://www.engvid.com/english-resource/formal-informal-english/
+
+Teen slang
+https://www.verywellfamily.com/a-teen-slang-dictionary-2610994
+
 ---------------------------------------------------------------------
-
 STUDY ITSELF - BOOK FROM RAF
-
 https://books.google.be/books?id=62K-DwAAQBAJ&pg=PA459&lpg=PA459&dq=str_replace_all(text,+https://t.co/%5BA-Za-z%5C%5Cd%5D%2B%7C%26amp;,+)&source=bl&ots=bDWhUw2slL&sig=ACfU3U3Kvhh-parwC0mYLod1HL_yvlWLnQ&hl=en&sa=X&ved=2ahUKEwiGycS7pNHpAhXElqQKHR7RDvcQ6AEwAHoECAoQAQ#v=onepage&q=str_replace_all(text%2C%20https%3A%2F%2Ft.co%2F%5BA-Za-z%5C%5Cd%5D%2B%7C%26amp%3B%2C%20)&f=false
-
 
 WORDCLOUDS
 
 Retrieving, unnesting and building up wordclouds
-
 https://www.littlemissdata.com/blog/wordclouds
 
 ---
 
 Focused on wordclouds, with Twitter logo!
-
 https://cran.r-project.org/web/packages/wordcloud2/vignettes/wordcloud.html
 
 ---
 
 Focused on wordclouds
-
 https://www.r-graph-gallery.com/196-the-wordcloud2-library.html
 
 ---
 
 Wordclouds and DRACULA gutenbergr
-
 https://www.learningrfordatascience.com/post/dynamic-wordclouds-with-wordcloud2/
-
-
-
