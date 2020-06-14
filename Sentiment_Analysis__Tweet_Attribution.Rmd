@@ -406,9 +406,82 @@ graph
 
 We notice a big peak for the Android in early hours of the morning, between 6 and 8 AM. There seems to be a clear different in these patterns. We will therefore assume that two different entities are using these two devices. 
 
-It is like adding apples and pears: day schedules are amalgamated over more than one year. Would find back that pattern sytematically in individual day schedules? Let's take the busiest 12 days in terms of number of tweets. 
+It is like adding apples and pears: day schedules are amalgamated over more than one year. Would find back that pattern sytematically in individual day schedules? Let's check up this assumption without amalgamating all days, which can be misleading. 
 
-Let's check up this assumption without amalgamating all days, which can be misleading. 
+Samples of day schedules have been picked up:
+
+- 12 day schedules taken at random,
+- 12 day schedules corresponding to the busiest days in global tweet activity,
+- 12 day schedules corresponding to the busiest days in Android tweet activity,
+- 12 day schedules corresponding to the busiest days in iPhone tweet activity.
+
+The corresponding 48 day schedule graphs have been produced and analyzed. For illustrative purposes, some of them are reproduced below: 
+
+- 4 graphs picked up at random,
+- 2 graphs with the top days in global activity,
+- 2 graphs with the top days in Android activity,
+- 2 graphs with the top days in iPhone activity.
+
+```{r Developping function to produce the 10 graphs}
+# Preparing a working data frame with just 2 features: device and day.
+tweets_per_day <- train_tweets %>% 
+     select(device, day) %>%
+     group_by(device, day) %>%
+     summarize(n = n())
+
+# Creating a function to produce series of day schedule graphs.
+
+building_graph_series <-                      # Function name
+  function(d, title) {                        # Function arguments
+    
+    l <- list(1)                              # List for output
+    
+    for (i in 1:length(v)) {                  # For loop on days 
+                                              # from vector d
+      graph <- tweets_per_day %>%             # Graph for day i        
+        filter(day = d[i]) %>%
+        ggplot(aes(hour, n, color = device)) +
+        geom_point(aes(size = n)) +
+        ggtitle(paste("Busy Day", i, ":", d, sep = " ")) +
+        scale_x_continuous(breaks = seq_ticks, labels = waiver()) +
+        scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+        labs(x = "Hour in the 24-Hour Clock",
+             y = "# of Tweets per Hour",
+             color = "Device") +
+        theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                        size = 16, face = "bold"),
+              axis.title.x = element_text(vjust = -1, size = 14), 
+              axis.title.y = element_text(vjust = 3, size = 14), 
+              legend.title = element_text(size = 14),
+              axis.text.x = element_text(hjust = 1, size = 12), 
+              axis.text.y = element_text(size = 12),
+              legend.text = element_text(size = 12)) +
+              scale_colour_manual(values = duo_Palette) +
+              theme(panel.background = element_rect(fill = sky_blue)) 
+  
+    l[[i]] <- graph                           # Placing graph output
+    }                                         # into list.
+    
+marrangeGrob(l, nrow = 1, ncol = 1, top = "") # Printing graphs
+}
+```
+
+Conclusions drawn on the basis of the 48 graphs or on the basis of the 10 graphs are the same. Let's examine the 10 graphs, group by group. Let's get started with the 4 graphs produced at random. 
+
+<br>
+
+```{r 4 graphs at random}
+# Let's pick up a sample at random.
+sample_size <- 6
+set.seed(1)
+seq <- sample(1:nrow(tweets_per_day), sample_size, replace = FALSE)
+random_sample <- tweets_per_day[seq, ]
+```
+
+
+<br>
+
+<br>
 
 <br>
 
@@ -416,17 +489,8 @@ Let's check up this assumption without amalgamating all days, which can be misle
 knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
 ```
 
-```{r Graph hour for busy days}
-tweets_per_day <- train_tweets %>% 
-     select(device, day) %>%
-     group_by(day) %>%
-     summarize(n = n())
+```{r Graph with day schedule from a random sample of days}
 
-# Let's pick up a sample at random.
-sample_size <- 6
-set.seed(1)
-seq <- sample(1:nrow(tweets_per_day), sample_size, replace = FALSE)
-random_sample <- tweets_per_day[seq, ]
   
 # Now, let's determine the size of three other samples based on tweet activity.
 sample_size <- 3
