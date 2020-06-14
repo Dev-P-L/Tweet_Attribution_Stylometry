@@ -434,23 +434,24 @@ seq_ticks_x <- seq(min(train_tweets$hour), max(train_tweets$hour), 4)
 
 # Creating a function to produce series of day schedule graphs.
 
-building_graph_series <-                      # Function name
-  function(d, sub_title) {                    # Function arguments
+building_graph_series <-                          # Function name
+  function(d, sub_title) {                        # Function arguments
     
-    l <- list(1)                              # List for output
+    l <- list(1)                                  # List for output
     
-    for (i in seq_along(d)) {                 # For loop on days 
-                                              # from vector d
+    for (i in seq_along(d)) {                     # For loop on days 
+                                                  # from vector d
       
-      buffer <- tweets_per_day %>%            # Filtering data
-        filter(day == d[i])                     # for day i.
+      buffer <- tweets_per_day %>%                # Filtering data
+        filter(day == d[i])                       # for day i.
       
-      seq_ticks_y <-                          # y tick marks
+      seq_ticks_y <-                              # y tick marks
         seq(min(buffer$n), max(buffer$n), 1)
       
-      graph <- buffer %>%                     # Graph for day i        
+      graph <- buffer %>%                         # Graph for day i        
         ggplot(aes(hour, n, color = device)) +
-        geom_point(aes(size = n)) +
+        geom_point(aes(size = n)) +               # Gradience of dots
+        scale_size_continuous(range = c(4, 6)) +  # Size of dots
         scale_x_continuous(breaks = seq_ticks_x, labels = waiver()) +
         scale_y_continuous(breaks = seq_ticks_y, labels = waiver()) +
         ggtitle(paste("Day", i, ":", d, sep = " ")) +
@@ -471,10 +472,10 @@ building_graph_series <-                      # Function name
               scale_colour_manual(values = duo_Palette) +
               theme(panel.background = element_rect(fill = sky_blue)) 
   
-    l[[i]] <- graph                           # Placing graph output
-    }                                         # into list.
+    l[[i]] <- graph                              # Placing graph output
+    }                                            # into list.
     
-marrangeGrob(l, nrow = 1, ncol = 1, top = "") # Printing graphs
+marrangeGrob(l, nrow = 1, ncol = 1, top = "")    # Printing graphs
 }
 ```
 
@@ -1038,5 +1039,19 @@ TICKS ON A DISCRETE NUMERIC X AXIS
 https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
 
 ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
+
+---------------------------------------------------------------------------
+
+GGPLOT2 SUBTITLES
+
+hrbrmstr
+https://stackoverflow.com/questions/11724311/how-to-add-a-ggplot2-subtitle-with-different-size-and-colour
+
+---------------------------------------------------------------------------
+
+GGPLOT2 SIZE OF DOT SYMBOLS
+ialm
+
+https://stackoverflow.com/questions/20251119/increase-the-size-of-variable-size-points-in-ggplot2-scatter-plot
 
 ---------------------------------------------------------------------------
