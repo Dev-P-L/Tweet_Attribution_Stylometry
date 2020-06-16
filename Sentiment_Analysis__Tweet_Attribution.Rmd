@@ -381,7 +381,7 @@ seq_ticks <- seq(min(train_tweets$hour), max(train_tweets$hour), 4)
 graph <- train_tweets %>%
   select(device, hour) %>%
   group_by(device, hour) %>%
-  summarize(n = n(), min = min(), max = max()) %>%
+  summarize(n = n()) %>%
   mutate(percent = n / sum(n)) %>%
   ggplot(aes(hour, percent, color = device)) +
   geom_line(size = 3) +
@@ -423,45 +423,48 @@ The corresponding 48 day schedule graphs have been produced and analyzed. For il
 - 2 graphs with the top days in iPhone activity.
 
 ```{r Developping function to produce the 10 graphs}
-# Preparing a working data frame with just 2 features: device and day.
-tweets_per_day <- train_tweets %>% 
-     select(device, day, hour) %>%
-     group_by(device, day, hour) %>%
-     summarize(n = n())
-
 # Scale of x tick marks to be incorporated into ggplot2 graphs
 seq_ticks_x <- seq(min(train_tweets$hour), max(train_tweets$hour), 4)
 
 # Creating a function to produce series of day schedule graphs.
 
-building_graph_series <-                          # Function name
-  function(d, sub_title) {                        # Function arguments
+building_graph_series <-                            # Function name
+  function(d, sub_title) {                          # d = sample of days
     
-    l <- list(1)                                  # List for output
+    tweets_per_day <- train_tweets %>%              # Filtering data
+     select(device, day, hour) %>%                  # based on d 
+     group_by(device, day, hour) %>%              
+     filter(day %in% d) %>%
+     summarize(n = n()) %>%
+     as.data.frame()
     
-    for (i in seq_along(d)) {                     # For loop on days 
-                                                  # from vector d
+    l <- list(1)                                    # Storage list
+                                                    # for graphs
+    
+    for (i in seq_along(d)) {                       # For loop on 
+                                                    # sample of days d
       
-      buffer <- tweets_per_day %>%                # Filtering data
-        filter(day == d[i])                       # for day i.
+      buffer <- tweets_per_day %>%                  # Further filtering
+        filter(day == d[i]) %>%                     # data for day i.
+        as.data.frame()
       
-      seq_ticks_y <-                              # y tick marks
+      seq_ticks_y <-                                # y tick marks
         seq(min(buffer$n), max(buffer$n), 1)
-      
-      graph <- buffer %>%                         # Graph for day i        
-        ggplot(aes(hour, n, color = device)) +
-        geom_point(aes(size = n)) +               # Gradience of dots
-        scale_size_continuous(range = c(4, 6)) +  # Size of dots
+                                                    # Graph for day i
+      graph <- buffer %>%                                                          ggplot(aes(hour, n, color = device)) +      
+        geom_point(aes(size = n)) +                 # Gradience of dots
+        scale_size_continuous(range = c(4, 6)) +    # Size of dots
+        guides(size = FALSE) +                      # No legend for size
         scale_x_continuous(breaks = seq_ticks_x, labels = waiver()) +
         scale_y_continuous(breaks = seq_ticks_y, labels = waiver()) +
-        ggtitle(paste("Day", i, ":", d, sep = " ")) +
-        labs(x = "Hour in the 24-Hour Clock",
-             y = "# of Tweets per Hour",
+        labs(title = paste("Day", i, ":", d, sep = " "),
              subtitle = sub_title, 
+             x = "Hour in the 24-Hour Clock",
+             y = "# of Tweets per Hour",
              color = "Device") +
-        theme(plot.title = element_text(hjust = 0.5, vjust = 1, 
+        theme(plot.title = element_text(hjust = 0.5, vjust = 2, 
                                         size = 16, face = "bold"),
-              plot.subtitle = element_text(hjust = 0.5, vjust = 1, 
+              plot.subtitle = element_text(hjust = 0.5, vjust = 3, 
                                            size = 12),
               axis.title.x = element_text(vjust = -1, size = 14), 
               axis.title.y = element_text(vjust = 3, size = 14), 
@@ -469,13 +472,13 @@ building_graph_series <-                          # Function name
               axis.text.x = element_text(hjust = 1, size = 12), 
               axis.text.y = element_text(size = 12),
               legend.text = element_text(size = 12)) +
-              scale_colour_manual(values = duo_Palette) +
+              scale_color_manual(values = duo_Palette) +
               theme(panel.background = element_rect(fill = sky_blue)) 
   
-    l[[i]] <- graph                              # Placing graph output
-    }                                            # into list.
+    l[[i]] <- graph                                 # Placing output
+    }                                               # into list.
     
-marrangeGrob(l, nrow = 1, ncol = 1, top = "")    # Printing graphs
+marrangeGrob(l, nrow = 1, ncol = 1, top = "")       # Printing graphs.
 }
 ```
 
@@ -485,11 +488,11 @@ Conclusions drawn on the basis of the 48 graphs or on the basis of the 10 graphs
 
 ```{r 4 graphs at random}
 # Let's pick up a sample at random.
-sample_size <- 6
+sample_size <- 4
+days <- unique(train_tweets$day)
 set.seed(1)
-seq <- sample(1:nrow(tweets_per_day), sample_size, replace = FALSE)
-random_sample <- tweets_per_day[seq, ]
-d <- random_sample$day
+seq <- sample(seq_along(days), sample_size, replace = FALSE)
+d <- sort(days[seq])
 sub_title <- "Selection Method: Random Pick"
 
 building_graph_series(d, sub_title)
@@ -1053,5 +1056,17 @@ GGPLOT2 SIZE OF DOT SYMBOLS
 ialm
 
 https://stackoverflow.com/questions/20251119/increase-the-size-of-variable-size-points-in-ggplot2-scatter-plot
+
+---------------------------------------------------------------------------
+
+GGPLOT2 SUPPRESSING LEGEND RELATED TO geom_point(aes(size = n))
+Brandon Bertelsen
+https://stackoverflow.com/questions/4207518/how-can-i-hide-the-part-of-the-legend-using-ggplot2
+
+Actually didn't work because size grading disappeated with legend.
+
+But
+Didzis Elferts
+https://stackoverflow.com/questions/14604435/turning-off-some-legends-in-a-ggplot
 
 ---------------------------------------------------------------------------
