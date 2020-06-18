@@ -408,6 +408,12 @@ We notice a big peak for the Android in early hours of the morning, between 6 an
 
 It is like adding apples and pears: day schedules are amalgamated over more than one year. Would find back that pattern sytematically in individual day schedules? Let's check up this assumption without amalgamating all days, which can be misleading. 
 
+The objective reads as follows:
+
+- will most day schedules have Android activity in the morning and iPhone activity only pm?
+- or will most day schedules have Android activity at least mostly concentrated in the morning and iPhone activity mostly concentrated in pm?
+- will most day schedules show no temporal intersection?
+
 Samples of day schedules have been picked up:
 
 - 12 day schedules taken at random,
@@ -415,12 +421,7 @@ Samples of day schedules have been picked up:
 - 12 day schedules corresponding to the busiest days in Android tweet activity,
 - 12 day schedules corresponding to the busiest days in iPhone tweet activity.
 
-The corresponding 48 day schedule graphs have been produced and analyzed. For illustrative purposes, some of them are reproduced below: 
-
-- 4 graphs picked up at random,
-- 2 graphs with the top days in global activity,
-- 2 graphs with the top days in Android activity,
-- 2 graphs with the top days in iPhone activity.
+Results will be shown under the form of graphs.
 
 ```{r Developping function to produce the 10 graphs}
 # Scale of x tick marks to be incorporated into ggplot2 graphs
@@ -457,7 +458,7 @@ building_graph_series <-                            # Function name
         guides(size = FALSE) +                      # No legend for size
         scale_x_continuous(breaks = seq_ticks_x, labels = waiver()) +
         scale_y_continuous(breaks = seq_ticks_y, labels = waiver()) +
-        labs(title = paste("Day", i, ":", d, sep = " "),
+        labs(title = paste("Day", i, ":", d[i], sep = " "),
              subtitle = sub_title, 
              x = "Hour in the 24-Hour Clock",
              y = "# of Tweets per Hour",
@@ -482,72 +483,135 @@ marrangeGrob(l, nrow = 1, ncol = 1, top = "")       # Printing graphs.
 }
 ```
 
+The corresponding 48 day schedule graphs have been produced and analyzed. For illustrative purposes, some of them are reproduced below: 
+
+- 4 graphs picked up at random,
+- 2 graphs with the top days in global activity,
+- 2 graphs with the top days in Android activity,
+- 2 graphs with the top days in iPhone activity.
+
 Conclusions drawn on the basis of the 48 graphs or on the basis of the 10 graphs are the same. Let's examine the 10 graphs, group by group. Let's get started with the 4 graphs produced at random. 
 
 <br>
 
 ```{r 4 graphs at random}
-# Let's pick up a sample at random.
+# Let's pick up row numbers at random.
 sample_size <- 4
 days <- unique(train_tweets$day)
 set.seed(1)
-seq <- sample(seq_along(days), sample_size, replace = FALSE)
-d <- sort(days[seq])
+sample_r <- sample(days, sample_size, replace = FALSE)
+# Let's store day identification in the vector sample_r ("r" for random).
+
 sub_title <- "Selection Method: Random Pick"
+
+building_graph_series(sample_r, sub_title)
+```
+
+<br>
+
+In day 1, Android activity spread in the morning and in the evening. 
+
+In day 2, as described am-pm.
+
+On day 3, Android activity spread in the morning and in the evening.
+
+On day 4, Android activity spread in the morning and in the evening, with even more in the evening; moreover, concomittance Android and iPhone!
+
+Let's turn to the top activy days. 
+
+<br>
+
+```{r 2 graphs of top actitiy days}
+# Let's build up a sample based on global tweet activity per day,
+# called sample_g, g being for "global tweet activity".
+sample_size <- 2
+sample_g <- train_tweets %>%
+  select(day) %>% 
+  filter(!day %in% sample_r) %>%
+  group_by(day) %>% 
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  head(., sample_size) 
+
+# Keeping the 2 top days for printed graphs.  
+d <- sample_g$day
+
+sub_title <- "Selection: Days with Busiest Global Tweet Activity"
 
 building_graph_series(d, sub_title)
 ```
 
-
 <br>
 
 <br>
 
-<br>
+```{r 2 graphs of top Android actitiy days}
+# Vector of days
+days <- unique(train_tweets$day)
 
-```{r Adapting opts_chunk to enlarge display width for a set of graphs}
-knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
-```
+# Excluding the 2 day vectors previously used.
 
-```{r Graph with day schedule from a random sample of days}
 
-  
-# Now, let's determine the size of three other samples based on tweet activity.
-sample_size <- 3
-
-# Let's build up a sample based on global tweet activity per day.
-sample_g <- tweets_per_day %>%
+# Let's build up a sample based on global tweet activity per day,
+# called sample_g, a being for "Android tweet activity".
+sample_size <- 2
+sample_a <- train_tweets %>%
+  filter(device == "Android") %>%
+  select(day) %>%  
+  filter(!day %in% sample_r & 
+           !day %in% sample_g$day) %>%
+  group_by(day) %>% 
+  summarise(n = n()) %>%
   arrange(desc(n)) %>%
-  head(sample_size) %>%
-  arrange(day) 
-v <- sample %>% .$day
+  head(., sample_size) 
 
-l <- list(1) 
-for (i in 1:length(v)) {
-  d <- v[i]
-  
-  graph <- buffer %>%
-    filter(day == d) %>% 
-    select(device, hour) %>%
-    group_by(device, hour) %>%
-    summarise(n = n()) %>%
-    ggplot(aes(hour, n, color = device)) +
-    geom_point(aes(size = n)) +
-    ggtitle(paste("Busy Day", i, ":", d, sep = " ")) +
-    labs(x = "",
-         y = "# of Tweets", 
-         color = "") +
-  theme_economist() +
-  scale_colour_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-  
-  l[[i]] <- graph
-}  
-marrangeGrob(l, nrow = 1, ncol = 1, 
-  top = "")
+# Keeping the 2 top days for printed graphs.  
+d <- sample_a$day
+
+sub_title <- "Selection: Days with Busiest Android Tweet Activity"
+
+building_graph_series(d, sub_title)
 ```
 
+<br>
 
+<br>
+
+```{r 2 graphs of top iPhone actitiy days}
+# Vector of days
+days <- unique(train_tweets$day)
+
+# Let's build up a sample based on global tweet activity per day,
+# called sample_i, i being for "iPhone tweet activity".
+sample_size <- 2
+sample_i <- train_tweets %>%
+  filter(device == "iPhone") %>%
+  select(day) %>%  
+  filter(!day %in% sample_r & 
+           !day %in% sample_g$day &
+           !day %in% sample_a$day) %>%
+  group_by(day) %>% 
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  head(., sample_size) 
+
+# Keeping the 2 top days for printed graphs.  
+d <- sample_i$day
+
+sub_title <- "Selection: Days with Busiest Android Tweet Activity"
+
+building_graph_series(d, sub_title)
+```
+
+<br>
+
+Visual evidence provided by the 10 day schedule graphs cannot support previous opinion about two separate entities tweeting; it does not infirm that hypothesis either. 
+
+Let's get broder insights about dayly time schedule, out of the whole dataset. 
+
+
+
+<br>
 
 ## Month Evolution
 
