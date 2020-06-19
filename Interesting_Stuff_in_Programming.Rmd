@@ -100,4 +100,49 @@ saveWidget(hw,"1.html",selfcontained = F)
 webshot::webshot("1.html","1.png",vwidth = 1992, vheight = 1744, delay =10) 
 
 -----------------------------------------------------------------------------
-  
+
+theme_economist()
+
+Example
+
+```{r Graph of activity per month and per device}
+?scales::label_percent
+graph <- train_tweets %>%
+  select(device, month) %>%
+  group_by(device, month) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, color = device)) +
+  geom_line(size = 3) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+  labs(x = "",
+       y = "% of Tweets per Month",
+       color = "Device") +
+  theme_economist(base_size = 12) +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 3, size = 12), 
+        axis.text.x = element_text(angle = 90, hjust = 0, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  scale_color_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
+```
+
+---------------------------------------------------------------------------
+
+EXPRESSING IN PERCENTAGE
+
+percentage <- 
+label_percent(accuracy = 0.1, suffix = " %")(sum(top_days$n) / nrow(train_tweets))
+
+---------------------------------------------------------------------------
+
+TICKS ON A DISCRETE NUMERIC X AXIS
+
+https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
+
+ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
+
+---------------------------------------------------------------------------
