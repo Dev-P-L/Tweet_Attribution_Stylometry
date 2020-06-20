@@ -632,23 +632,40 @@ Let's count the tweets that have been issued in time slots in which both devices
 <br>
 
 ```{r Counting tweets in time slots in which both devices produced tweets}
-buffer <- train_tweets %>%                          # Selecting data
+tidy_data <- train_tweets %>%                          # Selecting data
   select(month, day, time_slot_2, device) %>%       # by ...
   group_by(month, day, time_slot_2, device) %>%     # Grouping.
   summarise(n = n())                                # Counting.
 
-wide_data <- buffer %>%                             # From tidy data
+wide_data <- tidy_data %>%                          # From tidy data
   spread(device, n) %>%                             # to wide data.
   filter(Android > 0 & iPhone > 0) %>%              # Creating 2 columns.
   mutate(global = Android + iPhone) %>%             # Adding total.
+  ungroup() %>%
   select(month, global) %>%
-  group_by(month, global) %>%
-  summarise(n = n())
+  group_by(month) %>%
+  summarise(n = sum(global))
   
-  
+grand_total <- sum(wide_data$n)  
 rm(buffer)
 
+tidy_data <- train_tweets %>%                          # Selecting data
+  select(month, day, time_slot_3, device) %>%       # by ...
+  group_by(month, day, time_slot_3, device) %>%     # Grouping.
+  summarise(n = n())                                # Counting.
 
+wide_data <- tidy_data %>%                          # From tidy data
+  spread(device, n) %>%                             # to wide data.
+  filter(Android > 0 & iPhone > 0) %>%              # Creating 2 columns.
+  mutate(global = Android + iPhone) %>%             # Adding total.
+  ungroup() %>%
+  select(month, global) %>%
+  group_by(month) %>%
+  summarise(n = sum(global))
+  
+grand_total <- sum(wide_data$n) 
+
+rm(buffer)
 
 graph <- train_tweets %>%                                                          ggplot(aes(hour, n, color = device)) +      
         geom_point(aes(size = n)) +                 # Gradience of dots
