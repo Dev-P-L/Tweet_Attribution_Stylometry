@@ -2,7 +2,7 @@
 title: "Tweet Attribution"
 subtitle: "Trump's Tweets"
 author: "Philippe Lambot"
-date: "June 14, 2020"
+date: "July 15, 2020"
 
 output: 
   html_document:
@@ -611,96 +611,38 @@ Let's get broader insights about dayly time schedule, using the whole dataset.
 
 Hour slots
 
-```{r Creating time slots}
-# Vector of 2-hour time slots
-ts_2 <- c("0-1", "2-3", "4-5", "6-7", "8-9", "10-11", "12-13", "14-15", "16-17", "18-19", "20-21", "22-23")
+```{r Bi-device time slots}
+# Let's check whether created_at is strictly increasing
+all(diff(train_tweets$created_at) > 0)
+all(diff(as.numeric(train_tweets$id_str)) > 0)
 
-# Vector of 3-hour time slots
-ts_3 <- c("0-2", "3-5", "6-8", "9-11", "12-14", "15-17", "18-20", "21-23")
+# Let's build up a temporary data frame with Android only
+df_a <- train_tweets %>%
+  mutate(row = as.numeric(rownames(train_tweets))) %>%
+  filter(device == "Android") %>%
+  select()
 
-# Adding time slots as 2 additional feature in training set.
-# The feature "hour" (from 0 to 23 in the 24-hour clock) is converted into # time slots.
-train_tweets <- train_tweets %>%
-  mutate(time_slot_2 = ts_2[ceiling((hour + 1)/ 2)]) %>%
-  mutate(time_slot_3 = ts_3[ceiling((hour + 1)/ 3)])
+str(rownames(train_tweets))
+
+difftime(v[3], v[1], units = "hours")
 ```
 
 <br>
 
-Let's count the tweets that have been issued in time slots in which both devices published tweets the same day.
+...
 
 <br>
 
 ```{r Counting tweets in time slots in which both devices produced tweets}
-tidy_data <- train_tweets %>%                          # Selecting data
-  select(month, day, time_slot_2, device) %>%       # by ...
-  group_by(month, day, time_slot_2, device) %>%     # Grouping.
-  summarise(n = n())                                # Counting.
 
-wide_data <- tidy_data %>%                          # From tidy data
-  spread(device, n) %>%                             # to wide data.
-  filter(Android > 0 & iPhone > 0) %>%              # Creating 2 columns.
-  mutate(global = Android + iPhone) %>%             # Adding total.
-  ungroup() %>%
-  select(month, global) %>%
-  group_by(month) %>%
-  summarise(n = sum(global))
-  
-grand_total <- sum(wide_data$n)  
-rm(buffer)
-
-tidy_data <- train_tweets %>%                          # Selecting data
-  select(month, day, time_slot_3, device) %>%       # by ...
-  group_by(month, day, time_slot_3, device) %>%     # Grouping.
-  summarise(n = n())                                # Counting.
-
-wide_data <- tidy_data %>%                          # From tidy data
-  spread(device, n) %>%                             # to wide data.
-  filter(Android > 0 & iPhone > 0) %>%              # Creating 2 columns.
-  mutate(global = Android + iPhone) %>%             # Adding total.
-  ungroup() %>%
-  select(month, global) %>%
-  group_by(month) %>%
-  summarise(n = sum(global))
-  
-grand_total <- sum(wide_data$n) 
-
-rm(buffer)
-
-graph <- train_tweets %>%                                                          ggplot(aes(hour, n, color = device)) +      
-        geom_point(aes(size = n)) +                 # Gradience of dots
-        scale_size_continuous(range = c(4, 6)) +    # Size of dots
-        guides(size = FALSE) +                      # No legend for size
-        scale_x_continuous(breaks = seq_ticks_x, labels = waiver()) +
-        scale_y_continuous(breaks = seq_ticks_y, labels = waiver()) +
-        labs(title = paste("Day", i, ":", d[i], sep = " "),
-             subtitle = sub_title, 
-             x = "Hour in the 24-Hour Clock",
-             y = "# of Tweets per Hour",
-             color = "Device") +
-        theme(plot.title = element_text(hjust = 0.5, vjust = 2, 
-                                        size = 16, face = "bold"),
-              plot.subtitle = element_text(hjust = 0.5, vjust = 3, 
-                                           size = 12),
-              axis.title.x = element_text(vjust = -1, size = 14), 
-              axis.title.y = element_text(vjust = 3, size = 14), 
-              legend.title = element_text(size = 14),
-              axis.text.x = element_text(hjust = 1, size = 12), 
-              axis.text.y = element_text(size = 12),
-              legend.text = element_text(size = 12)) +
-              scale_color_manual(values = duo_Palette) +
-              theme(panel.background = element_rect(fill = sky_blue)) 
 ```
 
-
- 
 
 ## Month Evolution
 
 All datetime values have been aggregated by month beginning. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
 
-https://ggplot2.tidyverse.org/reference/scale_manual.html
-it's recommended to use a named vector
+
 
 ```{r Graph of activity per month and per device}
 graph <- train_tweets %>%
@@ -1220,5 +1162,13 @@ Actually didn't work because size grading disappeated with legend.
 But
 Didzis Elferts
 https://stackoverflow.com/questions/14604435/turning-off-some-legends-in-a-ggplot
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+---------------------------------------------------------------------------
+
+https://stackoverflow.com/questions/12977073/how-to-find-the-difference-between-two-dates-in-hours-in-r
+How to find the difference between two dates in hours in R?
+Thank you Andrie
 
 ---------------------------------------------------------------------------
