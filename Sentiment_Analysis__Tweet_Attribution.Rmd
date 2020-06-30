@@ -617,14 +617,44 @@ all(diff(train_tweets$created_at) > 0)
 all(diff(as.numeric(train_tweets$id_str)) > 0)
 
 # Let's build up a temporary data frame with Android only
-df_a <- train_tweets %>%
-  mutate(row = as.numeric(rownames(train_tweets))) %>%
+df <- train_tweets %>%
+  mutate(index = seq_along(1:nrow(train_tweets))) %>%
+  select(device, id_str, created_at)  
+
+df_android <- df %>%
   filter(device == "Android") %>%
-  select()
+  select(- device)
 
-str(rownames(train_tweets))
+df_iphone <- df %>%
+  filter(device == "iPhone") %>%
+  select(- device)
 
-difftime(v[3], v[1], units = "hours")
+coex <- vector(mode="character", length=0)
+str(coex)
+
+for (i in 1:nrow(df_android)) {
+  date_ref <- df_android$created_at[i]
+  temp <- df_iphone %>%
+    mutate(diff = difftime(created_at, date_ref, units = "hours"))
+  diff_pos <- which(temp$diff > 0 & temp$diff <= 3, arr.ind = TRUE)
+  diff_neg <- which(temp$diff < 0 & temp$diff >= -3, arr.ind = TRUE) 
+  index <- append(diff_pos, diff_neg) 
+  
+  if(length(index) > 0) {
+      prox <- append(df_android$id_str[i], df_iphone$id_str[index])
+      coex <- append(coex, prox)
+  }
+}
+
+coex <- unique(coex)
+
+# How many from Android?
+split_coex <- train_tweets %>%
+  filter(id_str %in% coex) %>%
+  select(device) %>%
+  group_by(device) %>%
+  summarise(n = n())
+split_coex  
 ```
 
 <br>
