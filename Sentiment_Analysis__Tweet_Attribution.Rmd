@@ -115,7 +115,7 @@ orange <- "#E69F00"
 deep_blue <- "#0072B2"
 
 # When used as main colors on one figure, both colors are combined in a duo palette just with orange and deep blue, the colors assigned to respectively Android and iPhone. Let's use a named vector as recommended.
-duo_Palette <- c(Android = "#E69F00", iPhone = "#0072B2")
+duo_Palette <- c("#E69F00", "#0072B2")
 # This palette will be associated with sky blue background:
 sky_blue <- "#56b4e9"
 
@@ -384,16 +384,28 @@ Let's investigate tweet concentration in the 12-hour clock, simply separating da
 graph <- train_tweets %>%
   select(device, am_pm) %>%
   group_by(device, am_pm) %>%
-  summarise(n = n()) %>%
+  summarize(n = n()) %>%
   mutate(percent = n / sum(n)) %>%
-  ggplot(aes(device, percent, fill = am_pm)) +
+  ggplot(aes(am_pm, percent, fill = device)) +
   geom_bar(width = 0.5, stat = "identity") +
-  scale_y_continuous(labels = percent_format(suffix = " %")) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  theme(panel.background = element_rect(fill = "#56B4E9"))
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+  ggtitle("Tweet Activity per Hour per Device") +
+  labs(x = "Hour in the 24-Hour Clock",
+       y = "% of Tweets per Hour",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.5, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
 graph
 ```
 
@@ -710,9 +722,71 @@ This is a try to quantify intermingling between Android tweets and iPhone tweets
 
 In a snapshot, day schedule has shown variety away from the average day schedule per device. On the contrary, some temporal proximity has been shown in one fourth or even one third of tweets. Publication time will be used to attribute tweets, in hour format or am-pm. 
 
-But would day schedule also vary month after month? 
+But would day schedule also vary month after month? Let's try to retrieve pre-attentive insights from drawing am-pm breakdown per month and per device. 
 
 <br>
+
+## Average day schedule per month per device
+
+<br>
+
+```{r Graph % AM per month for Android}
+graph <- train_tweets %>%
+  filter(device == "Android") %>%
+  select(month, am_pm) %>%
+  group_by(month, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, fill = am_pm)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+  ggtitle("Tweet Activity per am_pm for Android") +
+  labs(x = "",
+       y = "% of Tweets per am_pm",
+       fill = "Half days") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
+
+```{r Graph % AM per month for iPhone}
+graph <- train_tweets %>%
+  filter(device == "iPhone") %>%
+  select(month, am_pm) %>%
+  group_by(month, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, fill = am_pm)) +
+  geom_bar(stat = "identity") +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+  ggtitle("Tweet Activity per am_pm for iPhone") +
+  labs(x = "",
+       y = "% of Tweets per am_pm",
+       fill = "Half days") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
 
 ## Month Evolution
 
