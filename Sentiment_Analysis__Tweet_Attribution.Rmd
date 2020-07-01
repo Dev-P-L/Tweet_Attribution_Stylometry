@@ -361,14 +361,45 @@ https://stackoverflow.com/questions/37896824/grouping-time-and-counting-instance
 
 ```{r Extracting time components}
 train_tweets <- train_tweets %>%
-  mutate(month = floor_date(with_tz(created_at, "EST"), unit = "month")) %>%
-  mutate(week = floor_date(with_tz(created_at, "EST"), unit = "week")) %>%
-  mutate(day = floor_date(with_tz(created_at, "EST"), unit = "day")) %>%
+  mutate(month = floor_date(with_tz(created_at, "EST"), 
+                            unit = "month")) %>%
+  mutate(week = floor_date(with_tz(created_at, "EST"), 
+                           unit = "week")) %>%
+  mutate(day = floor_date(with_tz(created_at, "EST"), 
+                          unit = "day")) %>%
   mutate(hour = hour(with_tz(created_at, "EST"))) %>%
-  mutate(am_pm = gsub('[0-9: ]+', '\\1', format(created_at, '%r'))) %>%
+  mutate(am_pm = gsub('[0-9: ]+', '\\1', 
+                      format(created_at, '%r'))) %>%
   arrange(created_at) %>%
   select(device, everything()) 
 ```
+
+<br>
+
+Let's investigate tweet concentration in the 12-hour clock, simply separating days into am and pm.
+
+<br>
+
+```{r Graph am_pm 24 hour-clock}
+graph <- train_tweets %>%
+  select(device, am_pm) %>%
+  group_by(device, am_pm) %>%
+  summarise(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(device, percent, fill = am_pm)) +
+  geom_bar(width = 0.5, stat = "identity") +
+  scale_y_continuous(labels = percent_format(suffix = " %")) +
+  labs(x = "",
+       y = "% of Tweets per Device",
+       fill = "Parts of the Day") +
+  theme_economist(base_size = 12) +
+  theme(panel.background = element_rect(fill = "#56B4E9"))
+graph
+```
+
+<br>
+
+Clear-cut difference: more than 50 % in am for Android, i.e. more than twice as much than iPhone. Would that stay per hour in the 24-hour clock?
 
 Let's investigate tweet concentration per hour in the 24-hour clock.
 
@@ -384,42 +415,42 @@ graph <- train_tweets %>%
   summarize(n = n()) %>%
   mutate(percent = n / sum(n)) %>%
   ggplot(aes(hour, percent, color = device)) +
-  geom_line(size = 3) +
+  geom_point(aes(size = percent), 
+             position = position_jitter(width = 0.3, height = 0, 
+                                        seed = 1)) +
+  scale_size_continuous(range = c(2, 6)) +    # Size of dots
+  guides(size = FALSE) +                      # No legend for size
   scale_x_continuous(breaks = seq_ticks, labels = waiver()) +
   scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
   ggtitle("Tweet Activity per Hour per Device") +
   labs(x = "Hour in the 24-Hour Clock",
        y = "% of Tweets per Hour",
        color = "Device") +
-  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
                                   size = 16, face = "bold"),
         axis.title.x = element_text(vjust = -1, size = 14), 
         axis.title.y = element_text(vjust = 3, size = 14), 
         legend.title = element_text(size = 14),
         axis.text.x = element_text(hjust = 1, size = 12), 
         axis.text.y = element_text(size = 12),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
   scale_color_manual(values = duo_Palette) +
   theme(panel.background = element_rect(fill = sky_blue)) 
 graph
 ```
 
-We notice a big peak for the Android in early hours of the morning, between 6 and 8 AM. There seems to be a clear different in these patterns. We will therefore assume that two different entities are using these two devices. 
+We notice a big peak for the Android in early hours of the morning, between 6 and 9 AM (8 according to Raf). There seems to be a clear different in these patterns. 
 
-It is like adding apples and pears: day schedules are amalgamated over more than one year. Would find back that pattern sytematically in individual day schedules? Let's check up this assumption without amalgamating all days, which can be misleading. 
+Some previous research has inferred that two different entities are using these two devices. Autonomy has also been assumed. Personnally, I do not see any proof in the graph. Is this graph incompatible with global coordination but specialization in tasks? Anyway, this point is not material to our objective, which is retrieving insights to better attriubte tweets either to the Android device or to the iPhone device. 
 
-The objective reads as follows:
+What matters here is the statistical representativeness of these average day shcedule curves. 
 
-- will most day schedules have Android activity in the morning and iPhone activity only pm?
-- or will most day schedules have Android activity at least mostly concentrated in the morning and iPhone activity mostly concentrated in pm?
-- will most day schedules show no temporal intersection?
+Would that mean that average day schedule is actually repetitive?
 
-Samples of day schedules have been picked up:
-
-- 12 day schedules taken at random,
-- 12 day schedules corresponding to the busiest days in global tweet activity,
-- 12 day schedules corresponding to the busiest days in Android tweet activity,
-- 12 day schedules corresponding to the busiest days in iPhone tweet activity.
+Or would the days schedule vary, day after day? Or month after month? 
 
 Results will be shown under the form of graphs.
 
@@ -598,81 +629,94 @@ sample_i <- train_tweets %>%
 # Keeping the 2 top days for printed graphs.  
 d <- sample_i$day
 
-sub_title <- "Selection: Days with Busiest Android Tweet Activity"
+sub_title <- "Selection: Days with Busiest iPhone Tweet Activity"
 
 building_graph_series(d, sub_title)
 ```
 
 <br>
 
-Visual evidence provided by the 10 day schedule graphs cannot support previous opinion about two separate entities tweeting; it does not infirm that hypothesis either. 
+Visual evidence provided by the 10 day schedule graphs suggests rather great variety in day schedule away from average day schedules per device. 
 
-Let's get broader insights about dayly time schedule, using the whole dataset. 
+Let's get broader insights about dayly time schedule, using the whole dataset. We've illustrated variety, let's now illustrate proximity. 
 
 Hour slots
 
 ```{r Bi-device time slots}
-# Let's check whether created_at is strictly increasing
-all(diff(train_tweets$created_at) > 0)
-all(diff(as.numeric(train_tweets$id_str)) > 0)
+df <- train_tweets %>%                            # Temporary data frame
+  select(device, id_str, created_at, hour)  
 
-# Let's build up a temporary data frame with Android only
-df <- train_tweets %>%
-  mutate(index = seq_along(1:nrow(train_tweets))) %>%
-  select(device, id_str, created_at)  
-
-df_android <- df %>%
-  filter(device == "Android") %>%
+df_android <- df %>%                              # Android only
+  filter(device == "Android") %>%                  
   select(- device)
 
-df_iphone <- df %>%
+df_android_short <- df_android                    # Excluding tweets
+                                                  # between 12pm & 3pm
+
+df_iphone <- df %>%                               # iPhone only
   filter(device == "iPhone") %>%
   select(- device)
 
-coex <- vector(mode="character", length=0)
-str(coex)
+df_iphone_short <- df_iphone %>%                         # Excluding tweets
+  filter(hour < 12 | hour >= 15)                  # between 12pm & 3pm
+                                                  
+intermingling_measurement <- 
+  function(lower_limit, df1, df2) {
+    
+    coex <- vector(mode="character", length=0)
 
-for (i in 1:nrow(df_android)) {
-  date_ref <- df_android$created_at[i]
-  temp <- df_iphone %>%
-    mutate(diff = difftime(created_at, date_ref, units = "hours"))
-  diff_pos <- which(temp$diff > 0 & temp$diff <= 3, arr.ind = TRUE)
-  diff_neg <- which(temp$diff < 0 & temp$diff >= -3, arr.ind = TRUE) 
-  index <- append(diff_pos, diff_neg) 
+    for (i in 1:nrow(df1)) {
+      date_ref <- df1$created_at[i]
+      temp <- df2 %>%
+        mutate(diff = difftime(created_at, date_ref, units = "hours"))
+      diff_pos <- which(temp$diff > 0 & 
+                        temp$diff <= lower_limit, arr.ind = TRUE)
+      diff_neg <- which(temp$diff < 0 & 
+                        temp$diff >= -lower_limit, arr.ind = TRUE) 
+      index <- append(diff_pos, diff_neg) 
   
-  if(length(index) > 0) {
-      prox <- append(df_android$id_str[i], df_iphone$id_str[index])
-      coex <- append(coex, prox)
+      if(length(index) > 0) {
+        prox <- append(df1$id_str[i], df2$id_str[index])
+        coex <- append(coex, prox)
+      }
+    }
+
+    coex <- unique(coex)
+    
+    # How many from Android?
+    split_coex <- train_tweets %>%
+      filter(id_str %in% coex) %>%
+      select(device) %>%
+      group_by(device) %>%
+      summarise(n = n())
+    split_coex
   }
-}
 
-coex <- unique(coex)
+intermingling_measurement(1, df_android, df_iphone)
+intermingling_measurement(2, df_android, df_iphone)
+intermingling_measurement(3, df_android, df_iphone)
+intermingling_measurement(4, df_android, df_iphone)
 
-# How many from Android?
-split_coex <- train_tweets %>%
-  filter(id_str %in% coex) %>%
-  select(device) %>%
-  group_by(device) %>%
-  summarise(n = n())
-split_coex  
+intermingling_measurement(1, df_android_short, df_iphone_short)
+intermingling_measurement(2, df_android_short, df_iphone_short)
+intermingling_measurement(3, df_android_short, df_iphone_short)
+intermingling_measurement(4, df_android_short, df_iphone_short)
+
 ```
 
 <br>
 
-...
+This is a try to quantify intermingling between Android tweets and iPhone tweets. On that basis, intermingling, proximity, has been evaluated at more than one fourth, or even on third if all tweets are taken into account.
+
+In a snapshot, day schedule has shown variety away from the average day schedule per device. On the contrary, some temporal proximity has been shown in one fourth or even one third of tweets. Publication time will be used to attribute tweets, in hour format or am-pm. 
+
+But would day schedule also vary month after month? 
 
 <br>
-
-```{r Counting tweets in time slots in which both devices produced tweets}
-
-```
-
 
 ## Month Evolution
 
-All datetime values have been aggregated by month beginning. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
-
-
+All datetime values have been aggregated by month. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
 
 ```{r Graph of activity per month and per device}
 graph <- train_tweets %>%
@@ -715,7 +759,7 @@ These differences qualify this feature as a candidate predictor in tweet attribu
 
 
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------
 
 EVOLUTION OF TWEET PUBLICATION
 
@@ -756,56 +800,9 @@ graph
 ```
 
 
-```{r Graph am_pm 24 hour-clock}
-graph <- elect_tweets %>%
-  mutate(hour = hour(with_tz(created_at, "EST"))) %>%
-  select(device, am_pm) %>%
-  group_by(device, am_pm) %>%
-  summarise(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(device, percent, fill = am_pm)) +
-  geom_bar(width = 0.5, stat = "identity") +
-  scale_y_continuous(labels = percent_format(suffix = " %")) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_fill_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9"))
-graph
-```
+
 
 Now in hour.
-
-```{r Graph am_pm 24 hour-clock}
-# The palette with grey:
-# Orange, blue, black, light blue, green, yellow, vermilion, reddish purple
-cbbPalette <- c("#E69F00", "#0072B2", "#000000", "#56B4E9", 
-                "#009E73", "#F0E442",  "#D55E00", "#CC79A7")
-graph <- elect_tweets %>%
-  mutate(hour = hour(with_tz(created_at, "EST"))) %>%
-  select(device, hour) %>%
-  group_by(device, hour) %>%
-  summarise(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(hour, percent, color = device)) +
-  geom_point(aes(size = percent)) +
-  scale_y_continuous(labels = 
-                     percent_format(accuracy = 1, suffix = " %")) +
-  labs(x = "Hour of day (EST)",
-       y = "% of tweets",
-       color = "") +
-  theme_economist(base_size = 12) +
-  scale_colour_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9"))
-graph
-```
-
-
-
-```{r Adapting opts_chunk to enlarge display width for graphs}
-knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
-```
 
 percentage <- 
   label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
