@@ -749,6 +749,8 @@ graph <- train_tweets %>%
         axis.title.x = element_blank(), 
         axis.title.y = element_text(vjust = 3, size = 14), 
         legend.title = element_text(size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1, 
+                                   vjust = 1, size = 12),
         axis.text.y = element_text(size = 12),
         legend.text = element_text(size = 12),
         # remove the vertical grid lines
@@ -758,6 +760,8 @@ graph <- train_tweets %>%
   theme(panel.background = element_rect(fill = sky_blue)) 
 graph
 ```
+
+
 
 ```{r Graph % AM per month for iPhone}
 graph <- train_tweets %>%
@@ -778,6 +782,8 @@ graph <- train_tweets %>%
         axis.title.x = element_blank(), 
         axis.title.y = element_text(vjust = 3, size = 14), 
         legend.title = element_text(size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1, 
+                                   vjust = 1, size = 12),
         axis.text.y = element_text(size = 12),
         legend.text = element_text(size = 12),
         # remove the vertical grid lines
@@ -788,7 +794,7 @@ graph <- train_tweets %>%
 graph
 ```
 
-## Month Evolution
+## Month Evolution in Volume
 
 All datetime values have been aggregated by month. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
 
@@ -799,19 +805,26 @@ graph <- train_tweets %>%
   summarize(n = n()) %>%
   mutate(percent = n / sum(n)) %>%
   ggplot(aes(month, percent, color = device)) +
-  geom_line(size = 3) +
+  geom_point(aes(size = percent)) +
+  scale_size_continuous(range = c(2, 6)) +    # Size of dots
+  guides(size = FALSE) +                      # No legend for size
   scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
   ggtitle("Tweet Activity per Month per Device") +
-  labs(y = "% of Tweets per Month",
+  labs(x = "",
+       y = "% of Tweets per Month",
        color = "Device") +
-  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
                                   size = 16, face = "bold"),
-        axis.title.x = element_blank(), 
+        axis.title.x = element_text(vjust = -1, size = 14), 
         axis.title.y = element_text(vjust = 3, size = 14), 
         legend.title = element_text(size = 14),
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 12), 
+        axis.text.x = element_text(angle = 45, hjust = 1, 
+                                   vjust = 1, size = 12),
         axis.text.y = element_text(size = 12),
-        legend.text = element_text(size = 12)) +
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
   scale_color_manual(values = duo_Palette) +
   theme(panel.background = element_rect(fill = sky_blue)) 
 graph
@@ -821,85 +834,53 @@ graph
 
 Interpreting curve evolution would probably require additional information; it is out of the scope of this project. 
 
-General tendency is rather similar up to July 2016; afterwards, Android activity plummets while Iphone activity soars. 
+General tendency is rather similar up to July 2016: first, there is an upward tendency, up to the first trimester of 2016, then activity plummets, with the exception of July 2016 for Android; for the iPhone, activity surges again from July until October 2016; decrease in November is linked to the month period being shortened.  
 
-Moreover, in levels, at the beginning of the period, the activity percentage of the Android device is higher than the one from the iPhone. 
+Moreover, in levels, at the beginning of the period, the activity percentage of the Android device is higher than the one from the iPhone, and vice versa at the end of the period. 
 
-These differences qualify this feature as a candidate predictor in tweet attribution. 
+These differences qualify month as a candidate predictor in tweet attribution, the more so since average day schedule also varies on a monthly basis. 
 
+<br>
 
+# retweet_count
 
-
-
-
-
---------------------------------------------------------------------------
-
-EVOLUTION OF TWEET PUBLICATION
-
-```{r Graph Tweet publication count}
-graph <- elect_tweets %>%
-  mutate(week = round_date(with_tz(created_at, "EST"), unit = "week")) %>%
-  select(device, week) %>%
-  group_by(device, week) %>%
-  summarize(n = n()) %>%
-  ggplot(aes(week, n, color = device)) +
-  geom_line(size = 2) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       color = "") +
-  theme_economist(base_size = 12) +
-  scale_colour_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
-
--------------------------------------------------------------------
+<br>
 
 ```{r Graph retweet_count}
-graph <- elect_tweets %>%
-  mutate(month = floor_date(with_tz(created_at, "EST"), unit = "month")) %>%
+graph <- train_tweets %>%
   select(device, month, retweet_count) %>%
   group_by(device, month) %>%
-  summarize(avg = mean(n())) %>%
+  summarise(n = n(), ret = sum(retweet_count), avg = ret / n) %>%
   ggplot(aes(month, avg, color = device)) +
-    geom_line(size = 2) +
+  geom_point(aes(size = n)) +
+  scale_size_continuous(range = c(2, 6)) +    # Size of dots
+  guides(size = FALSE) +                      # No legend for size
+  ggtitle("Retweet Activity per Month per Device") +
   labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_color_manual(values = cbbPalette) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
+       y = "% of Retweets per Month",
+       color = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(angle = 45, hjust = 1, 
+                                   vjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_color_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
 graph
 ```
 
+<br>
 
+Upward tendency but differences are limited. A little bit bigger during the last two months, but remains limited. Not sure this is a good candidate predictor.
 
-
-Now in hour.
-
-percentage <- 
-  label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
-
-```{r Graph % AM per month for iPhone}
-graph <- train_tweets %>%
-  mutate(month = round_date(with_tz(created_at, "EST"), unit = "month")) %>%
-  select(device, month, am_pm) %>%
-  filter(device == "iPhone") %>%
-  group_by(month, am_pm) %>%
-  summarize(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(month, percent, fill = am_pm)) +
-  geom_bar(stat = "identity") +
-  scale_y_continuous(labels = percent_format(suffix = " %")) +
-  labs(x = "",
-       y = "% of Tweets per Device",
-       fill = "Parts of the Day") +
-  theme_economist(base_size = 12) +
-  scale_fill_manual(values = cbf_Palette_b_b) +
-  theme(panel.background = element_rect(fill = "#56B4E9")) 
-graph
-```
+<br>
 
 Provisional conclusion 
 ######################
@@ -910,10 +891,7 @@ So, there are partial time leads and lags between devices. Would that be compati
 
 The factual statement of leads and lags is used in this EDA section to characterize tweets from the two devices. In machine learning, this piece of information can be used to attribute tweets to one particular device. 
 
------------------------------------------------------------------------------
-
-
-Now we will study how their tweets differ. 
+---------------------------------------------------------------------------
 
 NLP 
 
@@ -923,32 +901,11 @@ The tidytext package helps us convert from text into a tidy table. Having the da
 
 The main function needed to achieve this is unnest_tokens. A token refers to the units that we are considering to be a data point. The most common tokens will be words, but they can also be single characters, ngrams, sentences, lines or patterns defined by a regex. The functions will take a vector of strings and extract the tokens so that each one gets a row in the new table. 
 
-```{r Exercise}
-v <- data.frame(text = elect_tweets$text) 
-v %>% unnest_tokens(word, text)
-pattern <- "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))"
-elect_tweets[i,] %>% 
-  mutate(text = str_replace_all(text, "https://t.co/[A-Za-z\\d]+|&amp;", ""))  %>%
-  unnest_tokens(word, text, token = "regex", pattern = pattern) %>%
-  select(word)
-```
-
 Note that the function tries to convert tokens into words and strips characters important to twitter such as # and @. A token in twitter is not the same as in regular english. For this reason instead of using the default, words, we define a regex that captures twitter character. The pattern appears complex but all we are defining is a patter that starts with @, # or neither and is followed by any combination of letter or digits:
 
+The first thing will be the number of hashtags, of mentions and of links to pictures. 
+
 pattern <- "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))"
-
-We can now use the unnest_tokens function with the regex option and appropriately extract the hashtags and mentions:
-
-campaign_tweets[i,] %>% 
-  unnest_tokens(word, text, token = "regex", pattern = pattern) %>%
-  select(word)
-
-Another minor adjustment we want to make is remove the links to pictures:
-
-campaign_tweets[i,] %>% 
-  mutate(text = str_replace_all(text, "https://t.co/[A-Za-z\\d]+|&amp;", ""))  %>%
-  unnest_tokens(word, text, token = "regex", pattern = pattern) %>%
-  select(word)
 
 Now we are now read to extract the words for all our tweets.
 
