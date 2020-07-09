@@ -237,10 +237,12 @@ Data are downloaded from the dataset *trump_tweets* from the R package *dslabs*.
 
 Let's normalize the dataset into utf8. Otherwise, a problem was previously encountered with apostrophes: the difference between curly and straight apostrophes can impede stopword removal, especially so in case of contractions; moreover, it can also bias token frequency counts by splitting appearances of the same token.
 
+Thanks to SarahWeaver https://stackoverflow.com/questions/46814856/use-gsub-to-replace-curly-apostrophe-with-straight-apostrophe-in-r-list-of-chara
+
 ```{r Downloading data}
 data("trump_tweets")
-tweets <- trump_tweets %>% 
-  mutate(text = sapply(text, utf8_normalize, map_quote = TRUE))
+tweets <- trump_tweets
+tweets$text <- sapply(tweets$text, utf8_normalize, map_quote = TRUE)
 # Otherwise curly apostrophes remain.
 ```
 
@@ -933,7 +935,110 @@ For words, comparison strategy is a bit more complex: comparing frequencies betw
 
 Actually, the criterion is not so much about percentage comparison, it is much more about absolute occurrence. If word frequencies are 10 for one device and 1 for the other one, OK word frequency is ten times higher for the first device, but it is not relevant on 2,633 tweets. But if word frequencies are 500 and 100, that can be significant even if ratio is "only" 5:1 instead of 10:1 in the first example. 
 
-One expansion has to be provided: not only words matter to attribute tweets, but also other signs such as the frequency of hashtags, mentions and links to videos. The same rationale holds. 
+One expansion has to be provided: not only words matter to attribute tweets, but also the frequency of 
+- hashtags, 
+- mentions,
+- links to videos,
+- the $ symbol
+- and #1 . 
+
+Let's build up two versions of the tweet texts:
+- one compact version with hashtags, mentions and links,
+- one expanded version with expanded hashtags (no mentions and no links).
+
+Both will be used in token frequency and sentiment analysis.
+
+Before constructing the compact and the expanded versions, 
+let's clean up tweet texts a little bit. Why? 
+
+Actually, punctuation marks can bias token frequencies. Let's take an example.
+
+```{r Looking for biasing punctutation marks}
+g <- grep("great,", train_tweets$text)
+train_tweets$text[g]
+```
+
+<br>
+
+In these are just three illustrative examples, if commas are not discarded, three appearances of great will not be added to the total occurrence of "great" because they will be treated as the token "great,".
+
+But we cannot simply discard all punctuation marks. 
+
+First, some punctuation marks can stick to a word on their left and to another one on their right. Simply discarding these punctuation marks would lead to collapsing the two words into one token. This would result from applying the function removePunctuation() from the package tm. Consequently, punctuation marks will be replaced with an empty space character.
+
+Second, if dots (aka periods or full stops) are replaced 
+with empty space characters, then abreviations (and acronyms) 
+would be scattered: "U.S.A." would become "U S A", i.e. 
+in this case one abreviation would become three separate letters. 
+Consequently, all dots will be replaced with empty space characters 
+except when they just follow an uppercase letter. 
+
+Third, the symbols # and @ will not be removed at this stage, 
+in order to remain able to identify hashtags and mentions. Moreover, the token "#1" will be preserved: amalgamation with hashtags is to be avoided;
+discarding it might remove a difference between devices. Consequently,
+"#1" will be provisionally replaced with "NUMBERONE". 
+
+Fourth, the symbol $ will also be preserved: there might be more financial 
+amounts in tweets from one device.
+
+Digits are replaced with empty space characters instead of just being
+removed to avoid collapsing the $ symbol with words in transforming 
+"$13million" into "$million".
+
+Other tokens will also be removed: "\n" and "&amp".
+
+<br>
+
+mutate(text = str_replace_all(text, "http.*" , " ")) %>%
+
+```{r Removing punctutation marks}
+train_tweets <- train_tweets %>%
+  mutate(text = str_replace_all(text, "\n" , " ")) %>%
+  mutate(text = str_replace_all(text, "&amp", " ")) %>%
+  mutate(text = str_replace_all(text, '\"' , " ")) %>%  
+  mutate(text = str_replace_all(text, "http.*" , 
+                                " link_placeholder ")) %>%
+  mutate(text = str_replace_all(text, "[/(),:;!?–•…-]" , " ")) %>%
+  mutate(text = str_replace_all(text, "#1", " NUMBERONE ")) %>%
+  mutate(text = str_replace_all(text, "[0-9]", " ")) %>%
+  mutate(text = str_replace_all(text, "[?@]", " @")) %>%
+  mutate(text = str_replace_all(text, "[?#]", " #")) %>%
+  mutate(text = str_squish(text)) %>%
+  as.data.frame()
+```
+
+Let's replace dots with empty space characters if dot sare trailing dots 
+following a lowercase letter.
+
+```{r Removing dots after lowercase letter}
+text <- train_tweets$text
+seq_text <- seq_along(text)
+for (i in seq_text) {
+  g <-                                 # g = positions of lowercase + dot
+    unlist(gregexpr(pattern = "[a-z]\\.", text[i]))
+  seq_g <- seq_along(g)                # Sequence 
+  for (j in seq_g) {                   # loop on all positions of lower...
+    pos <- g[j] + 1                    # Calculating position of dot.
+    substr(text[i], pos, pos) <- " "   # Replacing dot with empty space.
+    }
+}
+
+train_tweets$text <- text
+```
+
+Now we can remove all remaining dots without replacing them with 
+empty space characters, which would ruin our preserving 
+abreviations. 
+
+```{r Removing all remaining dots}
+train_tweets <- train_tweets %>%
+  mutate(text = str_replace_all(text, "[\\.]", ""))
+```
+
+We do not lowercase at this stage because we want to keep uppercase
+letters to expand hashstags. 
+
+<br>
 
 
 
