@@ -978,8 +978,10 @@ in order to remain able to identify hashtags and mentions. Moreover, the token "
 discarding it might remove a difference between devices. Consequently,
 "#1" will be provisionally replaced with "NUMBERONE". 
 
-Fourth, the symbol $ will also be preserved: there might be more financial 
-amounts in tweets from one device.
+Fourth, the symbol $ will also be preserved: there might be more financial amounts in tweets from one device.
+
+By the way, apostrophes can be found essentially in two cases: in contractions and in genitives. At this stage, contractions will 
+be preserved but genitives will be dismantled: apostrophes will be replaced with an empty space character. 
 
 Digits are replaced with empty space characters instead of just being
 removed to avoid collapsing the $ symbol with words in transforming 
@@ -1035,8 +1037,44 @@ train_tweets <- train_tweets %>%
   mutate(text = str_replace_all(text, "[\\.]", ""))
 ```
 
+Let's replace apostophes from genitives with empty space
+characters. 
+
+There are many genitives, few contractions ending in "s".
+
+```{r Replacing apostophes from genitives with empty space characters}
+# To preserve contractions ending in 's, they will be provisionally
+# replaced with placeholders.
+
+contractions <- c("here's", "he's", "how's", "it's", "let's", "she's", "that's", "there's", "what's", "when's", "where's", "who's", "why's")
+place_holders <- paste0("contraction", seq_along(contractions))
+
+for (i in seq_along(contractions)) {
+  train_tweets$text <- str_replace_all(train_tweets$text, 
+                         contractions[i], place_holders[i])
+}
+
+# Now, we can securely discard apostrophes from 's (mostly in genitives).
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                         "'s ", " s ")
+  
+# We also discard apostrophes in other positions, e.g. in 
+# genitives without s or in abreviated dates.
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                         "'", " ") 
+
+# Now, let's reconvert placeholders to the original
+# contractions, just for clarity. 
+for (i in seq_along(contractions)) {
+  train_tweets$text <- str_replace_all(train_tweets$text, 
+                         place_holders[i], contractions[i])
+} 
+```
+
 We do not lowercase at this stage because we want to keep uppercase
 letters to expand hashstags. 
+
+
 
 <br>
 
@@ -1048,30 +1086,7 @@ letters to expand hashstags.
 
 
 
-
-
-###############################################################
-###############################################################
-
-And we can now answer questions such as "what are the most commonly used words?"
-
-tweet_words %>% 
-  count(word) %>%
-  arrange(desc(n))
-
-It is not surprising that these are the top words. The top words are not informative. The tidytext package has database of these commonly used words, referred to as stop words, in text mining:
-
-stop_words
-
-we end up with a much more informative set of top 10 tweeted words
-
-tweet_words %>% 
-  count(word) %>%
-  top_n(10, n) %>%
-  mutate(word = reorder(word, n)) %>%
-  arrange(desc(n))
-
-First, some of our tokens are just numbers (years for example). We want to remove these and we can find them using the regex ^\d+$. 
+###################################################################
 
 Second, some of our tokens come from a quote and they start with '. We want to remove the ' when it's at the start of a word so we will use str_replace. We add these two lines to the code above to generate are final table:
 
@@ -1202,6 +1217,7 @@ tidytext package
 https://www.tidytextmining.com/
 janeaustenr package !!!!
 https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
+
 REGEX
 https://bookdown.org/rdpeng/rprogdatascience/regular-expressions.html
 Removing unwanted characters from a corpus with tm package
@@ -1216,6 +1232,8 @@ The \\1 is syntax for the last capture in a regular expression using the ()
 It says whatever was matched, replace it with that. 
 I put only the "." and "-" in the group (), so \\1 will replace .- 
 (by the same vale), so it keeps them here. – agstudy Feb 3 '14 at 20:02
+
+https://stackoverflow.com/questions/25485298/how-to-get-words-that-end-with-certain-characters-within-each-string-r
 
 Extracting hashtags
 https://stackoverflow.com/questions/13762868/how-do-i-extract-hashtags-from-tweets-in-r
