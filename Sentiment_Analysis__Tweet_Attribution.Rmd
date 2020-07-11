@@ -1005,10 +1005,9 @@ train_tweets <- train_tweets %>%
   mutate(text = str_replace_all(text, "http.*" , 
                                 " link_placeholder ")) %>%
   mutate(text = str_replace_all(text, "[/(),:;!?–•…-]" , " ")) %>%
-  mutate(text = str_replace_all(text, "#1 ", " NUMBERONE ")) %>%
-  mutate(text = str_replace_all(text, "[0-9]", " ")) %>%
   mutate(text = str_replace_all(text, "[?@]", " @")) %>%
   mutate(text = str_replace_all(text, "[?#]", " #")) %>%
+  mutate(text = str_replace_all(text, "[$]", " $ ")) %>%
   mutate(text = str_squish(text)) %>%
   as.data.frame()
 ```
@@ -1084,8 +1083,25 @@ for (i in seq_along(contractions)) {
 } 
 ```
 
+Now, we have removed most punctuation marks; most tokens have
+been "liberated" from trailing punctuation marks; the tokens 
+"#1 " can now be converted into "NUMBERONE" to preserve them
+and isolate them from real Twitter hasthtags. Afterwards, 
+digits can be removed from tweets. 
+
+```{r Insulating tokens #1 and discarding digits}
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                       "#1 ", " NUMBERONE ")
+train_tweets$text = str_replace_all(train_tweets$text, 
+                       "[0-9]", "")
+```
+
+Let's notice that digits are simplys removed and are
+not substituted for empty space characters to not dismantle
+hashtags and mentions containing digits. 
+
 We do not lowercase at this stage because we want to keep uppercase
-letters to expand hashstags. 
+letters to expand hashstags and mentions.  
 
 ###########################
 
@@ -1093,21 +1109,22 @@ FREQUENCY OF HASHTAGS
 
 <br>
 
+```{r Counting all hashtags}
+hashtag_count <- seq_along(train_tweets$text)
 
+for (i in seq_along(train_tweets$text)) {
+  g <- unlist(gregexpr("#", train_tweets$text[i]))
+  hashtag_count[i] <- length(which(g > 0))
+}
 
-```{r Retrieving all hashtags}
+hashtag_count
+
 sort(unique(unlist(str_extract_all(tweets$text, "#\\S+"))))
-
+sort(unique(unlist(str_extract_all(tweets$text, "#AmericaFirst\\S+"))))
 unique(tweets$source)
 
-fake <- tweets %>%
-  filter(device == "iPhone")
-g <- grep("̉̉̉̉ ", fake$text)
-tweets$text[g]
-
-string <- "test+ moins~ =hes"
-str_replace_all(string, "[+=~]", "")
-
+string <- "#AmericaFirst\U0001f1fa\U0001f1f8"
+string <- "#AmericaFirst1972"
 ```
 
 
