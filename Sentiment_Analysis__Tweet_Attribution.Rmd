@@ -991,7 +991,11 @@ Other tokens will also be removed: "\n" and "&amp".
 
 <br>
 
-mutate(text = str_replace_all(text, "http.*" , " ")) %>%
+!!!!!!!!!!!!!!!!!!!!!!!!!
+Replacing digits with empty space characters is problematic at 
+this stage because some mentions can contain digits. 
+
+"#1 " to avoid #100 ...
 
 ```{r Removing punctutation marks}
 train_tweets <- train_tweets %>%
@@ -1001,7 +1005,7 @@ train_tweets <- train_tweets %>%
   mutate(text = str_replace_all(text, "http.*" , 
                                 " link_placeholder ")) %>%
   mutate(text = str_replace_all(text, "[/(),:;!?–•…-]" , " ")) %>%
-  mutate(text = str_replace_all(text, "#1", " NUMBERONE ")) %>%
+  mutate(text = str_replace_all(text, "#1 ", " NUMBERONE ")) %>%
   mutate(text = str_replace_all(text, "[0-9]", " ")) %>%
   mutate(text = str_replace_all(text, "[?@]", " @")) %>%
   mutate(text = str_replace_all(text, "[?#]", " #")) %>%
@@ -1009,8 +1013,7 @@ train_tweets <- train_tweets %>%
   as.data.frame()
 ```
 
-Let's replace dots with empty space characters if dot sare trailing dots 
-following a lowercase letter.
+Let's replace dots with empty space characters if dots are trailing dots following a lowercase letter.
 
 ```{r Removing dots after lowercase letter}
 text <- train_tweets$text
@@ -1054,14 +1057,24 @@ for (i in seq_along(contractions)) {
                          contractions[i], place_holders[i])
 }
 
-# Now, we can securely discard apostrophes from 's (mostly in genitives).
+# Now, we can securely discard apostrophes from "'s " (mostly in genitives).
 train_tweets$text <- str_replace_all(train_tweets$text, 
                          "'s ", " s ")
   
-# We also discard apostrophes in other positions, e.g. in 
-# genitives without s or in abreviated dates.
+# We also discard trailing apostrophes (at the end of words), e.g. in 
+# genitives without s or as trailing single quotation marks.
 train_tweets$text <- str_replace_all(train_tweets$text, 
-                         "'", " ") 
+                         "' ", " ") 
+
+# We also discard leading apostrophes, e.g. as leading single quotation marks or in abbreviated two-digit format for years.
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                         " '", " ")
+
+# Let's notice that contractions have been preserved:
+# on the first hand, 13 contractions ending in "'s" 
+# have been replaced with placeholders not containing apostrophes
+# and other contractions not ending in "'s" have not been
+# impacted. 
 
 # Now, let's reconvert placeholders to the original
 # contractions, just for clarity. 
@@ -1074,11 +1087,28 @@ for (i in seq_along(contractions)) {
 We do not lowercase at this stage because we want to keep uppercase
 letters to expand hashstags. 
 
+###########################
 
+FREQUENCY OF HASHTAGS
 
 <br>
 
 
+
+```{r Retrieving all hashtags}
+sort(unique(unlist(str_extract_all(tweets$text, "#\\S+"))))
+
+unique(tweets$source)
+
+fake <- tweets %>%
+  filter(device == "iPhone")
+g <- grep("̉̉̉̉ ", fake$text)
+tweets$text[g]
+
+string <- "test+ moins~ =hes"
+str_replace_all(string, "[+=~]", "")
+
+```
 
 
 
@@ -1304,6 +1334,11 @@ https://twitter.com/tvaziri/status/762005541388378112
 
 David Robinson
 http://varianceexplained.org/r/trump-tweets/
+
+Introduction to automated text analysis of other Trump's tweets
+Pablo Barbera
+July 2, 2018
+http://pablobarbera.com/social-media-upf/code/01-text-intro.html
 ---------------------------------------------------------------------
 
 WORDCLOUDS
@@ -1326,7 +1361,7 @@ https://www.r-graph-gallery.com/196-the-wordcloud2-library.html
 Wordclouds and DRACULA gutenbergr
 https://www.learningrfordatascience.com/post/dynamic-wordclouds-with-wordcloud2/
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 TICKS ON A DISCRETE NUMERIC X AXIS
 
@@ -1334,21 +1369,21 @@ https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
 
 ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 GGPLOT2 SUBTITLES
 
 hrbrmstr
 https://stackoverflow.com/questions/11724311/how-to-add-a-ggplot2-subtitle-with-different-size-and-colour
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 GGPLOT2 SIZE OF DOT SYMBOLS
 ialm
 
 https://stackoverflow.com/questions/20251119/increase-the-size-of-variable-size-points-in-ggplot2-scatter-plot
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 GGPLOT2 SUPPRESSING LEGEND RELATED TO geom_point(aes(size = n))
 Brandon Bertelsen
@@ -1362,10 +1397,10 @@ https://stackoverflow.com/questions/14604435/turning-off-some-legends-in-a-ggplo
 
 https://ggplot2.tidyverse.org/reference/scale_manual.html
 it's recommended to use a named vector
----------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 https://stackoverflow.com/questions/12977073/how-to-find-the-difference-between-two-dates-in-hours-in-r
 How to find the difference between two dates in hours in R?
 Thank you Andrie
 
----------------------------------------------------------------------------
+----------------------------------------------------------------------
