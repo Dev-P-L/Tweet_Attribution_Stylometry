@@ -1109,27 +1109,233 @@ FREQUENCY OF HASHTAGS
 
 <br>
 
-```{r Counting all hashtags}
+!!!!!!!!!!!!!!!!!!!
+"#AmericaFirst\U0001f1fa\U0001f1f8"
+
+!!!!!!!!!!!!!!!!!!!!!
+to extract hashtags
+https://stackoverflow.com/questions/13762868/how-do-i-extract-hashtags-from-tweets-in-r
+
+!!!!!!!!!!!!!!!!!! for uniform bar width, see Update by Roman
+https://stackoverflow.com/questions/38101512/the-same-width-of-the-bars-in-geom-barposition-dodge
+
+```{r Counting all hashtags and producing graph}
 hashtag_count <- seq_along(train_tweets$text)
 
 for (i in seq_along(train_tweets$text)) {
-  g <- unlist(gregexpr("#", train_tweets$text[i]))
+  g <- unlist(gregexpr("#\\S+", train_tweets$text[i]))
   hashtag_count[i] <- length(which(g > 0))
 }
 
-hashtag_count
-
-sort(unique(unlist(str_extract_all(tweets$text, "#\\S+"))))
-sort(unique(unlist(str_extract_all(tweets$text, "#AmericaFirst\\S+"))))
-unique(tweets$source)
-
-string <- "#AmericaFirst\U0001f1fa\U0001f1f8"
-string <- "#AmericaFirst1972"
+graph <- train_tweets %>%
+  mutate(hashtag_count = hashtag_count) %>%
+  select(device, hashtag_count) %>%
+  group_by(device, hashtag_count) %>%
+  summarize(n = n()) %>%
+  filter(hashtag_count > 0) %>%
+  ggplot(aes(hashtag_count, n, fill = device)) +
+  geom_bar(stat = "identity", position = 
+           position_dodge2(width = 0.9, preserve = "single")) +
+  labs(x = "Hour in the 24-Hour Clock",
+       y = "% of Tweets per Hour",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.5, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
 ```
 
+<br>
+
+The number of hashtags per tweet appears as a solid predictor in tweet attribution: indeed, the hashtags in iPhone tweets outnumber the hashtags in Android tweets. Consequently, the number of hashtags per tweet will surely be used in tweet attribution laten on. 
+
+```{r Adding the number of hashtags per tweet as a predictor}
+train_tweets <- train_tweets %>%
+  mutate(hashtag_count = hashtag_count)
+```
+
+What about mentions?
+
+<br>
+
+```{r Counting all mentions and producing graph}
+mention_count <- seq_along(train_tweets$text)
+
+for (i in seq_along(train_tweets$text)) {
+  g <- unlist(gregexpr("@\\S+", train_tweets$text[i]))
+  mention_count[i] <- length(which(g > 0))
+}
+
+graph <- train_tweets %>%
+  mutate(mention_count = mention_count) %>%
+  select(device, mention_count) %>%
+  group_by(device, mention_count) %>%
+  summarize(n = n()) %>%
+  filter(mention_count > 0) %>%
+  ggplot(aes(mention_count, n, fill = device)) +
+  geom_bar(stat = "identity", position = 
+           position_dodge2(width = 0.9, preserve = "single")) +
+  labs(x = "Number of Mentions per Tweet",
+       y = "Number of Tweets",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.5, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
+
+<br>
+
+Contrary to the picture of hashtag presence in tweets, the number of mentions in Android tweets and in iPhone tweets is not so different. Nevertheless, the number of mentions per tweet will be taken on board without first checking its predictive power in tweet attribution.
+
+
+```{r Adding the number of mentions per tweet as a predictor}
+train_tweets <- train_tweets %>%
+  mutate(mention_count = mention_count)
+```
+
+<br>
+
+Let's now examine the use of links. 
+
+<br>
+
+```{r Counting all links and producing graph}
+link_count <- seq_along(train_tweets$text)
+
+for (i in seq_along(train_tweets$text)) {
+  g <- unlist(gregexpr("link_placeholder", train_tweets$text[i]))
+  link_count[i] <- length(which(g > 0))
+}
+
+graph <- train_tweets %>%
+  mutate(link_count = link_count) %>%
+  select(device, link_count) %>%
+  filter(link_count > 0) %>%
+  group_by(device) %>%
+  summarize(sum = sum(n())) %>%
+  ggplot(aes(device, sum, fill = device)) +
+  geom_bar(width = 0.5, stat = "identity") +
+  labs(x = "",
+       y = "Number of Links",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.2, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
+
+<br>
+
+Just as in the case of hashtags, the number of links appears as a strong predictor in tweet attribution: the number of iPhone tweets with a link clearly outnumbers the number of Android tweets with a link. It will surely be used in tweet attribution.
+
+```{r Adding the number of hashtags per tweet as a predictor}
+train_tweets <- train_tweets %>%
+  mutate(link_count = link_count)
+```
+
+Here, no distinction is made on the basis of the number of links per tweet because the breakdown is bipolar: it is either zero or one link per tweet. 
+
+In a snapshot, in number of hashtags and number of links, the iPhone tweets outnumber the Android tweets, which contain a little bit more mentions. The number of hastags and the number of links appear as two solid predictors in tweet attribution and the number of mentions is a candidate predictor, whose predictive power has still to be checked up. 
+
+################################################
+
+Now let's turn to hashtag and mention expansion. 
+
+The idea is very simple: most hastags and mentions are comprised of several common nouns and/or proper nouns. From a semantic point of view, these separate nouns make sense to human beings. But as long as they are encapsulated, they cannot be used in sentiment analysis. Moreover, they cannot be amalgamated with the same nouns outside of hashtags or mentions and impact word frequencies. Consequently, these nouns are going to be extracted so that they can enter sentiment analysis and word frequencies. 
+
+The method will also be very simple. Very often nouns encapsulated in hashtags and mentions are capitalized. Consequently hashtags and mentions will be expanded using uppercase letters: hashtags and mentions will be split between a lowercase letter followed by a uppercase letter. 
+
+A small improvement will be added to the method. Some hastags can appear under different capitalization: once with just lowercase letters, once with some uppercase letters and once with all uppercase letters. The form that seems preferable is the one with some lowercase letters and uppercase letters. Consequently, hastags will first be made uniform, giving priority to versions with lowercase and uppercase letters. 
+
+Let's get started with hashtags. 
+
+```{r Standardizing and expanding hashtags}
+# Step 1 - Extracting hastags 
+hashtags_crude <- str_extract_all(train_tweets$text, "#\\S+")
+hashtags_crude[96]
+hashtags_crude[2135]
+
+# Step 2 - Creating a list of unique hashtags
+# hashtags_crude is a list. Each element contains a character vector, #` which is most of the time null because there is no hashtag. 
+# In each tweet with one or more hastags, let's amalgamate all 
+# hashtags into one string with empty space characters 
+# between the different hashtags.
+
+hashtags_unique <- ""
+for (i in 1:length(hashtags_crude)) {
+  w <- hashtags_crude[[i]]
+  w <- ifelse(length(w) == 0, "", paste(w, collapse = " "))
+  hashtags_unique <- append(hashtags_unique, w)
+}
+
+hashtags_unique <- hashtags_unique[2:length(hashtags_unique)] 
+
+# Step 3 - First iteration of hashstags_unique standardization
 
 
 
+# SPLITTING BETWEEN LOWER CASE AND UPPER CASE
+# https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
+# We can use regex lookaround to match lower case letters 
+# (positive lookbehind - (?<=[a-z])) followed by upper case letters 
+# (positive lookahead -(?=[A-Z]))
+v <- 1:length(buffer)
+for (i in 1:length(v)) {
+  w <- str_replace_all(buffer[i], "#", "")
+  w <- unlist(strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE))
+  v[i] <- paste(w, collapse = " ")
+}
+v
+
+temp$text[914]
+v[914]
+temp$text[2135]
+v[2135]
+
+# Now we've got to add the expanded hastags to the tweets 
+# after removing the compact hashtags from the tweets.
+# So, let's first retrieve the compact hashtags from the tweets.
+expanded <- temp %>% 
+  mutate(text = str_remove_all(temp$text, "#\\S+")) %>%
+  mutate(text = paste(text, v, sep = " ")) 
+
+expanded$text
+```
+
+#########################################################
+
+In our search for candidate predictors, let's now turn to token frequency, looking for tokens with highly differentiated frequency between Android and iPhone. What matters is big difference in absolute frequencies and not ratios [if required, more explanation].
 
 
 
