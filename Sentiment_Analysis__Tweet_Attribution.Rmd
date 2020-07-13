@@ -1292,18 +1292,50 @@ hashtags_crude[2135]
 # hashtags into one string with empty space characters 
 # between the different hashtags.
 
-hashtags_unique <- ""
-for (i in 1:length(hashtags_crude)) {
-  w <- hashtags_crude[[i]]
-  w <- ifelse(length(w) == 0, "", paste(w, collapse = " "))
-  hashtags_unique <- append(hashtags_unique, w)
-}
-
-hashtags_unique <- hashtags_unique[2:length(hashtags_unique)] 
+unique <- unique(paste(unlist(hashtags_crude), sep = " "))
 
 # Step 3 - First iteration of hashstags_unique standardization
+# Hashstags with some uppercase letters will be substituted
+# for hashtags all lowercase.
 
+ind_mix <-                                 # Hashtags with some 
+  grep("[A-Z]", unique, perl=TRUE)         # uppercase letters
+ind_lower <-                               # Hashtags without 
+  setdiff(seq_along(unique), ind_mix)      # uppercase letters
 
+# Preference to hashtags with some uppercase letters above
+# hashtags all in lowercase letters
+pref <- unique
+
+for (i in seq_along(unique)) {
+  for (j in seq_along(ind_mix)) {
+    if(unique[i] == ind[j])
+      {if(ind_lower[i] == tolower(ind_mix[j])) 
+      {pref[i] <- ind_mix[j]}
+      
+      }
+    
+  }
+}
+
+# Preference to hashtags with some uppercase letters above
+# hashtags all in uppercase letters
+
+ind_mix <-                                 # Hashtags with some 
+  grep("[a-z]", pref, perl=TRUE)           # lowercase letters
+ind_upper <-                               # Hashtags with all
+  setdiff(seq_along(pref), ind_mix)        # uppercase letters
+
+# Preference to hashtags with some lowercase letters above
+# hashtags all in uppercase letters
+pref <- ind_upper
+
+for (i in seq_along(ind_upper)) {
+  for (j in seq_along(ind_mix)) {
+    if(ind_upper[i] == toupper(ind_mix[j])) 
+      {pref[i] <- ind_mix[j]}
+  }
+}
 
 # SPLITTING BETWEEN LOWER CASE AND UPPER CASE
 # https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
