@@ -1282,66 +1282,27 @@ Let's get started with hashtags.
 
 ```{r Standardizing and expanding hashtags}
 # Step 1 - Extracting hastags 
-hashtags_crude <- str_extract_all(train_tweets$text, "#\\S+")
-hashtags_crude[96]
-hashtags_crude[2135]
+hashtags <- str_extract_all(train_tweets$text, "#\\S+")
 
 # Step 2 - Creating a list of unique hashtags
-# hashtags_crude is a list. Each element contains a character vector, #` which is most of the time null because there is no hashtag. 
-# In each tweet with one or more hastags, let's amalgamate all 
-# hashtags into one string with empty space characters 
-# between the different hashtags.
+# hashtags_crude is a list, whose elements are character vectors #`either empty or containing hashtags.  
+# Let's concatenate all hastags into one character vector.
 
-unique <- unique(paste(unlist(hashtags_crude), sep = " "))
+hashtags <- paste(unlist(hashtags), sep = " ")
 
-# Step 3 - First iteration of hashstags_unique standardization
-# Hashstags with some uppercase letters will be substituted
-# for hashtags all lowercase.
+hashtags[673]
+unlist(hashtags[673])
+w <- paste(unlist(hashtags[673]), sep = " ")
+w <- str_replace_all(w, "#", "")
+s <- strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE)
+s <- paste(unlist(s), collapse = " ")
+s
+str(s)
 
-ind_mix <-                                 # Hashtags with some 
-  grep("[A-Z]", unique, perl=TRUE)         # uppercase letters
-ind_lower <-                               # Hashtags without 
-  setdiff(seq_along(unique), ind_mix)      # uppercase letters
-
-# Preference to hashtags with some uppercase letters above
-# hashtags all in lowercase letters
-pref <- unique
-
-for (i in seq_along(unique)) {
-  for (j in seq_along(ind_mix)) {
-    if(unique[i] == ind[j])
-      {if(ind_lower[i] == tolower(ind_mix[j])) 
-      {pref[i] <- ind_mix[j]}
-      
-      }
-    
-  }
-}
-
-# Preference to hashtags with some uppercase letters above
-# hashtags all in uppercase letters
-
-ind_mix <-                                 # Hashtags with some 
-  grep("[a-z]", pref, perl=TRUE)           # lowercase letters
-ind_upper <-                               # Hashtags with all
-  setdiff(seq_along(pref), ind_mix)        # uppercase letters
-
-# Preference to hashtags with some lowercase letters above
-# hashtags all in uppercase letters
-pref <- ind_upper
-
-for (i in seq_along(ind_upper)) {
-  for (j in seq_along(ind_mix)) {
-    if(ind_upper[i] == toupper(ind_mix[j])) 
-      {pref[i] <- ind_mix[j]}
-  }
-}
 
 # SPLITTING BETWEEN LOWER CASE AND UPPER CASE
 # https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
-# We can use regex lookaround to match lower case letters 
-# (positive lookbehind - (?<=[a-z])) followed by upper case letters 
-# (positive lookahead -(?=[A-Z]))
+
 v <- 1:length(buffer)
 for (i in 1:length(v)) {
   w <- str_replace_all(buffer[i], "#", "")
@@ -1366,6 +1327,92 @@ expanded$text
 ```
 
 #########################################################
+
+DEALING WITH MENTIONS
+
+```{r Dealing with mentions}
+mentions_crude <- str_extract_all(train_tweets$text, "@\\S+")
+
+mentions <- unique(paste(unlist(mentions_crude), sep = " "))
+mentions <- mentions[order(tolower(mentions))]
+mentions <- gsub("_", "", mentions)
+mentions
+
+# Step 3 - First iteration of hashstags_unique standardization
+# Hashstags with some uppercase letters will be substituted
+# for hashtags all lowercase.
+
+# We want to lowercase the first letter in hashtags 
+# because it doesn't help separating words from hashtags
+# and we want to focus on the presence of uppercase 
+# in subsequent positions 
+# (from position 2 to the penultimate position).
+
+surrogate <- unique
+substr(surrogate, 2, 2) <- substr(tolower(surrogate), 2, 2)
+
+ind <-                                     # At least some 
+  grep("[A-Z]", surrogate, perl=TRUE)      # uppercase letters
+
+ind_mix <-
+  grep("[a-z]", surrogate[ind], perl=TRUE) # Mix of upper and lower
+
+ind_upper <- setdiff(ind, ind)             # Only upper
+
+ind_lower <-                               # Only upper 
+  setdiff(seq_along(surrogate), ind_mix)   
+
+# Preference to hashtags with mix above
+# hashtags all in lowercase letters
+hashtags_lower <- surrogate[ind_lower]
+hashtags_mix <-                            # Preference to more upper
+  sort(surrogate[ind_mix], decreasing = TRUE) 
+
+for (i in seq_along(ind_lower)) {
+  
+  for (j in seq_along(ind_mix)) {
+    
+    if(hashtags_lower[i] == tolower(hashtags_mix[j]))
+    {hashtags_lower[i] <- hashtags_mix[j]
+    }
+    
+  }
+}
+
+# Reinstating newly partially uppercased hashtags.
+surrogate[ind_lower] <- hashtags_lower
+
+# Preference to hashtags with mix above
+# hashtags all in uppercase letters
+hashtags_upper <- surrogate[ind_upper]
+
+for (i in seq_along(ind_upper)) {
+  
+  for (j in seq_along(ind_mix)) {
+    
+    if(hashtags_upper[i] == toupper(hashtags_mix[j]))
+    {hashtags_upper[i] <- hashtags_mix[j]
+    }
+    
+  }
+}
+
+# Reinstating newly partially lowercased hashtags.
+surrogate[ind_upper] <- hashtags_upper
+
+# Reinstating uppercase letter in second position
+substr(surrogate, 2, 2) <- substr(toupper(surrogate), 2, 2)
+
+# Checking
+df <- data.frame(unique, surrogate)
+df
+
+g <- grep("#GOPdebate ", train_tweets$text)
+length(g)
+train_tweets$text[g]
+```
+
+
 
 In our search for candidate predictors, let's now turn to token frequency, looking for tokens with highly differentiated frequency between Android and iPhone. What matters is big difference in absolute frequencies and not ratios [if required, more explanation].
 
