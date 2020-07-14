@@ -1274,9 +1274,9 @@ Now let's turn to hashtag and mention expansion.
 
 The idea is very simple: most hastags and mentions are comprised of several common nouns and/or proper nouns. From a semantic point of view, these separate nouns make sense to human beings. But as long as they are encapsulated, they cannot be used in sentiment analysis. Moreover, they cannot be amalgamated with the same nouns outside of hashtags or mentions and impact word frequencies. Consequently, these nouns are going to be extracted so that they can enter sentiment analysis and word frequencies. 
 
-The method will also be very simple. Very often nouns encapsulated in hashtags and mentions are capitalized. Consequently hashtags and mentions will be expanded using uppercase letters: hashtags and mentions will be split between a lowercase letter followed by a uppercase letter. 
+The method will also be very simple. Very often nouns encapsulated in hashtags and mentions are capitalized. Consequently hashtags and mentions will be expanded using uppercase letters: hashtags and mentions will be split between a lowercase letter followed by a uppercase letter. E.g. "@MakeAmericaGreatAgain" will become "Make America Great Again".
 
-A small improvement will be added to the method. Some hastags can appear under different capitalization: once with just lowercase letters, once with some uppercase letters and once with all uppercase letters. The form that seems preferable is the one with some lowercase letters and uppercase letters. Consequently, hastags will first be made uniform, giving priority to versions with lowercase and uppercase letters. 
+But there is no splitting on an uppercase letter following another uppercase letter.  In the case of "MAGA", which is an acronym referring to the same expression, it might make sense to expand "MAGA" into "Make America Great Again", which is symbolically the equivalent but cannot be dealt with in the same way if not expanded. Consequently, let's create a second vector called *hashtags_fully_expanded* with "MAGA" being expanded. 
 
 Let's get started with hashtags. 
 
@@ -1284,37 +1284,61 @@ Let's get started with hashtags.
 hashtags <-                                     # Hashtags by tweet
   str_extract_all(train_tweets$text, "#\\S+")
 
-hashtags_expanded <- seq_along(hashtags)        # Storage vector for 
-                                                # exapnded hashtags
-# loop expanding hashtags tweet by tweet
+# Unlisting list of hashtags into character vector of hastags.
 for (i in seq_along(hashtags)) {
-  w <- paste(unlist(hashtags[i]), sep = " ")    # Unlisting
+  w <- paste(unlist(hashtags[i]), collapse = " ")    
+  ifelse(w == character(0), " ", w) 
+  hashtags[i] <- w
+}
+hashtags <- unlist(hashtags)
+
+# Let's expand hashtags tweet by tweet
+hashtags_expanded <- seq_along(hashtags)        # Storage vector for 
+                                                # expanded hashtags
+for (i in seq_along(hashtags)) {
+  w <- hashtags[i]
   w <- str_replace_all(w, "#", "")              # Removing # symbol
   
   # Splitting on uppercase letter following lowercase letter
   # https://stackoverflow.com/questions/43706474/splitting-string-betw     een-capital-and-lowercase-character-in-r
+  
   w <- strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE)
-  
   w <- paste(unlist(w), collapse = " ")         # Unlisting again
-  
+  ifelse(w == character(0), " ", w)
   hashtags_expanded[i] <- w
   }
 
-hashtags_expanded[673]
-length(grep("MAGA", hashtags_expanded))
-
-# Hashtags have been expanded on uppercase letters following lowercase letters. There is no splitting on an uppercase letter following another uppercase letter: e.g. "@MakeAmericaGreatAgain" has become "Make America Great Again". In the case of "MAGA", which is an acronym referring to the same expression, it might make sense to expand "MAGA" into "Make America Great Again", which is symbolically the equivalent but cannot be dealt with in the same way if not expanded. Consequently, let's create a second vector called *hashtags_fully_expanded* with "MAGA" being expanded. 
-
+# Let's expand "MAGA" as "Make America Great Again".
 hashtags_fully_expanded <- hashtags_expanded
 hashtags_fully_expanded <- 
   str_replace_all(hashtags_fully_expanded, 
                   "MAGA", "Make America Great Again")
 
-# Adding expanded hashtags and fully expanded hashtags to data frame train_tweets. 
+# Let's add hashtages, expanded hashtags and fully expanded hashtags to data frame train_tweets. 
+train_tweets$hashtags <- hashtags
+train_tweets$hashtags_expanded <- hashtags_expanded
+train_tweets$hashtags_fully_expanded <- hashtags_fully_expanded
 
-train_tweets <- train_tweets %>%
-  mutate(hashtags_expanded = hashtags_expanded,
-         hashtags_fully_expanded = hashtags_fully_expanded)
+# Let's retrieve hashtags from the feature text.
+train_tweets$text <- str_remove_all(train_tweets$text, "#\\S+")
+
+# Let's also isolate "link_placeholder" into a separate feature.
+# First retrieving "link_placeholder" into a list.
+l <- str_extract_all(train_tweets$text, "link_placeholder")
+
+# Then unlisting list of "link_placeholder" into character vector.
+for (i in seq_along(l)) {
+  l[i] <- paste(unlist(l[i]), collapse = " ")    
+  ifelse(l[i] == character(0), " ", l[i]) 
+}
+l <- unlist(l)
+
+# Then inserting the vector into the data frame.
+train_tweets$link_placeholder <- l
+
+# Finally, removing "link_placeholder" from the feature text.
+train_tweets$text <- 
+  str_remove_all(train_tweets$text, "link_placeholder")
 ```
 
 <br>
@@ -1327,8 +1351,7 @@ From a semantic point of view, the expanded hashtags and the fully expanded hash
 
 But, from a sentiment analysis standpoint, the presence of non expanded hashtags does not impact results since there is no match between hashtags and lexicon words. 
 
-From a token frequency standpoint, the presence of non expanded hashtags can be impactful, just as all tokens originating in tweet texts, be it words, abreviations, link placeholders, non expanded hashtags, expanded hashtags, fully expanded hashtags, bigrams, ... and, last but not least, expanded mentions, which will be created now.  
-
+From a token frequency standpoint, the presence of non expanded hashtags can be impactful, just as all tokens originating in tweet texts, be it words, abreviations, link placeholders, non expanded hashtags, expanded hashtags, fully expanded hashtags, bigrams, ... and, last but not least, expanded mentions, which will be created now. 
 <br>
 
 #########################################################
@@ -1346,10 +1369,10 @@ mentions_per_tweet <- str_extract_all(train_tweets$text, "@\\S+")
 
 # Let's create a vector with all mention variants.
 mentions <- unique(paste(unlist(mentions_per_tweet), sep = " "))
-mentions <- mentions[order(tolower(mentions))]
-mentions
 
-mentions <- gsub("_", "", mentions)
+
+surrogate <- gsub("_", "", mentions)
+
 # Step 3 - First iteration of hashstags_unique standardization
 # Hashstags with some uppercase letters will be substituted
 # for hashtags all lowercase.
