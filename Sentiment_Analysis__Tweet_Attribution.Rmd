@@ -1280,64 +1280,76 @@ A small improvement will be added to the method. Some hastags can appear under d
 
 Let's get started with hashtags. 
 
-```{r Standardizing and expanding hashtags}
-# Step 1 - Extracting hastags 
-hashtags <- str_extract_all(train_tweets$text, "#\\S+")
+```{r Expanding hashtags}
+hashtags <-                                     # Hashtags by tweet
+  str_extract_all(train_tweets$text, "#\\S+")
 
-# Step 2 - Creating a list of unique hashtags
-# hashtags_crude is a list, whose elements are character vectors #`either empty or containing hashtags.  
-# Let's concatenate all hastags into one character vector.
+hashtags_expanded <- seq_along(hashtags)        # Storage vector for 
+                                                # exapnded hashtags
+# loop expanding hashtags tweet by tweet
+for (i in seq_along(hashtags)) {
+  w <- paste(unlist(hashtags[i]), sep = " ")    # Unlisting
+  w <- str_replace_all(w, "#", "")              # Removing # symbol
+  
+  # Splitting on uppercase letter following lowercase letter
+  # https://stackoverflow.com/questions/43706474/splitting-string-betw     een-capital-and-lowercase-character-in-r
+  w <- strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE)
+  
+  w <- paste(unlist(w), collapse = " ")         # Unlisting again
+  
+  hashtags_expanded[i] <- w
+  }
 
-hashtags <- paste(unlist(hashtags), sep = " ")
+hashtags_expanded[673]
+length(grep("MAGA", hashtags_expanded))
 
-hashtags[673]
-unlist(hashtags[673])
-w <- paste(unlist(hashtags[673]), sep = " ")
-w <- str_replace_all(w, "#", "")
-s <- strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE)
-s <- paste(unlist(s), collapse = " ")
-s
-str(s)
+# Hashtags have been expanded on uppercase letters following lowercase letters. There is no splitting on an uppercase letter following another uppercase letter: e.g. "@MakeAmericaGreatAgain" has become "Make America Great Again". In the case of "MAGA", which is an acronym referring to the same expression, it might make sense to expand "MAGA" into "Make America Great Again", which is symbolically the equivalent but cannot be dealt with in the same way if not expanded. Consequently, let's create a second vector called *hashtags_fully_expanded* with "MAGA" being expanded. 
 
+hashtags_fully_expanded <- hashtags_expanded
+hashtags_fully_expanded <- 
+  str_replace_all(hashtags_fully_expanded, 
+                  "MAGA", "Make America Great Again")
 
-# SPLITTING BETWEEN LOWER CASE AND UPPER CASE
-# https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
+# Adding expanded hashtags and fully expanded hashtags to data frame train_tweets. 
 
-v <- 1:length(buffer)
-for (i in 1:length(v)) {
-  w <- str_replace_all(buffer[i], "#", "")
-  w <- unlist(strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE))
-  v[i] <- paste(w, collapse = " ")
-}
-v
-
-temp$text[914]
-v[914]
-temp$text[2135]
-v[2135]
-
-# Now we've got to add the expanded hastags to the tweets 
-# after removing the compact hashtags from the tweets.
-# So, let's first retrieve the compact hashtags from the tweets.
-expanded <- temp %>% 
-  mutate(text = str_remove_all(temp$text, "#\\S+")) %>%
-  mutate(text = paste(text, v, sep = " ")) 
-
-expanded$text
+train_tweets <- train_tweets %>%
+  mutate(hashtags_expanded = hashtags_expanded,
+         hashtags_fully_expanded = hashtags_fully_expanded)
 ```
+
+<br>
+
+Two new features have been added in the data frame *train_tweets*: 
+- expanded hastags  
+- and fully expanded hashtags.
+
+From a semantic point of view, the expanded hashtags and the fully expanded hashtags are redundant with respect to the non expanded hashtags. 
+
+But, from a sentiment analysis standpoint, the presence of non expanded hashtags does not impact results since there is no match between hashtags and lexicon words. 
+
+From a token frequency standpoint, the presence of non expanded hashtags can be impactful, just as all tokens originating in tweet texts, be it words, abreviations, link placeholders, non expanded hashtags, expanded hashtags, fully expanded hashtags, bigrams, ... and, last but not least, expanded mentions, which will be created now.  
+
+<br>
 
 #########################################################
 
 DEALING WITH MENTIONS
 
-```{r Dealing with mentions}
-mentions_crude <- str_extract_all(train_tweets$text, "@\\S+")
+Are mentions worth expanding? 
 
-mentions <- unique(paste(unlist(mentions_crude), sep = " "))
+Mentions are mainly comprised of proper nouns. Proper nouns do not figure in sentiment analysis lexicons and consequently cannot help in sentiment analysis. But proper nouns can impact token frequency analysis. Consequently, mentions will also be expanded. 
+
+The expansion process used for hashtags will be applied again. But it will be preceded by an additional module. Among mentions in training_tweets$text, there are often two (or sometimes three) variants of the same mention: one with lowercase only and one with a mixture of lowercase letters and uppercase letters, the latter ones being used at the beginning of (some) words. Opting for the variants with a mix of letters would boost our splitting process, which is triggered by uppercase letters following lowercase letters. Consequently, let's opt for the variants with a mix of letters. 
+
+```{r Opting for mention variants with a mix of letters}
+mentions_per_tweet <- str_extract_all(train_tweets$text, "@\\S+")
+
+# Let's create a vector with all mention variants.
+mentions <- unique(paste(unlist(mentions_per_tweet), sep = " "))
 mentions <- mentions[order(tolower(mentions))]
-mentions <- gsub("_", "", mentions)
 mentions
 
+mentions <- gsub("_", "", mentions)
 # Step 3 - First iteration of hashstags_unique standardization
 # Hashstags with some uppercase letters will be substituted
 # for hashtags all lowercase.
@@ -1588,6 +1600,13 @@ We can use regex lookaround to match lower case letters
 
 Not used but ...
 https://cran.r-project.org/web/packages/textclean/textclean.pdf
+
+---
+
+Sorting in case insensitive way
+mentions <- mentions[order(tolower(mentions))]
+https://stackoverflow.com/questions/29890303/case-insensitive-sort-of-vector-of-string-in-r
+Thanks to lukeA
 
 ---
 https://blog.datazar.com/first-debate-2016-sentimental-analysis-of-candidates-58d87092fc6a
