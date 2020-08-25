@@ -1440,7 +1440,7 @@ train_tweets$text[g]
 In our search for candidate predictors, let's now turn to token frequency, looking for tokens with highly differentiated frequency between Android and iPhone. What matters is big difference in absolute frequencies and not ratios [if required, more explanation].
 
 
-
+##################################################################
 ###################################################################
 
 Second, some of our tokens come from a quote and they start with '. We want to remove the ' when it's at the start of a word so we will use str_replace. We add these two lines to the code above to generate are final table:
