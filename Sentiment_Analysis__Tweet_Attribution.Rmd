@@ -60,7 +60,7 @@ text-align: justify}
 
 <br>
 
-**Tweet attribution** is the topic of this project. Tweets come the account of Candidate Donald Trump during the 2016 presidential election campaign. Two devices have been used to issue tweets: and Android device and an iPhone. The challenge has been to predict the device on the validation set. 
+**Tweet attribution** is the topic of this project. Tweets come from the account of Candidate Donald Trump during the 2016 presidential election campaign. Two devices have been used to issue tweets: and Android device and an iPhone. The challenge has been to predict the device on the validation set. 
 
 Three types of predictors have been used:
 
@@ -233,7 +233,7 @@ library(pROC)
 devtools::install_github("gaospecial/wordcloud2")
 ```
 
-Data are downloaded from the dataset *trump_tweets* from the R package *dslabs*. 
+Data are downloaded from the dataset *trump_tweets* from the R package *dslabs*.
 
 Let's normalize the dataset into utf8. Otherwise, a problem was previously encountered with apostrophes: the difference between curly and straight apostrophes can impede stopword removal, especially so in case of contractions; moreover, it can also bias token frequency counts by splitting appearances of the same token.
 
@@ -264,7 +264,7 @@ sum(is.na(tweets$in_reply_to_user_id_str))/nrow(tweets)
 
 Documentation available at ?trump_tweets.
 
-No retweet, so exlusion of feature. There can be some copy-paste. 
+No retweet, so exclusion of feature. There can be some copy-paste. 
 
 *in_reply_to_user_id_str* can be taken into account. 
 
@@ -676,13 +676,13 @@ df_iphone <- df %>%                               # iPhone only
   filter(device == "iPhone") %>%
   select(- device)
 
-df_iphone_short <- df_iphone %>%                         # Excluding tweets
+df_iphone_short <- df_iphone %>%                  # Excluding tweets
   filter(hour < 12 | hour >= 15)                  # between 12pm & 3pm
                                                   
 intermingling_measurement <- 
   function(lower_limit, df1, df2) {
     
-    coex <- vector(mode="character", length=0)
+    coex <- vector(mode = "character", length = 0)
 
     for (i in 1:nrow(df1)) {
       date_ref <- df1$created_at[i]
@@ -727,7 +727,7 @@ intermingling_measurement(4, df_android_short, df_iphone_short)
 
 This is a try to quantify intermingling between Android tweets and iPhone tweets. On that basis, intermingling, proximity, has been evaluated at more than one fourth, or even on third if all tweets are taken into account.
 
-In a snapshot, day schedule has shown variety away from the average day schedule per device. On the contrary, some temporal proximity has been shown in one fourth or even one third of tweets. Publication time will be used to attribute tweets, in hour format or am-pm. 
+In a snapshot, day schedule has shown variety away from the average day schedule per device. On the contrary, some temporal proximity has been shown in one fourth or even one third of tweets. Publication time will be used as a predictor to attribute tweets, in hour format or am-pm. 
 
 But would day schedule also vary month after month? Let's try to retrieve pre-attentive insights from drawing am-pm breakdown per month and per device. 
 
@@ -803,18 +803,19 @@ graph
 
 ## Month Evolution in Volume
 
-All datetime values have been aggregated by month. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month is expressed as an activity percentage per device.
+All datetime values have been aggregated by month. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. 
 
+Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month could be expressed as an activity percentage per device with mutate(percent = n / sum(n)) %>%.
+  
 ```{r Graph of activity per month and per device}
 graph <- train_tweets %>%
   select(device, month) %>%
   group_by(device, month) %>%
   summarize(n = n()) %>%
-  mutate(percent = n / sum(n)) %>%
-  ggplot(aes(month, percent, color = device)) +
-  geom_point(aes(size = percent)) +
-  scale_size_continuous(range = c(2, 6)) +    # Size of dots
-  guides(size = FALSE) +                      # No legend for size
+  ggplot(aes(month, n, color = device)) +
+  geom_point(aes(size = n)) +
+  scale_size_continuous(range = c(2, 6)) +        # Size of dots
+  guides(size = FALSE) +                          # No legend for size
   scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
   ggtitle("Tweet Activity per Month per Device") +
   labs(x = "",
@@ -829,8 +830,7 @@ graph <- train_tweets %>%
                                    vjust = 1, size = 12),
         axis.text.y = element_text(size = 12),
         legend.text = element_text(size = 12),
-        # remove the vertical grid lines
-        panel.grid.major.x = element_blank(),
+        panel.grid.major.x = element_blank(),    # Removing vertical grid 
         panel.grid.minor.x = element_blank()) +
   scale_color_manual(values = duo_Palette) +
   theme(panel.background = element_rect(fill = sky_blue)) 
@@ -843,7 +843,7 @@ Interpreting curve evolution would probably require additional information; it i
 
 General tendency is rather similar up to July 2016: first, there is an upward tendency, up to the first trimester of 2016, then activity plummets, with the exception of July 2016 for Android; for the iPhone, activity surges again from July until October 2016; decrease in November is linked to the month period being shortened.  
 
-Moreover, in levels, at the beginning of the period, the activity percentage of the Android device is higher than the one from the iPhone, and vice versa at the end of the period. 
+Moreover, in levels, at the beginning of the period, the activity of the Android device is higher than the one from the iPhone, and vice versa at the end of the period. 
 
 These differences qualify month as a candidate predictor in tweet attribution, the more so since average day schedule also varies on a monthly basis. 
 
@@ -920,7 +920,7 @@ OBJECTIVES
 We've got several and very different intermediary objectives, but the final objective is the same, i.e. attributing tweets to devices.
 
 Intermediary objectives:
-- words with high frequencies for one device and few ones (or at least fewer ones) for the other device;
+- words with high frequencies for one device and only a few ones (or at least fewer ones) for the other device;
 - sentiments with high occurrence for one device and low occurrence (or at least lower) for the other one. 
 
 In a first step, for both intermediary objectives, we do not necessarily need to discard stopwords. Why?
@@ -942,10 +942,10 @@ One expansion has to be provided: not only words matter to attribute tweets, but
 - the $ symbol
 - and #1 . 
 
+THIS SHOULD BE UPDATED
 Let's build up two versions of the tweet texts:
 - one compact version with hashtags, mentions and links,
 - one expanded version with expanded hashtags (no mentions and no links).
-
 Both will be used in token frequency and sentiment analysis.
 
 Before constructing the compact and the expanded versions, 
@@ -960,7 +960,7 @@ train_tweets$text[g]
 
 <br>
 
-In these are just three illustrative examples, if commas are not discarded, three appearances of great will not be added to the total occurrence of "great" because they will be treated as the token "great,".
+These are just illustrative examples; if commas are not discarded, three appearances of great will not be added to the total occurrence of "great" because they will be treated as the token "great,".
 
 But we cannot simply discard all punctuation marks. 
 
@@ -1435,10 +1435,7 @@ length(g)
 train_tweets$text[g]
 ```
 
-
-
 In our search for candidate predictors, let's now turn to token frequency, looking for tokens with highly differentiated frequency between Android and iPhone. What matters is big difference in absolute frequencies and not ratios [if required, more explanation].
-
 
 ##################################################################
 ###################################################################
