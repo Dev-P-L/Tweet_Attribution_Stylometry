@@ -122,12 +122,17 @@ v <- train_tweets[1008, ] %>%
   mutate(text = str_replace_all(text, "&amp", "")) %>%
   mutate(text = str_replace_all(text, "http.*" , ""))  
 
+# The Stack Overflow is about removing links. Why presented in that way? 
+  
 buffer <- data.frame(text =
-  "\n@joebiden @joebiden #TBT &amp https://stackoverflow.com/questions/33995830/") 
+  ".@l \n@joebiden .@he . ... .l l. l.l essai ok non@joe jest@joebiden jtt#TBT &amp https://stackoverflow.com/questions/33995830/") 
+
 buffer %>% 
   mutate(text = str_replace_all(text, "[\n]" , "")) %>%
   mutate(text = str_replace_all(text, "&amp", "")) %>%
-  mutate(text = str_replace_all(text, "http.*" , ""))
+  mutate(text = str_replace_all(text, "[?@]", " @")) %>%
+  mutate(text = str_replace_all(text, "[?#]", " #")) %>%
+  mutate(text = str_replace_all(text, "[\\.]", ""))
 
 # Finding occurrence of pattern
 grep("\\$", train_tweets$text)
@@ -138,12 +143,10 @@ train_tweets$text[39]
 
 ## TIDYING IN EARNEST
 
-
-
 # Adding leading and trailing white space character near punctuation marks.
 # https://stackoverflow.com/questions/34874089/regex-r-add-space-between-punctuation-marks-and-words-but-also-between-punctua
 # Great reference, great reference! 
-# But not . in ordder to preserve abreviations and not numbers 
+# But not "." in order to preserve abreviations and not numbers 
 # in order to preserve #1. 
 
 # With str_replace_all().
@@ -180,8 +183,9 @@ length(grep("NUMBERONE", temp$text))
 
 # temp$text is readily available. 
 
-# Removing trailing dots (periods or full stops) at the end of a word ending
-# in a lowercase letter, so preserving abreviations usually in uppercase.
+# Removing trailing dots (periods or full stops) 
+# at the end of a word ending in a lowercase letter, 
+# so preserving abreviations usually in uppercase.
 compact <- temp
 comp <- compact$text
 seq_comp <- seq_along(comp)
@@ -189,7 +193,7 @@ for (i in seq_comp) {
   w <- comp[i]
   g <- unlist(gregexpr(pattern = "[a-z]\\.", w))
   
-  # Other for loop to adjust all cases of dots following a lowercase letter.
+  # for loop to adjust all cases of dots following a lowercase letter
   seq_g <- seq_along(g)
   for (j in seq_g) {
     pos <- g[j] + 1
@@ -311,7 +315,7 @@ expanded <- temp %>%
 expanded$text
 
 # Let's NOT switch to vcorpus() and cleaning functions from the 
-# package tm.  Cleaning will be tailored-made to get more flexibility.
+# package tm.  Cleaning will be tailor-made to get more flexibility.
 # Combining stopwords from the package tidytext with the function
 # removeWords leads to removing separate letters from abreviations 
 # such as "u.s.". 

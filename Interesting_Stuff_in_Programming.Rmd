@@ -146,3 +146,14 @@ https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
 ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
 
 ---------------------------------------------------------------------------
+
+# Let's check whether created_at is strictly increasing
+all(diff(train_tweets$created_at) > 0)
+all(diff(as.numeric(train_tweets$id_str)) > 0)
+
+---------------------------------------------------------------------------
+
+percentage <- 
+  label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
+  
+---------------------------------------------------------------------------
