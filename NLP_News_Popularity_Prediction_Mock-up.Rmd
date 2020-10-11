@@ -1,0 +1,1674 @@
+---
+title: "Popularity Prediction"
+subtitle: "New York Times Blog Articles"
+author: "Philippe Lambot"
+date: "May 12, 2020"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+---
+
+```{r Setup, include = FALSE}
+# Avoiding messages and warnings: anyway, they have already been dealt with.  
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+# Regulating figure layout.
+knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
+
+# Facilitating table layout in HTML.
+options(knitr.table.format = "html")
+
+# After the present chunk, there are 13 lines of code to further regulate layout:
+# - the 1st block prevents bullets appearing in the TOC (Table of Contents);
+# - the 2nd block determines font size in body text parts;
+# - the 3rd block generates text justification.
+
+# Output language
+Sys.setlocale("LC_ALL", "C")
+```
+
+<style type="text/css">
+div#TOC li {
+    list-style:none;
+    background-image:none;
+    background-repeat:none;
+    background-position:0;
+}
+</style>
+
+<font size="3">
+
+<style>
+body {
+text-align: justify}
+</style>
+
+## <br>
+## <br>
+## <br>
+
+<br>
+
+## I. EXECUTIVE SUMMARY
+
+<br>
+
+In this project, a **94 % AUC** level has been reached in predicting news popularity on the validation set.
+
+It has also provided **useful insights** about predictive impact from unstructured data, timing, classification and word count.
+
+**Natural Language Processing** has been combined with **Machine Learning**. In Machine Learning, *Random Forest* has proved somewhat more performing than *eXtreme Gradient Boosting*. Working on bootstrapped resample distributions has defeated overfitting, revealed true distributions and opened up the way to an ensemble solution that has slightly outperformed both individual models.   
+
+TAGS: popularity prediction, timing, news types, word count, headlines, snippets, AUC, ROC, Natural Language Processing, corpus, Document Term Matrix, bag of words, Machine Learning, binary classification, Random Forest, eXtreme Gradient Boosting, True Positive Rate (sensitivity), False Positive Rate, overfitting, bootstrapping iterations, resamples, density functions, distributions, ensemble solution 
+
+<br>
+
+GITHUB: https://github.com/Dev-P-L/NLP-News-Popularity-Prediction
+
+<br>
+
+## II. FOREWORD about DATA: ACKNOWLEDGEMENT and LIMITATION of USE
+
+<br>
+
+This research project is based on Data provided by The New York Times for a Kaggle competition. Any use of it must comply with requirements from https://developer.nytimes.com. 
+
+This project is lodged with the GitHub repository https://github.com/Dev-P-L/NLP-News-Popularity-Prediction and is comprised of four files:
+
+- README.md,
+- NLP_News-Popularity-Prediction.Rmd (all code),
+- NLP_News-Popularity-Prediction.html (methods, insights, results)
+- and NLP_News-Popularity-Prediction.oxps (idem in other format).
+
+<br>
+
+```{r Cleaning up workspace and downloading packages}
+# Cleaning up workspace for RAM management.
+invisible(if(!is.null(dev.list())) dev.off())
+rm(list=ls())
+cat("\014")
+
+# Downloading packages.
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(utf8)) install.packages("utf8", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(tm)) install.packages("tm", repos = "http://cran.us.r-project.org")
+if(!require(wordcloud)) install.packages("wordcloud", repos = "http://cran.us.r-project.org")
+if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(pROC)) install.packages("pROC", repos = "http://cran.us.r-project.org")
+
+# Requiring libraries.
+library(tidyverse)
+library(utf8)
+library(lubridate)
+library(tm)
+library(wordcloud)
+library(kableExtra)
+library(caret)
+library(pROC)
+```
+
+<br>
+
+## III. DATA PREPARATION
+
+### A. Data Download
+ 
+<br>
+
+Let's download data and have a look at the dataset. The downloading command is not comprised of *stringsAsFactors = FALSE* in order to get information about the levels of non-numeric features. 
+
+<br>
+
+```{r Downloading, echo = TRUE}
+ds <- read.csv("ds.csv", encoding = "UTF-8") %>%
+      select(- 1)
+str(ds, vec.len = 1)
+```
+
+<br>
+
+This table deserves some debriefing.
+
+<br>
+
+### B. Data Profiling
+
+<br>
+
+In the table above, there are 6,532 observations; this number suffices for Natural Language Processing and Machine Learning. 
+
+There is no missing value in the dataset. 
+
+<br>
+
+```{r Checking for missing values, echo = TRUE}
+# If there are missing values, a warning will be printed with the number of missing values. 
+mv <- sum(is.na(ds))
+check <- if(mv > 0) 
+{print(paste("Warning: there are ", mv, " missing values."))}
+
+rm(mv, check)
+```
+
+<br>
+
+The dataset is comprised of ten features: 
+
+- eight features are predictors,
+- one feature, i.e. "Popular", contains labels ("Popular" or "Unpopular"),
+- the last feature is an identifier.  
+
+Three of the predictors are categorical variables: *NewsDesk*, *SectionName* and *SubsectionName*. They have a limited number of levels. But, in each of them, there is an unnamed level *""*. The name *Undefined* will be attributed to that level in each of these three categorical features. 
+
+<br>
+
+```{r Naming unnamed level, echo = TRUE}
+# Downloading again the dataset without creating factors.
+ds <- read.csv("ds.csv", encoding = "UTF-8", stringsAsFactors = FALSE) %>%
+      select(- 1)
+
+# Naming undefined level in the 3 categorical features.
+ds$NewsDesk[ds$NewsDesk == ""] <- "Undefined"
+ds$SectionName[ds$SectionName == ""] <- "Undefined"
+ds$SubsectionName[ds$SubsectionName == ""] <- "Undefined"
+
+# Converting the 3 categorical features into factors.
+ds <- ds %>% 
+  mutate(NewsDesk = as.factor(NewsDesk)) %>%
+  mutate(SectionName = as.factor(SectionName)) %>%
+  mutate(SubsectionName = as.factor(SubsectionName))
+```
+
+<br>
+
+There are three textual features: *Headline*, *Snippet* and *Abstract*. 
+
+Some snippets and abstracts are empty, as indicated by the level *""*. This will not be changed since the features *Snippet* and *Abstract* will have the status of character feature and not the status of factor. 
+
+In the three textual features, the number of levels is somewhat inferior to the whole number of observations. For the feature *Headline*, this indicates that a few headlines are identical but neither null nor missing. For the features *Snippet* and *Abstract*, this originates in the null values and possibly also in some redundancies. 
+
+From a content point of view, the snippet example is exactly the same as the abstract example. This needs examining in exploratory data analysis in section *V. EDA and NLP on TEXTUAL PREDICTORS from the TRAINING SET* hereunder. 
+
+Among features, there are also *WordCount*, *Popular* and *UniqueID*. 
+
+The feature *Popular* gives the labels, i.e. the dependent variable, the target. There are two classes: 1 (for blog articles rated as popular) and 0 (for blog articles rated as unpopular). The levels will be transposed into character levels: *Popular* and *Unpopular*. 
+
+<br>
+
+```{r Converting label levels into characters, echo = TRUE}
+DfNews <- ds %>% 
+  mutate(Popular = as.factor(gsub(1, "Popular", gsub(0, "Unpopular", Popular))))
+```
+
+<br>
+
+### C. Data Splitting
+
+<br>
+
+The dataset will be split into a validation set and a training set: the validation set will contain one third of the rows from the original dataset, the training set two thirds. 
+
+Even if some categories (from e.g. *SectionName*) are populated in the validation set but not in the training set, the corresponding rows remain in the validation set. This might lower AUC a little bit on the validation set but in real-life prediction new data could indeed contain new categories. 
+
+<br>
+
+```{r Splitting data}
+# Splitting data into training and validation sets.
+set.seed(1)
+ind_val <- createDataPartition(y = DfNews$Popular, 
+                               times = 1, p = 1/3, list = FALSE)
+ind_train <- as.integer(setdiff(1:nrow(DfNews), ind_val))
+trainNews <- DfNews[ind_train, ]
+valNews <- DfNews[ind_val, ]
+
+# Keeping labels as numerical values as well, for further use.
+y_train <- ds$Popular[ind_train]
+y_val <- ds$Popular[ind_val]
+rm(ds, DfNews, ind_train, ind_val)
+```
+
+Now, let's perform exploratory data analysis, but only on the training set since no information from the validation set should contribute to modelling. 
+
+<br>
+
+## IV. EXPLORATORY DATA ANALYSIS (EDA) on LABELS from TRAINING SET
+
+<br>
+
+The positive class is "Popular". Let's have a look at the breakdown between positive and negative classes.
+
+<br>
+
+```{r EDA Label breakdown by classes}
+df <- data.frame(matrix(table(trainNews$Popular), 
+                        nrow = 1, ncol = 2, byrow = TRUE)) %>%
+      `colnames<-`(levels(trainNews$Popular)) %>%
+      `rownames<-`("Training Set")
+
+tab <- format(df, big.mark = " ")
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  column_spec(1, bold = T, color = "#808080") %>%
+  column_spec(2, bold = T, color = "#205030", background = "#a7e3bb") %>%
+  column_spec(3, bold = T, color = "#08457E", background = "#9bc4e2")
+rm(tab)
+```
+
+<br>
+
+The positive class is clearly a minority, which justifies not relying on accuracy metric to measure predictive performance but on ROC AUC. Let's calculate prevalence of the positive class.   
+
+<br>
+
+```{r EDA Prevalence}
+pr <- paste((round((df[1] / nrow(trainNews)), 2) * 100), 
+            " %", sep = "" ) %>% 
+      as.data.frame() %>% 
+      `colnames<-`('Prevalence of Positive Class ("Popular")') %>%
+      `rownames<-`("Training Set")
+
+knitr::kable(pr, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  column_spec(1, bold = T, color = "#808080") %>%
+  column_spec(2, bold = T, color = "#205030", background = "#a7e3bb")
+rm(df, pr)
+```
+
+<br>
+
+Prevalence of positive class is 17 %. Now, let's turn to unstructured data, i.e. to the three textual predictors. 
+
+<br>
+
+## V. EDA and NLP on TEXTUAL PREDICTORS from the TRAINING SET
+
+### A. EDA on Textual Predictors
+
+#### 1. Headlines
+
+<br>
+
+```{r EDA Illustrative random sample of headlines}
+sample_size <- 3
+set.seed(1)
+seq <- sample(1:nrow(trainNews), sample_size, replace = FALSE)
+sampl <- trainNews$Headline[seq]
+
+# Building presentation table.
+tab <- sampl %>% as.data.frame() %>% 
+  `colnames<-`("ILLUSTRATIVE RANDOM SAMPLE OF HEADLINES") %>%
+  `rownames<-`(paste("Training Set Row Number", seq, sep = " "))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  column_spec(1, bold = T, color = "#808080") %>%
+  column_spec(2, bold = T, color = "#08457E", background = "#9bc4e2")
+rm(sample_size, seq, sampl, tab)
+```
+
+<br>
+
+These three examples of headlines show, as expected, some very tidy text. After this insight, we can dispense with some corrective measures in Natural Language Processing. 
+
+Let's now turn to the corresponding random sample of abstracts. 
+
+<br>
+
+#### 2. Abstracts
+
+<br>
+
+```{r EDA Illustrative random sample of abstracts}
+sample_size <- 3
+set.seed(1)
+seq <- sample(1:nrow(trainNews), sample_size, replace = FALSE)
+sampl <- trainNews$Abstract[seq]
+
+# Building presentation table.
+tab <- sampl %>% as.data.frame() %>% 
+  `colnames<-`("ILLUSTRATIVE RANDOM SAMPLE OF ABSTRACTS") %>%
+  `rownames<-`(paste("Training Set Row Number", seq, sep = " "))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  column_spec(1, bold = T, color = "#808080") %>%
+  column_spec(2, bold = T, color = "#08457E", background = "#9bc4e2")
+rm(sample_size, seq, sampl, tab)
+```
+
+<br>
+
+Just as the random sample of headlines, this random sample of abstracts shows cleanness. The last piece of textual information consists of snippets.  
+
+<br>
+
+#### 3. Snippets
+
+<br>
+
+```{r EDA Illustrative random sample of snippets}
+sample_size <- 3
+set.seed(1)
+seq <- sample(1:nrow(trainNews), sample_size, replace = FALSE)
+sampl <- trainNews$Snippet[seq]
+
+# Building presentation table.
+tab <- sampl %>% as.data.frame() %>% 
+  `colnames<-`("ILLUSTRATIVE RANDOM SAMPLE OF SNIPPETS") %>%
+  `rownames<-`(paste("Training Set Row Number", seq, sep = " "))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  column_spec(1, bold = T, color = "#808080") %>%
+  column_spec(2, bold = T, color = "#08457E", background = "#9bc4e2")
+rm(sample_size, seq, sampl, tab)
+```
+
+<br>
+
+The first and the third snippets are exactly the same as the corresponding abstracts, but, interestingly enough, the second one is a shortened version of the corresponding abstract, whose last words have been dropped. After some checking, it appears that some other abstracts have been shortened as well. How many snippets differ from abstracts because some words have been dropped at the end? 
+
+<br>
+
+```{r Number of snippets that differ from abstracts because words have been dropped, echo = TRUE}
+# Building up a response vector registering the snippets that differ.
+v <- as.logical(rep("FALSE", length(trainNews$Snippet)))
+for (i in 1:nrow(trainNews)) {
+  v[i] <- identical(as.character(trainNews$Snippet[i]), 
+                    as.character(trainNews$Abstract[i]))
+}
+
+# Calculating the number of snippets that differ from corresponding abstracts.
+nr_dif <- as.integer(sum(v == FALSE))
+
+# Calculating the proportion of snippets that differ from abstracts. 
+prop_dif <- paste(round((nr_dif / length(v)) * 100, 1), "%", sep = " ")
+```
+
+<br>
+
+Let's visualize results. 
+
+<br>
+
+```{r EDA Presentation table of occurrence of snippets differing from abstracts}
+tab <- data.frame(matrix(c(nr_dif, prop_dif), nrow = 2, ncol = 1),
+                  stringsAsFactors = FALSE) %>%
+       `rownames<-`(c("Number in Training Set", 
+                      "Proportion in Training Set")) %>%
+       `colnames<-`("SNIPPETS DIFFERING FROM ABSTRACTS")
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  column_spec(1, bold = T, color = "#808080") %>%
+  column_spec(2, bold = T, color = "#08457E", background = "#9bc4e2")
+rm(v, nr_dif, prop_dif, tab)
+```
+
+<br>
+
+Snippets differing from abstracts are a very small minority. The vast majority of snippets are strictly identical to abstracts. Consequently, only one out of the two predictors will be kept. Which one will it be? Preference will be given to snippets because they might impact more on readers.
+
+<br>
+
+### B. Natural Language Processing
+
+<br>
+
+The following transformations will be performed on the training set:
+
+- for each training set observation, headline and snippet will be amalgamated;
+- a corpus will be built;
+- letters will be lowercased;
+- punctuation marks will be removed;
+- stopwords (from the function stopwords()) will be removed;
+- words will be stemmed;
+- sentences will be tokenized into stemmed words in a Document Term Matrix;
+- sparsity management will only keep tokens appearing in headlines or snippets from at least 2.5 % of blog articles.
+
+<br>
+
+```{r Creating corpus and bag of words, echo = TRUE}
+# Combining headlines and snippets.
+v <- 1:nrow(trainNews)
+for (i in 1:nrow(trainNews)) {
+  v[i] <- paste(trainNews$Headline[[i]],
+                trainNews$Snippet[[i]], sep = " ")
+}
+
+# Corpus is created only on training reviews in order to avoid 
+# any interference between training reviews and validation reviews. 
+# Otherwise, tokens from validation set could (at least slightly) impact 
+# on token selection when applying the sparsity threshold. 
+corpus <- VCorpus(VectorSource(v)) 
+
+# Lowercasing, removing punctuation and stopwords, stemming.
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stemDocument)
+
+# Building up a bag of words in a Document Term Matrix.
+dtm <- DocumentTermMatrix(corpus)
+
+# Managing sparsity with sparsity threshold. 
+sparse <- removeSparseTerms(dtm, 0.975)
+
+# Converting the Document Term Matrix into a matrix and then into a data frame.
+sentSparse <- as.data.frame(as.matrix(sparse)) 
+
+# Making all column names R-friendly.
+colnames(sentSparse) <- make.names(colnames(sentSparse))
+
+rm(v, i, corpus, dtm, sparse)
+```
+
+<br>
+
+### C. Word Cloud
+
+<br>
+
+Let's have a look at a word cloud based on the Document Term Matrix to get some pre-attentive insights. 
+
+<br>
+
+```{r Adapting opts_chunk to enlarge display width for a word cloud}
+knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
+```
+
+```{r Wordcloud, echo = TRUE}
+set.seed(1)
+wordcloud(colnames(sentSparse), colSums(sentSparse), min.freq = 1, 
+          max.words = 50, random.order = FALSE, rot.per = 1/3, 
+          colors = brewer.pal(8, "Set1"), scale = c(4,.5))
+```
+
+```{r Readapting opts_chunk to go back to 60% width for graphs}
+knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
+```
+
+In the word cloud above, we can see tokens such as *fashion*, *obama*, *presid*, *senat*, *billion*, *bank*, *million*, *work*, etc. 
+
+<br>
+
+### D. Inserting Textual Information into the Training Set
+
+<br>
+
+Let's add the columns from the Document Term Matrix to the training set.
+
+<br>
+
+```{r Adding bag of words to the training set, echo = TRUE}
+train <- cbind(trainNews, sentSparse) %>% 
+  select(- Headline, - Snippet, - Abstract, - UniqueID)
+
+# Keeping data frame under specific name for further use.
+sentSparse_train <- sentSparse
+rm(trainNews, sentSparse)
+```
+
+<br>
+
+## VI. EDA on TIME, CLASSIFICATION and NUMERICAL PREDICTORS from TRAINING SET
+
+### A. Temporal Predictors
+
+<br>
+
+In the training set, the feature *PubDate* is a time series indicating date and time of publication of blog articles, including year, month, day, hour, minute and second. Let's decompose this time series and extract components. 
+
+Year is not helpful here since there is no variation: all blog articles are from 2014.
+
+Month can be interesting: there are three of them, from September until November. 
+
+Two additional temporal patterns will be extracted: day of the week and hour in a 24-hour clock system. 
+
+<br>
+
+```{r Time decomposition of the time series PubDate, echo = TRUE}
+temp <- train$PubDate %>% 
+  as.data.frame(stringsAsFactors = FALSE) %>%
+  `colnames<-`("date") %>%
+  mutate(date = as.POSIXct(date)) %>%
+  mutate(weekday = weekdays(date, abbreviate = TRUE)) %>%        
+  mutate(month = month(date, label = TRUE)) %>%   
+  mutate(hour = hour(date)) %>%
+  mutate(y = y_train)
+```
+
+<br> 
+
+#### 1. Average Popularity Rate per Month
+
+<br> 
+
+```{r EDA Graph of average popularity rate per month}
+graph <-  temp %>% 
+  group_by(month) %>% 
+  summarize(avg = mean(y) * 100) %>%
+  ggplot(aes(month, avg)) + 
+  geom_bar(stat = "identity", width = 0.30, 
+           color = "#007ba7", fill = "#9bc4e2") + 
+  ggtitle("Popularity Rate per Month") +
+  ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(graph)
+```
+
+<br> 
+
+Differences per month being Lilliputian, this predictor will not be added to the training set. Let's now have a try with weekdays. 
+
+<br> 
+
+#### 2. Average Popularity Rate per Weekday
+
+<br>
+
+```{r EDA Graph of average popularity rate per weekday}
+# Ordering weekdays chronologically instead of alphabetically.
+temp <- temp %>% mutate(weekday = factor(temp$weekday, levels = 
+  weekdays(x = as.Date(seq(7), origin = "1950-01-01"), abbreviate = TRUE)))
+
+# Data frame grouped by weekday
+wd <- temp %>% 
+  group_by(weekday) %>% 
+  summarize(n = n(), avg = mean(y) * 100) 
+  
+# Point graph of popularity by weekday  
+graph <- wd %>% 
+  ggplot(aes(weekday, avg)) + 
+  geom_point(aes(size = n), color = "blue") +
+  ggtitle("Popularity Rate per Weekday") +
+  xlab("Weekday") +
+  ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(graph)
+```
+
+<br> 
+
+There is a clear difference between weekend and weekdays outside weekends: average popularity rate is substantially higher during weekend, and especially on Sundays. But are these higher rates statistically representative? It is representative for Sunday, with at least 200 blog articles. But what about Saturday?  
+
+<br>
+
+```{r EDA Weekday breakdown tab}
+tab <- wd %>% 
+  mutate(avg = round(avg, 1)) %>% 
+  arrange(desc(avg)) %>% 
+  mutate(perc_pop = paste(avg, "%", sep = " "))%>%
+  select(weekday, n, avg) %>% as.data.frame() %>%
+  `colnames<-`(c("Weekday", "Occurrence", "Popularity Rate"))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1:2, bold = T, color = "#205030", background = "#a7e3bb") %>%
+  row_spec(3:nrow(tab), bold = T, color = "#08457E", background = "#9bc4e2")
+rm(wd, tab)
+```
+
+<br>
+
+Saturday's higher popularity rate is also considered statistically significant with 131 blog articles. 
+
+<br> 
+
+#### 3. Average Popularity Rate per Hour
+
+<br>
+
+```{r EDA Graph of average popularity rate per hour}
+hr <- temp %>% 
+  group_by(hour) %>% 
+  summarize(n = n(), avg = mean(y) * 100) 
+
+graph <- hr %>%
+  ggplot(aes(hour, avg)) + 
+  geom_bar(stat = "identity", width = 0.40, 
+           color = "#007ba7", fill = "#9bc4e2") + 
+  ggtitle("Popularity Rate per Hour") +
+  xlab("Hour") + ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(graph)
+```
+
+<br> 
+
+There is an upward tendency in a 24-hour clock presentation: popularity rate is rather low between 1 a.m. and 5 a.m., then rises, especially from 7 p.m. onwards, culminating at almost 60 % in the 10 p.m. period. 
+
+But are the lowest and highest average popularity rates statistically representative? Let's have a look at a breakdown of observations per hour in a 24-hour clock presentation. 
+
+<br>
+
+```{r EDA Hour breakdown tab}
+tab <- hr %>% 
+  mutate(avg = round(avg, 1)) %>% 
+  arrange(desc(avg)) %>% 
+  mutate(avg = paste(avg, "%", sep = " "))%>%
+  select(hour, n, avg) %>% as.data.frame() %>%
+  `colnames<-`(c("Hour", "Occurrence", "Popularity Rate"))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1, bold = T, color = "#205030", background = "#a7e3bb") %>%
+  row_spec(2:(nrow(tab) - 1), bold = T, color = "#08457E", 
+           background = "#9bc4e2") %>%
+  row_spec((nrow(tab) - 2):nrow(tab), bold = T, color = "#333333", 
+           background = "#b2b2b2") 
+rm(hr, tab)
+```
+
+Observations are more concentrated in the middle of the empirical distribution. Nevertheless, even extreme rates are statistically representative; this is the case for the highest rate of almost 60 %; this is also the case for the lowest rates below 5 % if they are considered together. Consequently, this predictor will also be included into the training set.
+
+Let's go on with some data profiling. Two predictors will be added to the training set: *weekday* (days of the week) and *hour* (hour in a 24-hour clock). 
+
+<br>
+
+```{r Profiling training set}
+train <- train %>% 
+  mutate(weekday = temp$weekday, hour = temp$hour) %>%  # Adding predictors.
+  select(- PubDate)                                     # Discarding predictor.
+rm(temp)
+```
+
+### B. Classification Predictors
+
+#### 1. *News Desks*
+
+<br>
+ 
+```{r EDA NewsDesk geom_bar}
+# After stating that some values from NewsDesk are null, these values are going to be replaced with "Undefined".
+train$NewsDesk[train$NewsDesk == ""] <- "Undefined" 
+
+tab <- train %>% mutate(y = y_train) %>% group_by(NewsDesk) %>% 
+  summarize(n = n(), perc_pop = (sum(y) / n) * 100) %>% 
+  mutate(NewsDesk = reorder(NewsDesk, - perc_pop)) %>%
+  select(NewsDesk, n, perc_pop) %>% as.data.frame()
+
+graph <-  tab %>%
+  ggplot(aes(NewsDesk, perc_pop)) + 
+  geom_point(aes(size = n), color = "blue") +
+  ggtitle("Popularity Rate by News Desk") +
+  xlab("News Desk") + ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(graph)
+```
+
+<br>
+
+The categories with average popularity rate below 20 % predominate: there are more *news desk* groups below 20 % than above and they are altogether much more populated, with the *undefined* group containing at least 1,200 blog articles and the *business* group at least 900. 
+
+Nevertheless, three *news desks* stand out from the majority and have much higher average popularity rates; among them the *op-ed* group has an average popularity rate of almost 80 %. Moreover, the *op-ed* average popularity rate can be considered statistically representative with at least 300 blog articles. Let's digitize information in the following table in order to get more precise information, among others about the numbers of blog articles in the *science* and *styles* categories.
+
+<br>
+
+```{r EDA NewsDesk tab}
+tab <- tab %>% 
+  mutate(perc_pop = round(perc_pop, 1)) %>% 
+  arrange(desc(perc_pop)) %>% 
+  mutate(n = format(n, big.mark = " ")) %>%
+  mutate(perc_pop = paste(perc_pop, "%", sep = " "))%>%
+  `colnames<-`(c("News Desk", "Occurrence", "Popularity Rate"))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1:3, bold = T, color = "#205030", background = "#a7e3bb") %>%
+  row_spec(4:nrow(tab), bold = T, color = "#08457E", background = "#9bc4e2")
+rm(tab)
+```
+
+<br>
+
+The categories *op-ed*, *science* and *styles* correspond to popularity rates of 77 %, 63 % and 35 % respectively and they can be considered statistically representative in terms of number of blog articles. 
+
+In contrast, *business*, *metro*, *culture* and the *undefined* category, which together contain a majority out of all blog articles, range between 15 % and 7 % in popularity rate. 
+
+The categories *tstyle*, *travel* and *foreign* have popularity rates of 2 % or lower.
+
+The categories *magazine*, *national* and *sports* have a common popularity rate of 0 % but cannot be deemed to be statistically representative in terms of number of blog articles. 
+
+In a snapshot, this is a promising insight: even without taking into account the last three categories, *news desks* show some strong and statistically significant differences and they could have substantial predictive power. 
+
+It's time now we turned to the *section name* predictor. 
+
+<br>
+
+#### 2. *Section Names*
+
+<br>
+
+```{r EDA SectionName geom_bar}
+# After stating that some values from SectionName are null, these values are going to be replaced with "Undefined".
+train$SectionName[train$SectionName == ""] <- "Undefined" 
+
+tab <- train %>% mutate(y = y_train) %>% group_by(SectionName) %>% 
+  summarize(n = n(), perc_pop = (sum(y) / n) * 100) %>% 
+  mutate(SectionName = reorder(SectionName, - perc_pop)) %>%
+  select(SectionName, n, perc_pop) %>% as.data.frame()
+
+graph <-  tab %>%
+  ggplot(aes(SectionName, perc_pop)) + 
+  geom_point(aes(size = n), color = "blue") +  
+  ggtitle("Popularity Rate by Section Name") +
+  xlab("Section Name") + ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(angle = 60, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(graph)
+```
+
+<br>
+
+The graph above offers similarity with the graph about *news desks*: three categories have much higher popularity rates than the others. Let's have a look at the corresponding table. 
+
+<br>
+
+```{r EDA SectionName tab}
+tab <- tab %>%
+  mutate(perc_pop = round(perc_pop, 1)) %>% 
+  arrange(desc(perc_pop)) %>% 
+  mutate(n = format(n, big.mark = " ")) %>%
+  mutate(perc_pop = paste(perc_pop, "%", sep = " "))%>%
+  `colnames<-`(c("Section Name", "Occurrence", "Popularity Rate"))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1:3, bold = T, color = "#205030", background = "#a7e3bb") %>%
+  row_spec(4:nrow(tab), bold = T, color = "#08457E", background = "#9bc4e2")
+rm(tab)
+```
+
+<br>
+
+There is a clear-cut difference between some categories: *crosswords/games*, *opinion* and *health* have average popularity rates above 63 %, much higher than the other categories.
+
+There might be some overlapping between some categories from *news desks* and some categories from *section names*: in the category *science* from *news desks*, there are 131 blog articles with an average popularity rate of 63 % and these statistics are the same in the category *health* from *section names*... 
+
+But there are solid differences as well: among *news desks*, the categories above 63 % total 489 blog articles while, among *section names*, the categories above 63 % total 624 blog articles... 
+
+Consequently, without any further investigation, both predictors will be taken on board. 
+
+<br>
+
+#### 3. *Subsection Names*
+
+<br>
+
+```{r EDA SubsectionName geom_bar}
+# After stating that some values from SubsectionName are null, these values are going to be replaced with "Undefined".
+train$SubsectionName[train$SubsectionName == ""] <- "Undefined" 
+
+tab <- train %>% mutate(y = y_train) %>% group_by(SubsectionName) %>% 
+  summarize(n = n(), perc_pop = (sum(y) / n) * 100) %>% 
+  mutate(SubsectionName = reorder(SubsectionName, - perc_pop)) %>%
+  select(SubsectionName, n, perc_pop) %>% as.data.frame()
+
+graph <-  tab %>%
+  ggplot(aes(SubsectionName, perc_pop)) + 
+  geom_point(aes(size = n), color = "blue") +         
+  ggtitle("Popularity Rate by Subsection Name") +
+  xlab("Subsection Name") + ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(angle = 60, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(graph)
+```
+
+<br>
+
+In the graph above, there is a very high popularity rate, but how many blog articles correspond to that rate? 
+
+<br>
+
+```{r EDA subsectionName tab}
+tab <- tab %>%
+  mutate(perc_pop = round(perc_pop, 1)) %>% 
+  arrange(desc(perc_pop)) %>% 
+  mutate(n = format(n, big.mark = " ")) %>%
+  mutate(perc_pop = paste(perc_pop, "%", sep = " "))%>%
+  `colnames<-`(c("Subsection Name", "Occurrence", "Popularity Rate"))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1:2, bold = T, color = "#205030", background = "#a7e3bb") %>%
+  row_spec(3:nrow(tab), bold = T, color = "#08457E", background = "#9bc4e2")
+rm(tab)
+```
+
+<br>
+
+Actually, the popularity rate of 91 % is not really representative from a statistical point of view. But the rate of 21 % is well representative and rather distant from lower rates, and especially from the rates of *small business*, *Asia Pacific* and *education*.
+
+Consequently, this insight makes us accept this predictor as well. 
+
+Up to now, three classification factors have been examined among candidate predictors. Pre-attentive insights have been garnered from graphs and precise information has been hoarded from tables. The three classification factors are kept as predictors.  
+
+Let's now examine a numerical predictor: word count. 
+
+<br>
+
+### C. Numerical Predictor: Word Count
+
+<br>
+
+```{r EDA WordCount geom_bar}
+# Calculating quartiles.
+s <- summary(train$WordCount)
+df <- data.frame(intervals = as.character(names(s)), values = matrix(s), 
+                 stringsAsFactors = FALSE)
+
+# Removing the mean from the data frame to only keep quartiles, minimum and maximum.
+row.to.remove <- which(df$intervals %in% "Mean")
+df <- df[- row.to.remove,] 
+
+# Enlarging range to be sure of including minimum and maximum.
+v <- df$values
+v[1] <- floor(v[1])
+v[length(v)] <- ceiling(tail(v, 1))
+
+# Rounding quartiles to upgrade clarity in graph and table.
+for (i in 1:(length(v) - 2))  {
+  v[i + 1] <- round(v[i + 1])
+}
+
+df <- df %>% mutate(values = v)
+
+# Building up summary table with popularity percentages per quartile.
+tab <- train %>% select(WordCount) %>% 
+  mutate(y = y_train) %>%
+  mutate(intervals = cut(WordCount, breaks = df$values, 
+         include.lowest = TRUE, right = TRUE, dig.lab = 5)) %>%
+  group_by(intervals) %>% 
+  summarize(n = n(), perc_pop = ((sum(y) / n) * 100)) %>%  
+  select(intervals, n, perc_pop) %>% as.data.frame()
+
+# Drawing a geom_bar graph with popularity percentages per quartile.
+graph <-  tab %>%
+  ggplot(aes(intervals, perc_pop)) + 
+  geom_bar(stat = "identity", width = 0.30, 
+           color = "#007ba7", fill = "#9bc4e2") +  
+  ggtitle("Popularity Rate per Quartile of Word Count") +
+  xlab("Quartile of Word Count") + ylab("Popularity Rate (%)") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16), 
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text.y = element_text(size = 12))
+graph
+rm(s, row.to.remove, df, v, i, tab, graph)
+```
+
+<br> 
+
+The graph above is insightful: measured per quartile of word count, popularity rate is strictly and substantially increasing with word count. Moreover, differences are statistically significant since each average popularity rate refers to approximately one fourth of the training set. Consequently, word count will be used as a predictor in Machine Learning.
+
+We are now ready to move to predicting popularity on the training set, which has been supplemented with 
+
+- columns from the Document Term Matrix
+- and with two temporal predictors originating from time series decomposition.
+
+<br>
+
+## VII. MACHINE LEARNING PREDICTION on the TRAINING SET with *EXTREME GRADIENT BOOSTING* and *RANDOM FOREST*
+
+<br>
+
+### A. Running *eXtreme Gradient Boosting* and *Random Forest* on the Training Set
+
+<br>
+
+Based on experience with other projects, several models have been tried on the training set and on bootstrapped resamples, with the package *caret*:
+
+- *Support Vector Machines with Radial Basis Function Kernel* (*svmRadialCost* method),
+- *CART* (*rpart* method),
+- *Generalized Linear Model* (*glm* method),
+- *eXtreme Gradient Boosting* (*xgbLinear* method),
+- *Random Forest* (*rf* method).
+
+*eXtreme Gradient Boosting* and *Random Forest* have emerged as better performing in ROC AUC. 
+
+Parameterization has been dealt with in a stepwise approach: 
+
+- in a first step, no *tuneGrid* has been provided to the *train()* function from the package *caret* and, by default, the system has picked up ranges on its own;
+- the default ranges and the associated results have been perused;
+- on the basis of results, new ranges have been stepwise tested on bootstrapped resamples;
+- at the end of the process, for each of the two models, one parameter value range has been inserted into the argument *tuneGrid* in the *train()* function hereunder.
+
+By the way, ranges of parameter values have been tested on bootstrapped resamples and not on the whole training set with the final models because the final models were already showing heavy overfitting proneness on the whole training set. 
+
+<br>
+
+```{r Running  XGB and RF on training set, echo = TRUE}
+fitControl <- trainControl(classProbs = TRUE,
+                           ## Evaluating performance using 
+                           ## the following function.
+                           summaryFunction = twoClassSummary,
+                           returnResamp = "all",
+                           savePredictions = "all")
+
+xgbGrid <- expand.grid(lambda = c(0.70, 0.80, 0.90),
+                       alpha = c(0.30, 0.40, 0.50),
+                       nrounds = c(26, 27, 28),
+                       eta = 0.3)
+
+set.seed(1)
+fit_xgb <- train(Popular ~ ., data = train, 
+                 method = "xgbLinear", 
+                 trControl = fitControl, 
+                 ## Asking to tune the model across 3 values 
+                 ## of the parameters lambda, alpha and nrounds.
+                 tuneGrid = xgbGrid,
+                 ## Specifying which metric to optimize.
+                 metric = "ROC")
+
+rfGrid <- expand.grid(mtry = c(11, 12, 13))
+
+set.seed(1)
+fit_rf <- train(Popular ~ ., data = train, 
+                 method = "rf", 
+                 trControl = fitControl,
+                 ## Asking to tune the model across 3 values 
+                 ## of the parameter mtry.
+                 tuneGrid = rfGrid,
+                 ## Specifying which metric to optimize.
+                 metric = "ROC")
+
+rm(fitControl)
+```
+
+<br>
+
+Let's compare performance merits from *Random Forest* and *eXtreme Gradient Boosting*. It is only fitting that the first examined objects are the respective ROC curves and ROC AUCs. Let's start with *eXtreme Gradient Boosting*.
+
+<br>
+
+### B. ROC Curve and AUC from *eXtreme Gradient Boosting*
+
+<br>
+
+```{r ROC curve from xgb on the training set, echo = TRUE}
+fitted_xgb_prob <- predict(fit_xgb, type = "prob")
+roc_xgb <- roc(as.factor(train$Popular), fitted_xgb_prob$Popular,
+               quiet = TRUE)
+```
+
+<br>
+
+Here is the graph with the ROC curve and the AUC polygon from *eXtreme Gradient Boosting*.
+
+<br>
+
+```{r ROC graph from xgb on the training set}
+plot.roc(roc_xgb, 
+         lty = 1, lwd = 5,  col = "#205030", 
+         identity.lty = 3, identity.lwd = 4, identity.col = "blue",
+         grid = T, grid.lty = 3, grid.lwd = 2, grid.col = "#DDDDDD",
+         print.auc = T, print.thres = T, 
+         auc.polygon = T, auc.polygon.col="#a7e3bb", auc.polygon.lty = 2,
+           auc.polygon.density = 100, auc.polygon.angle = 45,
+           auc.polygon.border= "#205030", print.auc.cex= 1.75,
+         main = "ROC Curve from XGB Model",
+         xlab = "False Positive Rate", ylab = "True Positive Rate")
+rm(fitted_xgb_prob, roc_xgb)
+```
+
+<br>
+
+The true positive rate immediately jumps to almost 1 and rapidly reaches 1 to remain there. The AUC is impressive with 98 % but it is calculated on the training set and not on the validation set. Now, let's turn to *Random Forest*. 
+
+<br>
+
+### C. ROC Curve and AUC from *Random Forest*
+
+<br>
+
+```{r ROC curve from RF on the training set}
+fitted_rf_prob <- predict(fit_rf, type = "prob")
+roc_rf <- roc(as.factor(train$Popular), fitted_rf_prob$Popular,
+              quiet = TRUE)
+
+plot.roc(roc_rf, 
+         lty = 1, lwd = 5,  col = "#c90016", 
+         identity.lty = 3, identity.lwd = 4, identity.col = "blue",
+         grid = T, grid.lty = 3, grid.lwd = 2, grid.col = "#DDDDDD",
+         print.auc = T, print.thres = T, 
+         auc.polygon = T, auc.polygon.col="#f9e5e7", auc.polygon.lty = 2,
+           auc.polygon.density = 100, auc.polygon.angle = 45,
+           auc.polygon.border= "#c90016", print.auc.cex= 1.75,
+         main = "ROC curve from RF Model",
+         xlab = "False Positive Rate", ylab = "True Positive Rate")
+rm(fitted_rf_prob, roc_rf)
+```
+
+<br>
+
+The ROC curve and the AUC are almost perfect, with an AUC of nearly 100 %. But, once again, this is prediction on the training set and not on the validation set. 
+
+<br>
+
+### D. Way Forward
+
+<br>
+
+Overfitting is very probable, even in the case of *eXtreme Gradient Boosting*. This makes us ask three questions:
+
+- How could overfitting be estimated? 
+- Among *eXtreme Gradient Boosting* and *Random Forest*, which is the best model to predict on the validation set? 
+- Or should we move to another model? 
+
+In order to answer these questions, let's make the most of unused information about bootstrapped resample distributions. 
+
+<br>
+
+## VIII. TESTING on BOOTSTRAPPED RESAMPLE DISTRIBUTIONS
+
+<br>
+
+### A. Preliminary Remark
+
+<br>
+
+In the train() function from the package *caret*, the default resampling method has been kept: resampling is done on 25 bootstrapped resamples. 
+
+This means that, in the *eXtreme Gradient Boosting* model, there have been 675 AUC estimates. Indeed, there are 27 combinations of parameter values since the *tuneGrid* argument contains 3 values for the parameter *lambda*, 3 for the parameter *alpha* and 3 again for the parameter *nrounds*. And each combination out of the 27 combinations is run in 25  resampling iterations. 
+
+In the *Random Forest* model, there have been 75 AUC estimates. Indeed, the *tuneGrid* argument contains 3 values for the parameter *mtry* and each of them is run on 25 bootstrapped resamples. 
+
+Looking at all these AUC estimates might deliver insights about overfitting and performance transposability to the validation set. 
+
+But before retrieving insights from bootstrapped resample distributions, let's notice another subtle clue. At the upper right-hand corner of the AUC polygons is an indication of the probability threshold for which true positive rate and false positive rate are equal to each other. That threshold is somewhat different for *eXtreme Gradient Boosting* and for *Random Forest*: 0.246 for *eXtreme Gradient Boosting* and 0.307 for *Random Forest*. Independently of performance, this gap in internal results might become an insight. Indeed, combining models with different results may better performance... Let's keep that in mind and go back to bootstrapped resample distributions. 
+
+<br>
+
+### B. Insights from All Resample AUCs from *eXtreme Gradient Boosting* and *Random Forest*
+
+<br>
+
+Let's get started with a quick summary statistic per model, which is calculated across all AUCs per model, i.e. across 675 AUCs for *eXtreme Gradient Boosting* and 75 AUCs for *Random Forest*. This summary statistic gives 
+
+- the minimum of all AUCs per model,
+- the mean of all AUCs per model 
+- and the maximum of all AUCs per model.
+
+<br>
+
+```{r Overall averages of AUCs across parameters and resamples}
+overall_AUC_min_xgb <- round((min(fit_xgb$resample$ROC) * 100), 2)
+overall_AUC_min_rf <- round((min(fit_rf$resample$ROC) * 100), 2)
+
+overall_AUC_avg_xgb <- round((mean(fit_xgb$resample$ROC) * 100), 2)
+overall_AUC_avg_rf <- round((mean(fit_rf$resample$ROC) * 100), 2)
+
+overall_AUC_max_xgb <- round((max(fit_xgb$resample$ROC) * 100), 2)
+overall_AUC_max_rf <- round((max(fit_rf$resample$ROC) * 100), 2)
+
+tab <- data.frame(matrix(c(overall_AUC_min_xgb, overall_AUC_min_rf,
+                           overall_AUC_avg_xgb, overall_AUC_avg_rf,
+                           overall_AUC_max_xgb, overall_AUC_max_rf),
+                         nrow = 2, ncol = 3, byrow = FALSE)) %>%
+       `colnames<-`(c("Minimum Resample AUC", "Average Resample AUC",
+                    "Maximum Resample AUC")) %>%
+       `rownames<-`(c("eXtreme Gradient Boosting Model",
+                      "Random Forest Model"))
+                    
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1, bold = T, color = "#205030", background = "white") %>%
+  row_spec(2, bold = T, color = "#c90016", background = "white")
+
+rm(overall_AUC_min_xgb, overall_AUC_min_rf)
+rm(overall_AUC_avg_xgb, overall_AUC_avg_rf)
+rm(overall_AUC_max_xgb, overall_AUC_max_rf)
+rm(tab)
+```
+
+<br>
+
+The table above delivers two insights. 
+
+First, AUC levels are substantially lower than the AUC levels of the final models, i.e. 98 % with *eXtreme Gradient Boosting* and almost 100 % with *Random Forest* as show previously. This insight tends to ascertain the hypothesis of overfitting.
+
+Second, order in performance metric has been partially maintained between both models: *Random Forest*, which delivers an almost perfect AUC of 100 % on the final model, comes first in minimum and average resample AUC, taking into account all resample AUCs, i.e. 75 for *Random Forest* and 675 for *eXtreme Gradient Boosting*. The minimum level is rather important: it can be considered an estimate of minimum performance.  
+
+<br>
+
+### C. Insights from AUCs Regrouped per (Set of) Parameter Value(s)
+
+<br>
+
+Let's regroup AUCs according to parameterization: 
+
+- first, AUCs will be presented in density functions per (set of) parameter value(s);
+- second, AUCs will be presented in averages per (set of) parameter value(s). 
+
+<br>
+
+#### 1. AUC Density Functions per (Set of) Parameter Value(s)
+
+<br>
+
+27 density functions will be drawn for *eXtreme Gradient Boosting*, i.e. one per each of the 27 combinations of parameter values; 3 density functions will be produced for *Random Forest*, i.e. one per each of the 3 parameter values tuned on *Random Forest*. Here are the *eXtreme Gradient Boosting* density functions. 
+
+<br>
+
+```{r Adapting opts_chunk to enlarge display width for multiple density functions}
+knitr::opts_chunk$set(out.width = "100%", fig.align = "center")
+```
+
+```{r Density functions from xgb, echo = TRUE}
+densityplot(fit_xgb, pch = "|", lwd = 3, grid = T, ylab = "Density")
+```
+
+<br>
+
+The top of the density functions is above 93 % ROC AUC in almost all cases. Let's turn to the *Random Forest* density functions. 
+
+<br>
+
+```{r Density functions from RF, echo = TRUE}
+densityplot(fit_rf, pch = "|", lwd = 3, grid = T, ylab = "Density")
+```
+
+<br>
+
+The top of the density function is above 93 % in the three cases. 
+
+Altogether, both models 
+
+- seem very close to each other in AUC performance;
+- deliver AUC levels much lower than AUC levels from the final models on the whole training set, which tends to demonstrate overfitting. 
+
+<br>
+
+#### 2. Average AUCs per (Set of) Parameter Value(s)
+
+<br>
+
+For each density function, an average can be calculated over the 25 resamples and corresponds to one (set of) parameter value(s). These averages will be presented as points on graphs, first for *eXtreme Gradient Boosting*. 
+
+<br>
+
+```{r Average AUCs per density function for XGB, echo = TRUE}
+ggplot(fit_xgb) +
+  ggtitle("Average AUCs per Set of Parameter Values for XGB") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+```
+
+<br>
+
+In the graph above
+
+- the upper horizontal "axis" represents the values of the parameter *alpha*;
+- the lower horizontal axis represents the values of the parameter *nrounds*;
+- the colors represent the parameter *lambda*, whose values are indicated in the legend at the right-hand side of the graph.
+
+From the graph, it can be seen that 
+
+- the highest average is around 93.5 %, which can be considered positive (and much more realistic than the 98 % from the final model on the whole training set);
+- it corresponds to the parameter values 0.5 for *alpha*, 30 for *nrounds* and 0.9 for *lambda*;
+- all averages are in a narrow range, which is reassuring in terms of predictive capability.
+
+Let's do the same for *Random Forest*.
+
+<br>
+
+```{r Readapting opts_chunk to reverse to 60% width}
+knitr::opts_chunk$set(out.width = "60%", fig.align = "center")
+```
+
+```{r Average AUCs per density function for RF, echo = TRUE}
+ggplot(fit_rf) +
+  ggtitle("Average AUCs per Parameter Value for RF") + 
+  geom_line(col = "blue", size = 1) +
+  geom_point(col = "blue", size = 4) +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+```
+
+<br>
+
+The graph for *Random Forest* is much simpler since the *train()* function from the package *caret* tunes the method *rf* only on the parameter *mtry*. But conclusions are similar: the level of the highest AUC and the narrowness of the range are rather promising. 
+
+For the record, AUC decreases all the way down the line and it might be asked whether it would not further increase for lower values of *mtry*. This has been tested and it would not improve AUC, on the contrary. 
+
+For precision purposes, the AUC ranges will be digitized in the following table. 
+
+<br>
+
+```{r Range of density function average AUCs per model, echo = TRUE}
+density_xgb <- fit_xgb$results %>% 
+  summarise(range = paste(min = round((min(ROC) * 100), 2), 
+                          max = round((max(ROC) * 100), 2),
+                          sep = " - ")) %>% 
+  select(range) 
+
+density_rf <- fit_rf$results %>% 
+  summarise(range = paste(min = round((min(ROC) * 100), 2), 
+                          max = round((max(ROC) * 100), 2),
+                          sep = " - ")) %>% 
+  select(range)
+```
+
+<br>
+
+The ranges are as follows.
+
+<br>
+
+```{r Table with range of density function average AUCs per model}
+tab <- rbind(density_xgb, density_rf) %>% 
+  `colnames<-`("RANGE of AUCs AVERAGED according to PARAMETERIZATION") %>%
+  `rownames<-`(c("eXtreme Gradient Boosting Model",
+                 "Random Forest Model"))
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1, bold = T, color = "#205030", background = "white") %>%
+  row_spec(2, bold = T, color = "#c90016", background = "white")
+
+rm(density_xgb, density_rf, tab)
+```
+
+<br>
+
+The *Random Forest* range lies very slightly higher than the *eXtreme Gradient Boosting* range. 
+
+For the record, let's check up that the maximum value in each range is indeed the AUC corresponding to the optimal parameter value(s) already pointed to previously and used in the final models on the whole training set. 
+
+<br>
+
+### D. Insights from AUCs Corresponding to Optimal Parameterization
+
+<br>
+
+Let's extract, for each model, the AUC corresponding to the optimal parameter value(s). 
+
+<br>
+
+```{r AUCs corresponding to optimal parameterization, echo = TRUE, warning = TRUE}
+stat <- summary(resamples(list(fit_xgb, fit_rf)))
+tab <- round((stat$statistics$ROC[7:8] * 100), 2)
+rm(stat)
+```
+
+<br>
+
+Deliberately, warnings have been allowed to get confirmation that we are indeed getting the AUCs corresponding to optimal parameterization. For the record, verification could also have been performed e.g. by using *fit_xgb$bestTune* and *fit_rf$bestTune* and applying them to retrieve the corresponding average AUCs from *fit_xgb$results$ROC* and *fit_rf$results$ROC*... Here is the comparative table with the AUCs, which are indeed the range maxima from the previous table. 
+
+<br>
+
+```{r Table with AUCs corresponding to optimal parameterization}
+auc_xgb_rf <- tab %>% as.data.frame() %>%
+  `colnames<-`("auc") %>%
+  mutate(auc = round(auc, 2)) %>%
+  `colnames<-`("RESAMPLE AUC with OPTIMAL PARAMETERIZATION") %>%
+  `rownames<-`(c("eXtreme Gradient Boosting Model",
+                 "Random Forest Model"))
+
+knitr::kable(auc_xgb_rf, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1, bold = T, color = "#205030", background = "white") %>%
+  row_spec(2, bold = T, color = "#c90016", background = "white")
+
+rm(tab)
+```
+
+<br>
+
+*Random Forest* scores very slightly higher than *eXtreme Gradient Boosting*. Both are around 93.50 %. This level is an indicator of predictive capability by both models on the validation set.
+
+AUCs on the validation set would most probably be much closer to this 93.50 % level than to the levels previously delivered by both final models on the whole training set, i.e. respectively 98 % and almost 100 %...
+
+<br>
+
+### E. Taking Stock of Insights from Bootstrapped Resamples
+
+<br>
+
+The table above is the last step in our evaluating the predictive power of the *eXtreme Gradient Boosting* and *Random Forest* models thanks to bootstrapped resample information. 
+
+First, AUCs have been collected on the 675 resamples from *eXtreme Gradient Boosting* and the 75 resamples from *Random Forest*. Second, AUCs have been regrouped according to parameterization, with 27 parameter value combinations for *eXtreme Gradient Boosting* and 3 parameter values for *Random Forest*. Third, from these regroupments only AUCs corresponding to optimal parameterization have been kept in the table above. In the three steps, *Random Forest* has proved a very little bit higher in AUC. 
+
+But AUC has dramatically dropped with respect to the AUCs from the final models on the training set. Instead of being at 98 or almost 100 %, AUC is now around 93.50 % on resamples and this lower level is most probably closer to predictive capability on the validation set. This drop in AUC looks like a stimulus to further modelling towards AUC optimization.  
+
+To face this challenge, it is time to remember an insight that had been previously garnered: in the graphs of AUC polygons, a difference had been noticed in the probability thresholds that equaled true positive rates and false positive rates for the *eXtreme Gradient Boosting* and *Random Forest* models. Differences in (internal) results can be an insight towards combining models into an ensemble solution. 
+
+<br>
+
+### F. TESTING an ENSEMBLE SOLUTION on BOOTSRAPPED RESAMPLE DISTRIBUTIONS
+
+<br>
+
+An ensemble solution will be built by combining probabilities of the positive class originating from the two individual models: for each blog article, popularity will be predicted using the average of the probabilities produced respectively by *eXtreme Gradient Boosting* and *Random Forest*.
+
+Before opting into validating the ensemble solution on the validation set, the predictive power of the ensemble solution will be tested on the bootstrapped resamples, focusing only on optimal parameterization results. 
+
+<br>
+
+```{r Testing the ensemble solution on the bootstrapped resamples, echo = TRUE}
+# Retrieving optimal parameter values.
+bt_xgb <- fit_xgb$bestTune
+bt_rf <- fit_rf$bestTune
+
+# Getting probabilities of the positive class with optimal parameterization and average on the 25 bootstrapped resamples.
+df_xgb <- fit_xgb$pred %>% 
+          as.data.frame(stringsAsFactors = FALSE) %>%
+          filter(lambda == bt_xgb$lambda, 
+                 alpha == bt_xgb$alpha,
+                 nrounds == bt_xgb$nrounds) %>% 
+          group_by(rowIndex) %>% 
+          summarize(prob_popular = mean(Popular)) %>%
+          select(rowIndex, prob_popular)
+
+df_rf <- fit_rf$pred %>% 
+         as.data.frame(stringsAsFactors = FALSE) %>%
+         filter(mtry == bt_rf$mtry) %>%
+         group_by(rowIndex) %>% 
+         summarize(prob_popular = mean(Popular)) %>%
+         select(rowIndex, prob_popular)
+
+# Calculating the mean of XGB probability and RF probability for each observation.
+prob_popular_ensemble <- (df_xgb$prob_popular + df_rf$prob_popular) / 2
+
+# ROC function of the ensemble solution
+ro <- roc(as.factor(train$Popular), prob_popular_ensemble)
+
+# AUC of the ensemble solution
+auc_ensemble <- round((auc(ro) * 100), 2)
+```
+
+<br>
+
+Let's have a look at the AUC produced by the ensemble solution, compared with the corresponding AUCs from *eXtreme Gradient Boosting* and *Random Forest*. 
+
+<br>
+
+```{r Comparative table with ensemble solution on resamples}
+auc_xgb_rf <- auc_xgb_rf %>% `colnames<-`("auc")
+
+auc_ensemble <- as.numeric(auc_ensemble) %>% 
+  as.data.frame() %>%
+  `colnames<-`("auc") %>%
+  select(auc)
+
+synthesis <- rbind(auc_xgb_rf, auc_ensemble) %>%
+    `colnames<-`("auc") %>%
+    mutate(name = c("eXtreme Gradient Boosting Model",
+                   "Random Forest Model",
+                   "Ensemble Solution XGB + RF")) %>%
+    mutate(auc = as.numeric(auc)) %>%
+    select(name, auc) %>%
+    arrange(auc) %>%
+    `colnames<-`(c("", "RESAMPLE AUC with OPTIMAL PARAMETERIZATION"))
+
+knitr::kable(synthesis, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1, bold = T, color = "#205030", background = "white") %>%
+  row_spec(2, bold = T, color = "#c90016", background = "white") %>%
+  row_spec(3, bold = T, color = "#08457E", background = "white") 
+
+rm(bt_xgb, bt_rf, df_xgb, df_rf, prob_popular_ensemble, ro)
+rm(auc_xgb_rf, auc_ensemble, synthesis)
+```
+
+<br> 
+
+### G. Partial Conclusion from Bootstrapping Information
+
+<br>
+
+On the basis of bootstrapped resamples, the ensemble solution shows some AUC upgrade. Limited though the upgrade is, this insight is deemed to be statistically significant since it originates from stepwise and extensive analysis of bootstrapping iterations. 
+
+The ensemble solution will be tentatively validated on the validation set. It will deliver article popularity predictions, based, by definition, on predictions by both individual models. 
+
+<br> 
+
+## IX. VALIDATION on the VALIDATION SET
+
+### A. Constructing the Validation Set
+
+<br>
+
+The training set has been built up completely separately, to avoid any interaction with the validation set, which will be constructed now. 
+
+<br>
+
+```{r Building up the validation set, echo = TRUE}
+# Replacing PubDate by two components just as in the training set. 
+valNews <- valNews %>% 
+  mutate(date = as.POSIXct(PubDate)) %>%
+  mutate(weekday = weekdays(date, abbreviate = TRUE)) %>%           
+  mutate(hour = hour(date)) %>%                  
+  as.data.frame(stringsAsFactors = FALSE) %>%
+  select(- PubDate, - date, - Abstract, - UniqueID)
+
+# Combining headlines and snippets.
+v <- 1:nrow(valNews)
+for (i in 1:nrow(valNews)) {
+  v[i] <- paste(valNews$Headline[[i]],
+                valNews$Snippet[[i]], sep = " ")
+}
+
+# Corpus is created on validation reviews only to avoid any interference
+# between training reviews and validation reviews. Otherwise, 
+# tokens from validation set could have (slightly) impacted on token selection
+# when applying the sparsity threshold. 
+corpus <- VCorpus(VectorSource(v)) 
+
+# Lowercasing, removing punctuation and stopwords, stemming document.
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stemDocument)
+
+# Building up a bag of words in a Document Term Matrix.
+dtm <- DocumentTermMatrix(corpus)
+
+# Managing sparsity with sparsity threshold. 
+sparse <- removeSparseTerms(dtm, 0.975)
+
+# Converting sparse, which is a DocumentTermMatrix, 
+# to a matrix and then to a data frame.
+sentSparse <- as.data.frame(as.matrix(sparse)) 
+
+# Making all column names R-friendly.
+colnames(sentSparse) <- make.names(colnames(sentSparse))
+
+# For machine learning, columns have to match between training set 
+# and validation set: adjustments have to be made on the validation set.
+
+# Let's keep only columns that alo exist in the training set. 
+sentSparse <- sentSparse %>% as.data.frame() %>% 
+  select(intersect(colnames(.), colnames(sentSparse_train)))
+
+# Columns from train that are missing in val have to be added as null vectors.
+mis <- setdiff(colnames(sentSparse_train), colnames(sentSparse))
+df <- data.frame(matrix((nrow(sentSparse) * length(mis)), 
+                 nrow = nrow(sentSparse), ncol = length(mis)) * 0) %>%
+      `colnames<-`(mis)
+buffer <- cbind(sentSparse, df) %>% as.data.frame()
+
+val <- cbind(valNews, buffer) %>% select(- Headline, - Snippet)
+
+rm(corpus, dtm, sparse, sentSparse, sentSparse_train, valNews)
+rm(v, i, mis, df, buffer)
+```
+
+<br>
+
+### B. Prediction on the Validation Set
+
+<br>
+
+```{r Running XGB, RF and the ensemble solution on the validation set, echo = TRUE}
+# On the validation set, predicting with XGB, calculating ROC curve and AUC.
+pred_xgb <- predict(fit_xgb, newdata = val, type = "prob")
+roc_xgb <- roc(as.factor(val$Popular), pred_xgb$Popular)
+auc_xgb <- round((auc(roc_xgb) * 100), 2)
+
+# On the validation set, predicting with RF, calculating ROC curve and AUC.
+pred_rf <- predict(fit_rf, newdata = val, type = "prob")
+roc_rf <- roc(as.factor(val$Popular), pred_rf$Popular)
+auc_rf <- round((auc(roc_rf) * 100), 2)
+
+# On the validation set, predicting with the ensemble solution, calculating ROC curve and AUC.
+hope <- data.frame(Popular = (pred_xgb$Popular + pred_rf$Popular) / 2) 
+roc_ens <- roc(as.factor(val$Popular), hope$Popular)
+auc_ens <- round((auc(roc_ens) * 100), 2)
+```
+
+<br>
+
+### C. Final AUCs 
+
+<br>
+
+The following table shows the AUC for *eXtreme Gradient Boosting*, *Random Forest* and the ensemble solution. 
+
+<br>
+
+```{r Final presentation table}
+final <- c(auc_xgb, auc_rf, auc_ens) %>%
+  as.data.frame() %>%
+  `colnames<-`("auc") %>%
+  mutate(mod = c("eXtreme Gradient Boosting Model",
+                 "Random Forest Model",
+                 "Ensemble Solution XGB + RF")) %>%
+  select(mod, auc) %>%
+  `colnames<-`(c("", "AUC on the VALIDATION SET"))
+
+
+knitr::kable(final, "html", align = "c") %>% 
+  kable_styling(bootstrap_options = "bordered", 
+                full_width = F, font_size = 16) %>%
+  row_spec(1, bold = T, color = "#205030", background = "white") %>%
+  row_spec(2, bold = T, color = "#c90016", background = "white") %>%
+  row_spec(3, bold = T, color = "#08457E", background = "white")
+```
+
+<br> 
+
+The table above indicates that
+
+- AUCs on the validation set are practically the same as AUCs calculated with optimal parameterization on the bootstrapped resamples from the training set;
+- the ensemble solution reaches a very positive AUC level of more than 94 %, closely followed by *Random Forest* and *eXtreme Gradient Boosting*. 
+
+<br>
+
+## X. CONCLUSION
+
+<br>
+
+Natural Language Processing on textual predictors has produced predictors that have been combined with categorical and numerical predictors, such as timing, classifications and word count. 
+
+Together they have formed the datasets on which *eXtreme Gradient Boosting* and *Random Forest* have been run. 
+
+On the training set, both models were obviously overfitting. Working on bootstrapped resample distributions has clearly circumscribed the real capabilities of both models and has made it possible for an ensemble solution to be tested in a realistic way. AUCs 
+
+In predicting on the validation set, the individual models *eXtreme Gradient Boosting* and *Random Forest* almost reach a 94 % AUC level of the ROC curve, *Random Forest* scoring a little bit higher.
+
+The ensemble solution combining *eXtreme Gradient Boosting* and *Random Forest* exceeds 94 % in AUC, which can be considered a solid result.
+
+<br>
+
+## XI. REFERENCES
+
+<br>
+
+Links have been checked on May 4, 2020.
+
+<br>
+
+### A. News Popularity Prediction
+
+<br>
+
+https://www.researchgate.net/publication/306061597_Predicting_the_Popularity_of_News_Articles
+
+file:///C:/Users/Acer/Downloads/PAA_ModellingAndPredictingNewsPopularity_13112012.pdf
+
+file:///C:/Users/Acer/Downloads/4646-21907-1-PB.pdf
+
+https://minimaxir.com/2017/06/reddit-deep-learning/
+
+https://medium.com/@syedsadiqalinaqvi/predicting-popularity-of-online-news-articles-a-data-scientists-report-fac298466e7
+
+<br> 
+
+### B. ROC Curves and AUC
+
+<br> 
+
+https://topepo.github.io/caret/model-training-and-tuning.html#alternate-performance-metrics
+
+https://datascience.stackexchange.com/questions/806/advantages-of-auc-vs-standard-accuracy
+
+Xavier Robin, Natacha Turck, Alexandre Hainard, Natalia Tiberti, Frédérique Lisacek, Jean-Charles Sanchez and Markus Müller (2011). “pROC: an open-source package for R and S+ to analyze and compare ROC curves”. BMC Bioinformatics, 12, p. 77. DOI: 10.1186/1471-2105-12-77
+
+https://cran.r-project.org/web/packages/pROC/pROC.pdf
+
+https://stackoverflow.com/questions/30366143/how-to-compute-roc-and-auc-under-roc-after-training-using-caret-in-r
+
+https://www.rdocumentation.org/packages/pROC/versions/1.16.2/topics/roc
+
+https://www.rdocumentation.org/packages/pROC/versions/1.16.2/topics/plot.roc
+
+<br> 
+
+### C. Resampling and Distributions
+
+<br> 
+
+https://rafalab.github.io/dsbook/machine-learning-in-practice.html#exercises-55
+
+https://www.rdocumentation.org/packages/caret/versions/6.0-86/topics/trainControl
+
+https://www.rdocumentation.org/packages/lattice/versions/0.3-1/topics/densityplot
+
+
