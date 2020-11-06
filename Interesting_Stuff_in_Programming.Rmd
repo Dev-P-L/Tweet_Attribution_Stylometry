@@ -1,0 +1,159 @@
+MODULATING TITLE LAYOUT
+
+---
+  title: "Shiny HTML Doc"
+author: "theforestecologist"
+date: "Apr 14, 2017"
+output:  html_document
+runtime: shiny
+---
+  
+  <style type="text/css">
+  
+  h1.title {
+    font-size: 38px;
+    color: DarkRed;
+    text-align: center;
+  }
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkBlue;
+  text-align: center;
+}
+</style>
+  
+----------------------------------------------------------------------------
+
+INSERTING CLICK BUTTON
+
+<details><summary>Click here</summary>
+Some text
+
+```{r code}
+# even code
+print("Hello world!")
+```
+</details>
+
+----------------------------------------------------------------------------
+
+EXTRACTING TWEETS
+
+To learn more about text mining in R we recommend this book.
+
+In general, we can extract data directly from twitter using the \emph{rtweet} package. However, in this case, a group has already compiled data for us and made it available at http://www.trumptwitterarchive.com.
+
+url <- 'http://www.trumptwitterarchive.com/data/realdonaldtrump/%s.json'
+
+trump_tweets <- map(2009:2017, ~sprintf(url, .x)) %>%
+  map_df(jsonlite::fromJSON, simplifyDataFrame = TRUE) %>%
+  filter(!is_retweet & !str_detect(text, '^"')) %>%
+  mutate(created_at = parse_date_time(created_at, orders = "a b! d! H!:M!:S! z!* Y!", tz="EST")) 
+
+
+---------------------------------------------------------------------------- 
+
+FUNCTION extract()
+
+```{r Extracting tweets}
+df <- trump_tweets %>% 
+  extract(source, "source", "Twitter for (.*)") %>%
+  count(source) 
+```
+
+----------------------------------------------------------------------------
+
+REMOVING A STRING OR JUST A CHARACTER FROM CORPUS IN JUST 2 CODE LINES
+
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+corpus <- tm_map(corpus, toSpace, "[']")
+
+----------------------------------------------------------------------------
+
+# Converting back to character.
+expanded <- expanded %>% 
+  mutate(text = convert.tm.to.character(corpus)) 
+  
+----------------------------------------------------------------------------
+
+# SAVING WORDCLOUD2 AS HTML AND PNG
+
+install.packages("webshot")
+install.packages("htmlwidgets")
+library(webshot)
+library(htmlwidgets)
+webshot::install_phantomjs()
+library(wordcloud2)
+hw <- wordcloud2(df, size = 0.5, minSize = 0, gridSize =  0,
+                 fontFamily = 'Segoe UI', fontWeight = 'bold',
+                 color = 'random-dark', backgroundColor = "blue",
+                 minRotation = -pi/4, maxRotation = pi/4, shuffle = TRUE,
+                 rotateRatio = 0.4, shape = 'circle', ellipticity = 0.65)
+saveWidget(hw,"1.html",selfcontained = F)
+webshot::webshot("1.html","1.png",vwidth = 1992, vheight = 1744, delay =10) 
+
+-----------------------------------------------------------------------------
+
+theme_economist()
+
+Example
+
+```{r Graph of activity per month and per device}
+?scales::label_percent
+graph <- train_tweets %>%
+  select(device, month) %>%
+  group_by(device, month) %>%
+  summarize(n = n()) %>%
+  mutate(percent = n / sum(n)) %>%
+  ggplot(aes(month, percent, color = device)) +
+  geom_line(size = 3) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
+  labs(x = "",
+       y = "% of Tweets per Month",
+       color = "Device") +
+  theme_economist(base_size = 12) +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 3, size = 12), 
+        axis.text.x = element_text(angle = 90, hjust = 0, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12)) +
+  scale_color_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = "#56B4E9")) 
+graph
+```
+
+---------------------------------------------------------------------------
+
+EXPRESSING IN PERCENTAGE
+
+percentage <- 
+label_percent(accuracy = 0.1, suffix = " %")(sum(top_days$n) / nrow(train_tweets))
+
+---------------------------------------------------------------------------
+
+TICKS ON A DISCRETE NUMERIC X AXIS
+
+https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
+
+ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
+
+---------------------------------------------------------------------------
+
+# Let's check whether created_at is strictly increasing
+all(diff(train_tweets$created_at) > 0)
+all(diff(as.numeric(train_tweets$id_str)) > 0)
+
+---------------------------------------------------------------------------
+
+percentage <- 
+  label_percent(accuracy = 0.1, suffix = " %")(sum(sample$n) / nrow(buffer))
+  
+---------------------------------------------------------------------------
