@@ -12,6 +12,11 @@ Then the hyperbolism criteria will be used to attribute tweets to one of the
 two devices. The attribution accuracy will be considered as a kind of measurement 
 of hyperbolism. 
 
+Instead of using statistical tests to check whether tweets from one device 
+are more hyperbolic than tweets from the other device, we will check whether 
+we can attribute tweets on the basis of hyperbolism or at least on the basis
+of hyperbolism criteria developed in this project.
+
 Will be used as tools:
 
 #### 1. Natural Language Processing and Text Mining
