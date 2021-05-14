@@ -4,7 +4,15 @@
 ### Question
 Is it possible to separate tweets based on the device that sent them: Android or iPhone?
 
-### Provisional content
+### It has been written that, on an average, tweets from the android device 
+contain more hyperbolism. The purport of this project is to draw some avenues of research 
+about hyperbolism measurement. 
+
+Then the hyperbolism criteria will be used to attribute tweets to one of the 
+two devices. The attribution accuracy will be considered as a kind of measurement 
+of hyperbolism. 
+
+Will be used as tools:
 
 #### 1. Natural Language Processing and Text Mining
 Cleaning tweets, removing URLs, punctuation, etc. Expanding hashtags (and mentions),
