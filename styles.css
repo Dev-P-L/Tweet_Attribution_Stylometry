@@ -1,0 +1,135 @@
+
+
+/* Coloring and background-coloring floating TOC */  
+h1, #TOC ul>li {
+  color: White;
+  background-color: Gray;
+  font-style: oblique;
+}
+
+
+/* Coloring and background-coloring floating TOC when hovered upon */
+h1, #TOC ul>li:hover {
+  color: Gray;
+  background-color: White;
+  font-style: oblique;
+}
+
+
+/* Coloring and background-coloring floating TOC when clicked upon */
+h1, #TOC ul>li:active {
+  color: #CC79A7;
+  background-color: White;
+  font-weight: bold;
+  font-style: oblique;
+}
+
+
+/* Font in main title */ 
+h1.title {
+  font-size: 44px;
+}
+
+
+/* Font in subtitle */
+h3.subtitle {
+  font-size: 24px;
+}
+
+
+/* Color (dark cerulean) and other characteristics of text in headers of level 1 */
+h1 {
+  color: white;
+  background-color: Gray;
+  font-family: Sans-Serif;
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  font-style: normal !important;
+}
+
+
+/* Color (dark cerulean) and other characteristics of text in headers of level 2 */
+h2 {
+  color: white;
+  background-color: Gray;
+  font-family: Sans-Serif;
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+}
+
+
+/* Color (dark cerulean) and other characteristics of text in headers of level 3 */
+h3 {
+  color: white;
+  background-color: Gray;
+  font-family: Sans-Serif;
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+}
+
+
+/* Family, size and double justification of body text */
+body {
+  font-family: Sans-Serif;
+  font-size: 1.8em;
+  text-align: justify
+}
+
+
+/* Color and other characteristics of font in links and URLs */
+a {
+ color: #999999;                  
+ font-family: Sans-Serif; 
+ font-weight: 700;
+ font-style: oblique;
+}
+
+
+/* Color and other characteristics of font in links and URLs when hovered upon */
+a:hover {
+ color: White;   
+ background-color: #999999;
+ font-family: Sans-Serif; 
+ font-weight: 700;
+ font-style: oblique;
+}
+
+
+/* Color and other characteristics of font in links and URLs when activated */
+a:active {
+  color: White;   
+  background-color: #CC79A7;
+  font-family: Sans-Serif; 
+  font-weight: 700;
+  font-style: oblique;
+}
+
+
+/* Color and other characteristics of font in links and URLs when activated */
+a:visited {
+ color: #CC79A7;                  
+ font-family: Sans-Serif; 
+ font-weight: 700;
+ font-style: oblique;
+}
+
+
+/* Font size of code */
+code.r {
+  font-size: 20px;
+}
+
+
+/* Preventing link repetition in PDF conversion */
+@media print {
+    a[href]::after {
+        content: none !important;
+    }
+}
+
+
+
+
