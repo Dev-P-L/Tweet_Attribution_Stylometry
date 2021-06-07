@@ -8,14 +8,9 @@ Is it possible to separate tweets based on the device that sent them: Android or
 contain more hyperbolism. The purport of this project is to draw some avenues of research 
 about hyperbolism measurement. 
 
-Then the hyperbolism criteria will be used to attribute tweets to one of the 
-two devices. The attribution accuracy will be considered as a kind of measurement 
-of hyperbolism. 
-
-Instead of using statistical tests to check whether tweets from one device 
-are more hyperbolic than tweets from the other device, we will check whether 
-we can attribute tweets on the basis of hyperbolism or at least on the basis
-of hyperbolism criteria developed in this project.
+But much more generally, hyperbolism will not be the only set of predictors 
+when predicting the tweeting device. Other sets of predictors will be used,
+such as e.g. tokens, sentiment analysis, time components, etc. 
 
 Will be used as tools:
 
