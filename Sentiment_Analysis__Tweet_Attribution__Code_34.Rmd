@@ -1,0 +1,5155 @@
+---
+title: "Trump's Tweets Attribution"
+subtitle: "Philippe Lambot -- June 15, 2021"
+
+output: 
+  html_document:
+    toc: true               # TOC (table of contents) required
+    toc_depth: 3            # Depth of headers in TOC
+    number_sections: true   # Adding section numbering to headers.
+    css: styles.css         # Calling CSS file.
+    toc_float:              # Floats TOC to left of the main doc.
+      collapsed: false      # Floating TOC with 2 levels.
+      smooth_scroll: true   # Controls scrolls related to TOC navigation.
+    code_folding: hide      # Includes R code but has it hidden by default.
+    highlight: espresso     # Specifies code highlighting style.
+    theme: readable         # HTML document theme 
+                            # (essentially superseded by CSS file)
+    df_print: paged         # HTML tables with support for pagination
+    smart: false            # Avoids typographical correction.
+
+# styles.css is a CSS file that regulates many layout aspects. 
+# It is lodged in the same GitHub repository as 
+# Sentiment_Analysis__Tweet_Attribution__Code.Rmd, i.e. in 
+# https://github.com/Dev-P-L/Sentiment_Analysis__Tweet_Attribution .
+
+# If you wish to run the file 
+# Sentiment_Analysis__Tweet_Attribution__Code.Rmd on your computer, 
+# I suggest placing the file
+# Sentiment_Analysis__Tweet_Attribution__Code.Rmd and styles.css 
+# in the same folder.
+
+---
+
+```{r Initial arrangement about RAM management and code verbosity and layout  in addition to the rules already contained in the CSS file referred to and called above}
+
+# CLEARING UP WORKSPACE FOR RAM MANAGEMENT.
+
+# 1. Clearing plots
+invisible(if(!is.null(dev.list())) dev.off())
+
+# 2. Cleaning workspace
+rm(list=ls())
+
+# 3. Cleaning console
+cat("\014")
+
+# AVOIDING MESSAGES AND WARNINGS.
+
+# We want to avoid messages and warnings in 
+# Sentiment_Analysis__Tweet_Attribution__Insights_and_Results.html. 
+# Anyway, messages and warnings produced by the code 
+# at least on my computer have already been dealt with.
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE, 
+                      warning = FALSE)
+
+# The next opts_chunk fully deploys figures and centers them.
+
+knitr::opts_chunk$set(out.width = "100%", 
+                      fig.align = "center")
+
+# The next instruction facilitates table layout in HTML.
+
+options(knitr.table.format = "html")
+
+# The string <br> is used to generate empty lines.
+
+# The command <center> \* </center> generates a centered asterisk.
+
+# The command
+# <center> \* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \* </center>
+# generates 2 asterisks separated by 5 empty space characters. 
+```
+
+<center> \* </center>
+<center> \* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \* </center>
+<br>
+
+# Executive Summary
+
+**An accuracy level of ... %** has been reached in attributing tweets. 
+
+Tweets come from the account of Candidate Donald Trump during the 2016 presidential election campaign. Two devices have been used to issue tweets: an Android device and an iPhone. The challenge has been to predict the device on the validation set. 
+
+Four types of predictors have been used:
+
+- first, differences in **time patterns**, identified through **Exploratory Data Analysis**;
+- second, differences in **token frequencies** (unigrams and bigrams), brought out through **Natural Language Processing** and **Text Mining**;
+- third, differences in **sentiments** through **Sentiment Analysis**;
+- fourth, differences in sentiment intensity and especially in **hyperbolism**, quantified through **Sentiment Analysis**.
+
+The existence of differences in hyperbolism had been clearly exposed by ... For the record, ... quantified the differences in hyperbolism; our results and conclucions partially diverge from his. During the 2016 US presidential election then candidate Donald J. Trump used his tweeter account as a way to communicate with potential voters. On August 6, 2016 Todd Vaziri tweeted about Trump that "Every non-hyperbolic tweet is from iPhone (his staff). Every hyperbolic tweet is from Android (from him)." Data scientist David Robison conducted an analysis to determine if data supported this assertion. Here we go through David's analysis to learn some of the basics of text mining. 
+
+Tweet attribution has been operated through Machine Learning with one algorithm: eXtreme Gradient Boosting. Several models have been tried and their performances have been evaluated thanks to bootstrapped resampling. The performance metric has been accuracy because the proportion of tweets sent by each device is close to 50 %, which means that a baseline model would have accuracy performance hardly larger than 50 %. 
+
+On the validation set, the accuracy metric has reached ... %, ... percentage points being brought by Sentiment Analysis, ... percentage points by token frequencies and ... percentage points by time predictors.
+
+Beyond prediction performance, previous Sentiment Analysis had mentioned a larger probability ... This project shows that ... Moreover, results are diametrically different when expanding hashtags since most hashtags are in tweets issued by ... 
+
+A clear caveat should be issued: these results are based on Sentiment Analysis based on feelings associated with words. This does not at all take into account context, e.g. sarcasm, which is outside the scope of this project. This does not take on board negation either although negation can reverse sentiment polarity. To investigate that avenue, some Text Analytics has been conducted, showing that negation ...
+
+A second caveat should be clearly expressed about the scope of this project. Data originate from the R package *dslabs*, and in particular from the dataset *trump_tweets*...; the dataset *trump_tweets* has itself been built up out of ...; this means that usage of this project is limited to ... 
+
+Moreover, this project is merely technical; it expresses absolutely no political vision or standpoint; it is in no way person-related; and the author's methods, results and conclusions are only the ones explicitely expressed in this project itself, which only encompasses files lodged with the GitHub repository ...  
+
+A colorblind friendly palette has been used (please see explanations in the next section).
+
+
+TAGS: tweet attribution, time patterns, tokens, unigrams, bigrams, Natural Language Processing, Text Mining, Sentiment Analysis, lexicons, Bing, ncr, afinn, loughran, wordcloud2, comparison wordcloud, machine learning, Generalized Logistic Regression, Support Vector Machine, eXtreme Gradient Boosting, bootstrapped resampling, etc.
+
+<br>
+
+GITHUB: https://github.com/Dev-P-L/Sentiment_Analysis__Tweet_Attribution
+
+<br>
+
+# Welcoming Readers
+
+Dear Readers,
+
+For your convenience, the final document, i.e. ..., is an HTML document with all code available on demand, by pushing tag buttons on the right-hand-side of the HTML document. 
+
+Furthermore, for everyone's convenience, I have tried using color-blind-friendly colors, following pieces of advice given at 
+http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/ . The idea is to have distinguishable colors in Protan, Deutan and Tritan vision. I hope this is useful. 
+
+```{r Initial arrangement about colorblind friendly palette}
+
+# With a view to providing visual comfort to everybody,
+# colors have been picked up from the cbbPalette
+# from http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/ .
+# More specifically, the objective is to have 
+# distinguishable colors in "normal", Protan, Deutan and 
+# Tritan visions.
+
+# Picking up the main two colors: orange for Android 
+# and deep blue for iPhone. When used as background, 
+# they are used separately. 
+
+orange <- "#E69F00"
+deep_blue <- "#0072B2"
+
+# When used as main colors on one figure, 
+# both colors are combined in a duo palette 
+# just with orange and deep blue, the colors 
+# assigned to respectively Android and iPhone. 
+# Let's use a named vector as recommended.
+
+duo_Palette_orange_blue <- c("#E69F00", "#0072B2")
+
+duo_Palette_bluishgreen_purple <- c("#009E73", "#CC79A7")
+
+duo_Palette_white_gray <- c("#ffffff", "#999999")
+
+duo_Palette_bluishgreen_black <- c("#009E73", "#000000")
+
+duo_Palette_skyblue_deepblue <- c("#56b4e9", "#0072B2")
+
+duo_Palette_vermilion_deepblue <- c("#D55E00", "#0072B2") 
+
+duo_Palette_yellow_vermilion <- c("#F0E442", "#D55E00")
+
+duo_Palette_orange_vermilion <- c("#E69F00", "#D55E00")
+
+duo_Palette_yellow_orange <- c("#F0E442", "#E69F00")
+
+duo_Palette_white_yellow <- c("#ffffff", "#F0E442")
+
+sky_blue <- "#56b4e9"
+
+deep_blue <- "#0072B2"
+
+bluish_green <- "#009E73"
+
+orange <- "#E69F00"
+
+vermilion <- "#D55E00"
+
+reddish_purple <- "#CC79A7"
+
+yellow <- "#F0E442"
+
+gray <- "#999999"
+
+black <- "#000000"
+
+white <- "#ffffff"
+
+# Added outside of palette
+
+light_gray <- "#dedede"
+
+# Palette for white background color: 
+# orange, deep blue, black, sky blue, bluish green, 
+# vermilion and reddish purple (yellow has been omitted)
+
+cbf_Palette_white_b <- c("#E69F00", "#0072B2", "#000000", 
+                     "#56b4e9", "#009E73", "#D55E00", 
+                     "#CC79A7")
+
+# Palette for orange background color: 
+# deep blue, black, sky blue, bluish green, 
+# vermilion and reddish purple (yellow has been omitted ... 
+# as well as orange)
+
+cbf_Palette_orange_b <- c("#0072B2", "#000000", "#56b4e9",  
+                     "#009E73", "#D55E00", "#CC79A7")
+
+# Palette for deep blue background color: 
+# orange, sky blue, black, yellow, bluish green, 
+# vermilion and reddish purple
+
+cbf_Palette_blue_b <- c("#E69F00", "#56b4e9", "#000000", 
+                     "#F0E442", "#009E73", "#D55E00", 
+                     "#CC79A7")
+
+# Palette for gray background color: 
+# orange, deep blue, yellow, sky blue, bluish green, 
+# vermilion and reddish purple (black has been omitted)
+
+cbf_Palette_gray_b <- c("#E69F00", "#0072B2", "#F0E442", 
+                     "#56b4e9", "#009E73", "#D55E00", 
+                     "#CC79A7")
+
+# Palette for black background color: 
+# orange, deep blue, yellow, sky blue, bluish green, 
+# vermilion and reddish purple (gray has been omitted)
+
+cbf_Palette_black_b <- c("#E69F00", "#0072B2", "#F0E442", 
+                     "#56b4e9", "#009E73", "#D55E00", 
+                     "#CC79A7")
+```
+
+Code has been kept hidden by default but it can be visualized by actioning tags in the results HTML document. The code highlighting style has been chosen in the YAML in this file: the value chosen is espresso, which, to my best knowledge, takes previous pieces of advice into account and, I hope, can be read with satisfaction by everyone. If code were not readily readable, you only have to change the value of *highlight* (please see available values at ... ) in the YALM and knit it again. 
+
+You are most welcome to knit file ... to produce the document ... It only takes ... on my computer. For the record, some characteristics of my work environment are visible in the last section of this document, titled *R Session Info*. 
+
+...
+
+While knitting the file ..., I got a little bit into trouble with two tasks, and I was obviously not the only one according to complaints on the internet:
+
+- downloading the lexicon ncr from package textdata 
+- and with producing several wordcloud2 figures. 
+
+Tips found on the internet are available here and here. These tips have worked perfectly well for me. Thanks to people who helped on the internet. Here links to the internet. Great pieces of advice. 
+
+They are repeated in comments in code chunksbelow, also further in this document when using these functions and last in references. 
+
+<br>
+
+# R Packages & Data
+
+Besides the R packages related to data, *tidyverse*, Machine Learning, wordclouds, etc., there are very different packages related to texts: *textreg*, *tm*, *quanteda*, *tidytext*, *stringr*, *textdata*, etc. 
+
+```{r Downloading packages}
+
+# PACKAGE CONTAINING THE DATASET
+
+if(!require(dslabs)) install.packages("dslabs", repos = "http://cran.us.r-project.org")
+
+# PACKAGES ASSOCIATED WITH TIDYVERSE
+
+# Other packages could be added to this group but have been
+# linked to text processing.
+
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if(!require(ggthemes)) install.packages("ggthemes", repos = "http://cran.us.r-project.org")
+
+# PACKAGES ASSOCIATED WITH R MARKDOWN
+
+if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
+
+# PACKAGES RELATED TO NLP, TEXT MINING OR SENTIMENT ANALYSIS
+
+# If you get into trouble while trying to access lexicon ncr
+# from package textdata, I suggest having a look at 
+# https://github.com/juliasilge/tidytext/issues/146 .
+
+if(!require(utf8)) install.packages("utf8", repos = "http://cran.us.r-project.org")
+if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
+if(!require(tm)) install.packages("tm", repos = "http://cran.us.r-project.org")
+if(!require(textreg)) install.packages("textreg", repos = "http://cran.us.r-project.org")
+if(!require(quanteda)) install.packages("quanteda", repos = "http://cran.us.r-project.org")
+if(!require(tidytext)) install.packages("tidytext", repos = "http://cran.us.r-project.org")
+if(!require(textdata)) install.packages("textdata", repos = "http://cran.us.r-project.org")
+if(!require(stopwords)) install.packages("stopwords", repos = "http://cran.us.r-project.org")
+
+# PACKAGES ASSOCIATED WITH INTERACTIVE WORDCLOUDS
+# TABLES AND GRAPHS
+
+# If you get into trouble with package and function wordcloud2,
+# I suggest having a look at 
+# https://github.com/Lchiffon/wordcloud2/issues/65 .
+
+if(!require(wordcloud)) install.packages("wordcloud", repos = "http://cran.us.r-project.org")
+if(!require(wordcloud2)) install.packages("wordcloud2", repos = "http://cran.us.r-project.org")
+if(!require(devtools)) install.packages("devtools", repos = "http://cran.us.r-project.org")
+if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
+if(!require(httpuv)) install.packages("httpuv", repos = "http://cran.us.r-project.org")
+if(!require(xtable)) install.packages("xtable", repos = "http://cran.us.r-project.org")
+if(!require(sourcetools)) install.packages("sourcetools", repos = "http://cran.us.r-project.org")
+if(!require(fastmap)) install.packages("fastmap", repos = "http://cran.us.r-project.org")
+if(!require(DT)) install.packages("DT", repos = "http://cran.us.r-project.org")
+if(!require(plotly)) install.packages("plotly", repos = "http://cran.us.r-project.org")
+if(!require(htmltools)) install.packages("htmltools", repos = "http://cran.us.r-project.org")
+
+# PACKAGES FOR MACHINE LEARNING
+
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(xgboost)) install.packages("xgboost", repos = "http://cran.us.r-project.org")
+
+# INFORMATIONAL PACKAGE 
+
+if(!require(states)) install.packages("states", repos = "http://cran.us.r-project.org")
+
+# REQUIRING LIBRARIES
+
+library(dslabs)
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(ggthemes)
+library(kableExtra)
+library(gridExtra)
+library(utf8)
+library(stringr)
+library(tm)
+library(textreg)
+library(quanteda)
+library(tidytext)
+library(textdata)
+library(stopwords)
+library(wordcloud)
+library(wordcloud2)
+library(devtools)
+library(shiny)
+library(httpuv)
+library(xtable)
+library(sourcetools)
+library(fastmap)
+library(DT)
+library(plotly)
+library(htmltools)
+library(caret)
+library(xgboost)
+library()
+
+# REPAIR TOOL
+
+# Prevents the function wordcloud2() from silently failing 
+# after the first wordcloud. For explanation, please see https://github.com/Lchiffon/wordcloud2/issues/65 .
+
+devtools::install_github("gaospecial/wordcloud2")
+```
+
+## Data
+
+Data are downloaded from the dataset *trump_tweets* from the R package *dslabs*.
+
+```{r Downloading data}
+
+data("trump_tweets")
+
+tweets <- trump_tweets
+
+# Let's normalize the dataset into utf8. Otherwise, 
+# a problem was previously encountered with apostrophes: 
+# the difference between curly and straight apostrophes 
+# can impede stopword removal, especially so in case of 
+# contractions; moreover, it can bias token frequency counts 
+# by splitting appearances of the same token.
+
+# Thanks to SarahWeaver 
+# https://stackoverflow.com/questions/46814856/use-gsub-to-replace-curly-apostrophe-with-straight-apostrophe-in-r-list-of-chara
+
+tweets$text <- 
+  sapply(tweets$text, utf8_normalize, map_quote = TRUE)
+
+rm(trump_tweets)
+```
+
+Let's have a look at the features from that dataset. Here are the eight features from the dataset. 
+
+```{r Getting in touch with data, class.output = "bg-secondary"}
+
+# Prints data frame description with bg-secondary layout.
+str(tweets, vec.len = 1)
+```
+
+<br>
+
+Documentation is available at ?trump_tweets in an R session.
+
+Let's extract the relevant data, i.e. tweets issued by the Android device and by the iPhone. 
+
+<br>
+
+## Squeezing Data
+
+We are interested in what happened during the campaign, so for the analysis here we will focus on what was tweeted between the day Trump announced his campaign and election day. So we define the following table.
+
+```{r Squeezing dataset}
+
+# The device names are kept only for both devices
+# we are interested in. Moreover, they are simplified.
+
+# The tweets are kept only if they were tweeted
+# between the day Trump announced his campaign 
+# and election day.
+
+buffer <- tweets %>% 
+  mutate(device = str_replace_all(
+    str_replace_all(source, "Twitter for Android", "Android"), 
+    "Twitter for iPhone", "iPhone")) %>%  
+  filter(device %in% c("Android", "iPhone") &
+         created_at >= ymd("2015-06-17") & 
+         created_at < ymd("2016-11-08")) %>%  
+  select(- source)
+
+rm(tweets)
+```
+
+<br>
+
+Here are the eight features again, this time from the new dataset, i.e. the squeezed dataset. 
+
+```{r Getting in touch with extracted data, class.output = "bg-primary"}
+
+# Prints data frame description with bg-primary layout.
+str(buffer, vec.len = 1)
+```
+
+<br>
+
+The table above tells us, among others, that the total number of rows is 3,950.
+
+This is only one fifth of the original dataset but the number of observations suffices in principle to apply machine learning algorithms, even if the dataset is split into training set and validation set. 
+
+Let's have a look at each variable. 
+
+**id_str** is the tweet identifier. 
+
+Is it an operational identifier: is it exclusively comprised of unique values?
+
+```{r Checking up uniqueness of identifiers}
+
+# Calculates number of observations and 
+# number of unique identifiers. 
+
+row_number <- nrow(buffer)
+unique_identifiers <- length(unique(buffer$id_str))
+
+# Table with both variables
+
+tab <- data.frame(format(row_number, big.mark = " "),
+                  format(unique_identifiers, big.mark = " ")) %>%
+  `colnames<-`(c("Number of Observations", 
+                 "Number of Unique Identifiers"))
+
+# Prints table with "bg-info" layout. 
+
+knitr::kable(tab, align = "c", 
+             table.attr = "class=\'bg-info\'") %>% 
+  kableExtra::kable_styling()
+
+rm(tab)
+```
+
+The number of unique identifiers is exactly the number of tweets. Which means that the identifier has a different value for each tweet, which is a requirement for an identifier. Consequently, we'll keep this identifier.
+
+**source** The source variable tells us the device that was used to compose and upload each tweet. We already know it is a character vector. Actually, it is the dependent variable or label: tweet attribution will be attribution of tweets either to the first device or to the second one. It might be interesting to know the breakdown of tweets by device.
+
+```{r Breakdown of tweets by device}
+
+# Table with breakdown of tweets by device
+
+tab <- data.frame(buffer$device) %>%
+  group_by(buffer$device) %>% 
+  summarize(n = n(), 
+            perc = n * 100 / length(buffer$device)) %>%
+  mutate(n = format(n, big.mark = " ")) %>%
+  mutate(perc = paste(round(perc, 1), "%", sep = " ")) %>%
+  `colnames<-`(c("Device", 
+                 "Number of Tweets by Device",
+                 "Percentage of Tweets by Device"))
+
+# Prints table with "bg-primary" layout. 
+
+knitr::kable(tab, align = "c", 
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(tab)
+```
+
+<br>
+
+As shown in the table above, tweets by the iPhone are somewhat more numerous but the difference in percentage is limited.
+
+A baseline model would predict device attributing to all observations the class with the most occurrences, i.e. iPhone. This would deliver very low prediction accuracy. 
+
+Consequently, accuracy appears to be a rather satisfactory performance metric. It will be the performance metric in this project. 
+
+**text**: the tweet itself; the tweets are represented by the text variable. Actually, the tweets will produce a lot of predictors — or independent variables — such as tokens, mentions, sentiment measurements or hyperbolism measurements. Thsi will be substantially developed in the following sections.
+
+**created_at** containing the date and time at which the tweet was tweeted." 
+
+It can be essential. It can deliver several predictors such as month, day, hour, etc. Again, this will be strongly developed in further sections. 
+
+There are also two predictor candidates that relate to the tweeter's behaviour: *in_reply_to_user_id_str* and *is_retweet*. They might be good predictors. This will be investigated in the exploratory data analysis. 
+
+*is_retweet*: "A logical telling us if it is a retweet or not." We see in the table above that the first value is *FALSE*; are there any "TRUE" values? It is a matter of variability: are there enough variations in this variable? 
+
+```{r Checking for TRUE in is_retweet}
+
+# Tab with number of FALSE/TRUE values in is_retweet
+
+number_true <- sum(buffer$is_retweet)
+number_false <- 
+  length(buffer$is_retweet) - number_true
+
+tab <- 
+  data.frame(event = c("FALSE", "TRUE"), 
+             number = c(number_false, number_true)) %>%
+  mutate(number = format(number, big.mark = " ")) %>%
+  `colnames<-`(c("Is the Tweet Actually a Retweet?",
+                      "Number of Tweets"))
+
+knitr::kable(tab, align = "c", 
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(tab)
+```
+
+We can see that there is no TRUE value. This won't be investigated any further. This variable will be excluded since all values are *FALSE* and there is no variation.   
+
+There can be some copy-paste inside of tweets, though. Could that be identified on the basis of quotes? This is a matter of analysis of the variable *text*, of the tweets themselves; it is a matter of content analysis; it will be done in the exploratory data analysis (EDA) on the training set on not on the part of the dataset that will become the validation set. 
+
+*retweet_count*: "How many times tweet had been retweeted at time dataset was created." 
+
+Would it make sense? Attribution would be made partially on the basis of other people's reactions! It is also dependent on the inventory date! It can prove an impactful predictor.
+
+*favorite_count* is a problem similar to that of retweet_count.
+
+As far as the last two variables are concerned, there could be prediction with them as predictors and one without them. This will be further investigated in the exploratory data analysis.
+
+<br>
+
+## Training Set
+
+What about the training set?
+
+In the previous section, we have noticed that the number of observations is almost 4,000 and the breakdown by device is almost even.
+
+Let's take a prudent approach when splitting data in order to preemptively avoid suboptimal representation.
+
+The number of rows suffices to reach statistical representativeness even in case of splitting into training set and validation set. It would be unadvisable to split more finely between training set, test set and validation set, though: this would further reduce the size of samples and, anyway, training set model optimization can be readily operated through e.g. bootstrapped resampling. 
+
+The splitting proportion will be two thirds for the training set and one third for the validation set. What's the number of tweets by device in the training set?
+
+```{r Splitting into training and validation sets and counting tweets by device}
+
+# Creating the index of the validation set at random.
+
+set.seed(1)
+ind_val <- 
+  createDataPartition(y = buffer$device, times = 1, 
+                      p = 1/3, list = FALSE)
+
+# Deducting the index of the training set.
+ind_train <- as.integer(setdiff(1:nrow(buffer), ind_val))
+
+# Creating the training set.
+train_tweets <- buffer[ind_train, ]
+
+# Creating the validation set. 
+val_tweets <- buffer[ind_val, ]
+
+rm(buffer, ind_val, ind_train)
+
+# Table with tweet count by device
+
+tab <- train_tweets %>% 
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " ")) %>%
+  `colnames<-`(c("Device",
+                 "Number of Tweets by Device in the Training Set"))
+
+# Printing table with "bg-primary" layout. 
+
+knitr::kable(tab, align = "c", 
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(tab)
+```
+
+<br>
+
+# Way Forward
+
+Now, let's get insights from the four groups of predictors:
+
+- publication time: *created_at*,
+- interaction: *in_reply_to_user_id_str*, *retweet_count* and *favorite_count*,
+- token frequencies in *text*,
+- sentiment nature and intensity in *text*.
+
+About date and time, we will conduct Exploratory Data Analysis (EDA),  exploring whether various predictors would seem relevant; morevoer, it will be an opportunity to check up whether each device's timing is so different from the other one that shift work is highly probable.
+
+About interaction, we'll check up whether each candidate for predictor shows significant variation from one device to the other. 
+
+Through Natural Language Processing (NLP) and Text Mining, token frequencies will be scrutinized. Do we habe significant differences between devices? Are differences stable or do they modify over time? Tokens can also be proper nouns, data (a device could possibly use more data), symbols (e.g. #1 can more frequent with one device, mentions and links. Mentions will also be split. MAGA will be explicited and split; we will check whether this impacts predictive power or not.
+
+Sentiment analysis will be conducted. Words will be linked to sentiments, on the basis of preexisting sentiment files. They will also be ranked as positively polarized words or negatively polarized words and in intensity, once again on the basis of a preexisting file. Word intensity will be a criterion to measure up hyperbolism. Predictive power will be checked, as well for sentiments as for positiveness and negativeness and as for hyperbolism.
+
+<br>
+
+# Stylometry
+
+## Introduction 
+
+NLP 
+
+The tidytext package helps us convert from text into a tidy table. Having the data in this format greatly facilitates data visualization and applying statistical techniques.
+
+The main function needed to achieve this is unnest_tokens. A token refers to the units that we are considering to be a data point. The most common tokens will be words, but they can also be single characters, ngrams, sentences, lines or patterns defined by a regex. The functions will take a vector of strings and extract the tokens so that each one gets a row in the new table. 
+
+Note that the function tries to convert tokens into words and strips characters important to twitter such as # and @. A token in twitter is not the same as in regular english. For this reason instead of using the default, words, we define a regex that captures twitter character. The pattern appears complex but all we are defining is a patter that starts with @, # or neither and is followed by any combination of letter or digits.
+
+The first thing will be the number of hashtags, of mentions and of links to pictures. 
+OBJECTIVES
+
+We've got several and very different intermediary objectives, but the final objective is the same, i.e. attributing tweets to devices.
+
+Intermediary objectives:
+- words with high frequencies for one device and only a few ones (or at least fewer ones) for the other device;
+- sentiments with high occurrence for one device and low occurrence (or at least lower) for the other one. 
+
+In a first step, for both intermediary objectives, we do not necessarily need to discard stopwords. Why?
+
+As far as sentiments are concerned, actually, there will be matching between the file (or files) of words from the tweets and the lexicons encompassing words supposedly liked to sentiments. If stopwords do not match any lexicon word, they will be discarded anyway. Moreover, discarding stopwords before matching could be couterproductive: some stopwords from some lists appear in some lexicons, e.g. "great"! Two examples! 
+
+As far as word frequencies are concerned, the same reasoning holds, mutatis mutandis: if for some stopwords frequencies differ between devices, that can be effectual while attributing tweets. 
+
+For sentiment, comparison strategy is simple: simple matching between lists of words and lexicon lists; selecting sentiments with diverging frequencies and high frequencies for one device. 
+
+For words, comparison strategy is a bit more complex: comparing frequencies between devices; selecting words with diverging frequencies and high frequencies for one device. 
+
+Actually, the criterion is not so much about percentage comparison, it is much more about absolute occurrence. If word frequencies are 10 for one device and 1 for the other one, OK word frequency is ten times higher for the first device, but it is not relevant on 2,633 tweets. But if word frequencies are 500 and 100, that can be significant even if ratio is "only" 5:1 instead of 10:1 in the first example. 
+
+One expansion has to be provided: not only words matter to attribute tweets, but also the frequency of 
+- hashtags, 
+- mentions,
+- links to videos,
+- the $ symbol
+- and #1 . 
+
+THIS SHOULD BE UPDATED
+Let's build up two versions of the tweet texts:
+- one compact version with hashtags, mentions and links,
+- one expanded version with expanded hashtags (no mentions and no links).
+Both will be used in token frequency and sentiment analysis.
+
+Before constructing the compact and the expanded versions, let's clean up tweet texts a little bit. Why? 
+
+Actually, punctuation marks can bias token frequencies. Let's take an example.
+
+```{r Having a first look at Android tweets}
+
+tab <- train_tweets %>% 
+  select(created_at, text, device) %>%
+  filter(device == "Android") %>%
+  select(- device) %>%
+  mutate(created_at = format(created_at, usetz = TRUE)) %>%
+  as.data.frame() %>%
+  `colnames<-`(c("Date and Time", "Android Tweets"))
+
+# Creating the interactive data table, using the DT package. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#009E73', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#b2ffea";','}',
+              '}')
+            )
+          )
+
+```
+
+And now, let's have a look at the same table but for the iPhone.
+
+```{r Having a first look at iPhone tweets}
+
+tab <- train_tweets %>% 
+  select(created_at, text, device) %>%
+  filter(device == "iPhone") %>%
+  select(- device) %>%
+  mutate(created_at = format(created_at, usetz = TRUE)) %>%
+  as.data.frame() %>%
+  `colnames<-`(c("Date and Time", "iPhone Tweets"))
+
+# Creating the interactive data table, using the DT package. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#999999', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#dedede";','}',
+              '}')
+            )
+          )
+
+```
+
+Hasty conclusion with some preemptive insights.
+
+First about Android tweets:
+
+- many capitalized words,
+- MAGA expanded, capitalized and not in hashtag,
+- more mentions,
+- quotes are double ones,
+- not many urls.
+
+Second about iPhone tweets:
+
+- lots of urls, much more than in Android tweets,
+- also more hashtags, but difference might be less important,
+- MAGA expanded but in hashtags,
+- simple quotes,
+- numerous &amp,
+- rather numerous hyphens followed by empry space,
+- numerous tweets do not end with a period. 
+
+These are some differences without paying much attention to words but mainly to typography. We can go some further and pay more attention to differences in using punctuation marks ... before getting rid of punctuation marks to disentangle words. 
+
+Let's check up how much tweets from the two devices differ in occurrence of these typographical patterns. 
+
+Let's deal with URLs first.
+
+<br>
+
+## Stylometry EDA
+
+### URLs
+
+```{r Getting operational presentations of URLs}
+
+# In case 2 URLs might stick to each other, let's use buffer
+# with empty space character before URLs when extracting URLs.
+buffer <- str_replace_all(train_tweets$text, "http", " http")
+
+# Extracts URLs.
+urls <- str_extract_all(buffer, "https://\\S+|http://\\S+")
+rm(buffer)
+
+# Converts a list of lists into a character vector.
+urls <- unlist(urls)
+
+# Drop punctuation at the end of extractions.
+urls <- str_replace_all(urls, "[[:punct:]]$", "")
+
+# Keeps only unique URLs.
+urls <- unique(urls)
+
+# Escape characters in front of question marks in URLs.
+urls_with_question_marks <- 
+  str_replace_all(urls, "\\?", "\\\\?")
+
+# URLs assembled into a REGEX pattern for Text Mining
+urls_as_argument <- 
+  paste(urls_with_question_marks, "|", sep = "", collapse = "")
+urls_as_argument <- 
+  str_replace(urls_as_argument, "\\|$", "")
+
+# Data frame with URLs being replaced with a placeholder in all tweets. 
+
+buffer <- train_tweets$text 
+
+for (i in 1:length(urls)) {
+
+  buffer <- 
+    str_replace_all(buffer, 
+                    urls_with_question_marks[i], 
+                    "URLPLACEHOLDER")
+  
+}
+
+tweets_without_urls <- train_tweets %>%
+  select(id_str, device) %>%
+  mutate(text = buffer) %>%
+  select(id_str, text, device)
+
+# Let's now compute the number of URL instances. 
+
+urls_count <- str_count(train_tweets$text, urls_as_argument)
+
+# or
+
+urls_count <- 
+  str_count(tweets_without_urls$text, "URLPLACEHOLDER")
+
+# Number of unique URLs
+n_u <- length(urls)
+
+# Table: statistics about URLs 
+
+tab <- data.frame(a = 1, b = 2) %>%
+  mutate(a = sum(urls_count), b = n_u) %>%
+  mutate(a = format(a, big.mark = " "), 
+         b = format(b, big.mark = " ")) %>%
+  `colnames<-`(c("Number of URL Insertions",
+                 "Number of Unique URLs"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Now, let's move to URLs by device. 
+
+```{r URLs 2 URLS by device, class.output = "bg-primary"}
+
+# Vector of URLs from ANDROID per training set observation  
+
+v_a <- train_tweets %>%
+  select(device, text) %>%
+  filter(device == "Android") %>%
+  mutate(urls = str_extract_all(text, urls_as_argument)) %>%
+  select(urls)
+
+tab_a <- data.frame(urls = unlist(v_a)) %>%
+  group_by(urls) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) 
+
+# Vector of URLs from iPHONE per training set observation  
+
+v_i <- train_tweets %>%
+  select(device, text) %>%
+  filter(device == "iPhone") %>%
+  mutate(urls = str_extract_all(text, urls_as_argument)) %>%
+  select(urls)
+
+tab_i <- data.frame(urls = unlist(v_i)) %>%
+  group_by(urls) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+# Joins both tables.
+
+j <- full_join(tab_a, tab_i, by = "urls")
+j <- j %>%
+  filter(n.x > 1 | n.y > 1) %>%
+  `colnames<-`(c("URLs",
+                 "Instances from Android",
+                 "Instances from iPhone"))
+
+# Creates an interactive data table, using the DT package. 
+
+datatable(j, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+rm(j)
+
+```
+
+Repeating URLs has only been done by the iPhone. But numbers are limited. This could be tried as a candidate predictor. Tweets with URLs mentionned twice or more have been tweeted by the iPhone. 
+
+Moreover, is the number of URLs per tweet a promising candidate predictor? Let's have a look at the next table.
+
+```{r URL frequency by device}
+
+temp <- train_tweets %>%
+  select(device) %>%
+  mutate(urls_count = urls_count)
+
+# Table: number of URLs per device
+
+tab1 <- temp %>%
+  group_by(device) %>%
+  summarise(n = sum(urls_count)) %>%
+  mutate(n = format(n, big.mark = " ")) 
+
+# Counting number of tweets with 1 or more URLs
+
+tab2 <- temp %>%
+  filter(urls_count > 0) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counting number of tweets with just 1 URL
+
+tab3 <- temp %>%
+  filter(urls_count == 1) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counting number of iPhone tweets with just 2 URLs
+
+tab4 <- temp %>%
+  filter(device == "iPhone", urls_count == 2) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counting number of tweets with more than 2 URLs
+
+tab5 <- temp %>%
+  filter(device == "iPhone", urls_count > 2) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Assembling the 5 sub-tables into a global one.
+
+tab <- tab1 %>%
+  mutate(atleastone = tab2$n, justone = tab3$n, 
+         two = c("a", "b"), more = c("a", "b")) %>%
+  `colnames<-`(c("Device",
+                 "Number of URLs Included",
+                 "Number of Tweets with >= 1 URL",
+                 "Number of Tweets with 1 URL",
+                 "Number of Tweets with 2 URLs",
+                 "Number of Tweets with >= 3 URLs "))
+
+tab[[1, 5]] <- "0"
+tab[[2, 5]] <- tab4$n[1]
+tab[[1, 6]] <- "0"
+tab[[2, 6]] <- tab5$n[1]
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(temp, tab1, tab2, tab3, tab4, tab5, tab)
+
+```
+That is definitely a powerful predictor: the presence of URL in tweets. Indeed, there are almost no URLs in Android tweets and numerous among iPhone tweets. 
+
+Should we add one or two binary predictors? One predictor would refer to the third column: has the tweet got at least one URL? Almost all 1s would be for the iPhone. 
+
+With two predictors, we would have two binary variables: first variable indicates whether the tweet has exactly one variable or not, the second binary variable indicates whether the tweet has 2 or more URLs. The second predictor would only have 1s for the iPhone. 
+
+Let's deal with mentions.
+
+<br>
+
+### Mentions
+
+Mentions have been identified as strings beginning with @ or .@ and comprised of letters, digits or the underscore mark. 
+
+The distinction between mentions beginning with @ or with .@ even although the dot does not change the account referred to. Actually, using a leading dot or no leading dot can differentiate not the account referred to but the stylistic patterns of the user inserting or not inserting a leading dot in front of the mentions she or he uses in her or his tweets. The presence or absence of leading dot can be a predictive pattern in tweet attribution.
+
+```{r Mentions 1}
+
+buffer <- tweets_without_urls$text
+
+# Extracting mentions.
+v <- str_extract_all(buffer, "\\.@\\w+|@\\w+")
+
+# For each tweet, having all mentions in a string.
+
+mentions_per_tweet <- 
+  vector(mode = "character", length = length(v))
+
+for (i in 1:length(mentions_per_tweet)) {
+
+  mentions_per_tweet[[i]] <- 
+    str_trim(paste(unlist(v[i]), sep = "", collapse = " "))
+  
+}
+
+# Number of mentions per tweet
+
+mentions_count <- str_count(buffer, "\\.@\\w+|@\\w+")
+
+# Vector of unique mentions
+
+unique_mentions <- unique(unlist(v))
+
+# Table: statistics about mention instances 
+
+tab <- data.frame(a = 1, b = 2) %>%
+  mutate(a = sum(mentions_count), 
+         b = length(unique_mentions)) %>%
+  `colnames<-`(c("Number of Mentions",
+                 "Number of Unique Mentions"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(tab)
+
+```
+
+Many repetitions. We'll investigate.  
+
+```{r Mentions 2, class.output = "bg-primary"}
+
+buffer <- tweets_without_urls$text
+
+# Vector with count for each Android mention
+
+v_a <- train_tweets %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  filter(device == "Android") %>%
+  mutate(v = str_extract_all(text, "\\.@\\w+|@\\w+")) %>%
+  .$v
+
+tab_a <- data.frame(mentions = unlist(v_a)) %>%
+  group_by(mentions) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) 
+
+# Vector with count for each Android mention  
+
+v_i <- train_tweets %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  filter(device == "iPhone") %>%
+  mutate(v = str_extract_all(text, "\\.@\\w+|@\\w+")) %>%
+  .$v
+
+tab_i <- data.frame(mentions = unlist(v_i)) %>%
+  group_by(mentions) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+# Assembles both tables into a global one.
+
+j <- full_join(tab_a, tab_i, by = "mentions")
+j <- j %>%
+  `colnames<-`(c("Mentions",
+                 "Instances from Android",
+                 "Instances from iPhone"))
+
+# Creates an interactive data table, using the DT package. 
+
+datatable(j, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+# Keeping j for further use with simple format.
+
+table_mentions <- j %>%
+  `colnames<-`(c("mentions", "n_a", "n_i"))
+
+rm(j)
+
+```
+
+For some mentions, imbalance is substantial in favor of the Android device for a few mentions, e.g. @CNN or @nytimes. These mentions can be used as candidate predictors when predicting in tweet attribution. 
+
+Leading dot usage can help differentiate devices in some cases: e.g. .@CNN is only used by the Android device (12 times) while @CNN is also used by the iPhone, much less though. Let's keep the distinction between @ and .@ . 
+
+It is not uninteresting to notice the importance of capitalization. Some mentions are written in different ways, once with all or some capitalization and once with less or no capitalization. This is the case for @Mike_Pence and @mike_pence. This will not be harmonized, even if both refer to the same username. Indeed, frequency can differ between the two versions. For @Mike_Pence, the iPhone has 8 instances and the Android device none; for @mike_pence, the numbers of instances are 4 and 2. In other words, the Android device nevers capitalizes Mike Pence's name. If we keep the two versions separated, we have got a clear-cut divergence between the two devices for @Mike_Pence.
+
+Now, let's examine how many mentions tweets are comprised of by device. 
+
+```{r Mentions 3}
+
+temp <- train_tweets %>%
+  select(device) %>%
+  mutate(mentions_count = mentions_count)
+
+# Table: number of mentions per device
+
+tab1 <- temp %>%
+  group_by(device) %>%
+  summarise(n = sum(mentions_count)) %>%
+  mutate(n = format(n, big.mark = " ")) 
+
+# Counts number of tweets with 1 or more mentions.
+
+tab2 <- temp %>%
+  filter(mentions_count > 0) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counts number of tweets with just 1 mention.
+
+tab3 <- temp %>%
+  filter(mentions_count == 1) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counts number of iPhone tweets with just 2 mentions.
+
+tab4 <- temp %>%
+  filter(mentions_count == 2) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counts number of tweets with strictly more than 2 mentions.
+
+tab5 <- temp %>%
+  filter(mentions_count > 2) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Assembles the 5 sub-tables into a global one.
+
+tab <- tab1 %>%
+  mutate(atleastone = tab2$n, justone = tab3$n, 
+         two = tab4$n, more = tab5$n) %>%
+  `colnames<-`(c("Device",
+                 "Number of Mentions Included",
+                 "Number of Tweets with >= 1 Mention",
+                 "Number of Tweets with 1 Mention",
+                 "Number of Tweets with 2 Mentions",
+                 "Number of Tweets with >= 3 Mentions "))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(temp, tab1, tab2, tab3, tab4, tab5, tab)
+
+```
+
+The picture is completely different from the URL picture. The Android device predominates but imbalance is limited. Nevertheless, we'll keep the number of mentions per tweet as a candidate predictor. 
+
+Last, let's switch to the hashtags.
+
+<br>
+
+### Hashtags
+
+The hashtags have been identified as string beginning with # and comprised of letters, digits and underscore marks. Consequently, #'s has been considered as meaning "numbers". It has been automatically eliminated by the code below.
+
+The strings #1 and #2 have not been counted as mentions if they are followed neither by a letter, or a digit or an underscore mark. They seem to mean *number 1* or *number 2*. #1 or #2 seem meant as quantifiers and not as hashtags. 
+
+On the contrary, the string #2A has been kept: *this hashtag indicated the user's intention to direct the posting to the attention of Twitter users in the context of the Second Amendment, which refers to citizens' right to bear arms* according to https://www.google.com/search?client=firefox-b-d&q=meaning+of+hashtag+%232A .
+
+```{r Number of hashtags and unique hashtags}
+
+# Adding leading empty space because some hashtags stick to each other.
+
+buffer <- 
+  str_replace_all(tweets_without_urls$text, "#", " #")
+
+# Discards strings #1 and #2 that are not followed
+# with neither letters, nor digits, nor underscore marks. 
+# Also removes #'s .
+
+buffer <- str_replace_all(buffer, "#1\\s|#1(?!_)[[:punct:]]|#1$", "")
+
+buffer <- str_replace_all(buffer, "#2\\s|#2(?!_)[[:punct:]]|#2$", "")
+
+buffer <- str_replace_all(buffer, "#'s", "")
+
+# Vector of hashtags per tweet  
+
+v <- str_extract_all(buffer, "#\\w+")
+
+hashtags_per_tweet <- 
+  vector(mode = "character", length = length(v))
+
+for (i in 1:length(hashtags_per_tweet)) {
+  
+  hashtags_per_tweet[[i]] <- paste(unlist(v[i]), collapse = " ")
+  
+}
+
+# Let's now compute the number of hashtags per tweet. 
+
+hashtags_count <- str_count(hashtags_per_tweet, "#\\w+")
+
+# Vector of unique hashtags
+
+unique_hashtags <- unique(unlist(v))
+
+# Table: statistics about hashtags 
+
+tab <- data.frame(a = 1, b = 2) %>%
+  mutate(a = format(sum(hashtags_count), big.mark = " "), 
+         b = length(unique_hashtags)) %>%
+  `colnames<-`(c("Number of Hashtags",
+                 "Number of Unique Hashtags"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Many repetitions. It will be interesting to differentiate per device. For each device, which are the favorite hashtags? 
+
+```{r Hashtags 2, class.output = "bg-primary"}
+
+# Vector with count for each Android hashtag  
+
+v_a <- train_tweets %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  filter(device == "Android") %>%
+  mutate(v = str_extract_all(text, "#\\w+")) %>%
+  select(v)
+
+tab_a <- data.frame(hashtags = unlist(v_a)) %>%
+  group_by(hashtags) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) 
+
+# Vector with count for each iPhone hashtag   
+
+v_i <- train_tweets %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  filter(device == "iPhone") %>%
+  mutate(v = str_extract_all(text, "#\\w+")) %>%
+  select(v)
+
+tab_i <- data.frame(hashtags = unlist(v_i)) %>%
+  group_by(hashtags) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+
+# Assembles both tables into a global one.
+
+j <- full_join(tab_a, tab_i, by = "hashtags")
+j <- j %>%
+  arrange(desc(n.y)) %>%
+  `colnames<-`(c("Hashtags",
+                 "Instances from Android",
+                 "Instances from iPhone"))
+
+# Creates an interactive data table, using the DT package. 
+
+datatable(j, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+# Keeping j for further use with simple format.
+
+table_hashtags <- j %>%
+  `colnames<-`(c("hashtags", "n_a", "n_i"))
+
+rm(j)
+
+```
+
+There is predominance of the iPhone for almost all hashtags. The number of hashtags per tweet looks like a very promising candidate predictor. Should we also add candidate predictors for hashtags with the heaviest imbalances? 
+
+Let's quantify the global imbalance between the two devices. 
+
+```{r Hashtags 3}
+
+temp <- train_tweets %>%
+  select(device) %>%
+  mutate(hashtags_count = hashtags_count)
+
+# Table: number of hashtags per device
+
+tab1 <- temp %>%
+  group_by(device) %>%
+  summarise(n = sum(hashtags_count)) %>%
+  mutate(n = format(n, big.mark = " ")) 
+
+# Counts number of tweets with 1 or more hashtags.
+
+tab2 <- temp %>%
+  filter(hashtags_count > 0) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counts number of tweets with just 1 hashtag.
+
+tab3 <- temp %>%
+  filter(hashtags_count == 1) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counts number of iPhone tweets with just 2 hashtags.
+
+tab4 <- temp %>%
+  filter(hashtags_count == 2) %>%
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Counts number of tweets with more than 2 hashtags
+
+tab5 <- temp %>%
+  filter(device == "iPhone", hashtags_count > 2) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " "))
+
+# Assembles the 5 sub-tables into a global one.
+
+tab <- tab1 %>%
+  mutate(atleastone = tab2$n, justone = tab3$n, 
+         two = tab4$n, more = c("a", "b")) %>%
+  `colnames<-`(c("Device",
+                 "Number of Hashtags Included",
+                 "Number of Tweets with >= 1 Hashtag",
+                 "Number of Tweets with 1 Hashtag",
+                 "Number of Tweets with 2 Hashtags",
+                 "Number of Tweets with >= 3 Hashtags "))
+
+tab[[1, 6]] <- "0"
+tab[[2, 6]] <- tab5$n[1]
+
+# Prints global table.
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Picture very much indeed like the one with URLs: huge predominance from iPhone. Same question: one or two binary predictors? But undoubtedly a very promising predictor.
+
+<br>
+
+### Punctuation
+
+Punctuation marks can be one characteristic of a style, of a twitter. Consequently, it might be productive to pinpoint punctuation marks that are used differently by the two devices, be it in frequency, or in combination with other text components. That's a stylometry approach. Let's, on the contrary, observe punctuation patterns and try to differentiate in that field between the two devices. 
+
+We are going to work without URLs, which have been dealt with separately and they have shown huge imbalance in favor of th iPhone. URLs can contain numerous periods (full stops), or colons, or other punctuation marks; URLs would impact prediction as URLs but also as punctuation receptacles and this might obliterate the specific impact of some punctuation marks meant as punctuation marks in plain text and possibly, in some cases, imbalances in favor of the Android device, which could possibly reveal as useful co-predictors.  
+
+Let's start with punctuation mark frequency. 
+
+```{r Frequency of punctuation marks}
+
+# Calculates a comparability factor to proportionally reduce 
+# iPhone data when comparing the two devices. We'll keep 
+# the comparability factor for further use. 
+
+temp <- tweets_without_urls %>%
+  group_by(device) %>%
+  summarise(n = n())
+
+comparability_factor <- c(1, temp$n[1] / temp$n[2])
+rm(temp)
+
+# Vector of punctuation marks
+ 
+punctuation_marks <- c(".", "?", "!", ",", ":", ";", "/", "+", 
+                       "=", "%", "$", "_", "-", "–", "—", 
+                       "(", ")", "[", "]", '"', "'", "&", "*", 
+                       "!!", "??", "..", "...", "....", 
+                       "--", "---", "----")
+
+# Receptacle data frame for numbers of instances
+
+output <- 
+  data.frame(matrix(length(punctuation_marks) * 4, 
+                    nrow = length(punctuation_marks), 
+                    ncol = 4) * 1) %>%
+  `colnames<-`(c("Punctuation Mark", 
+                 "Number of Instances from Android",
+                 "Number of Instances from iPhone",
+                 "Number from iPhone Regularized for Sample Size"))
+
+# For loop to compute the numbers of instances
+
+for (i in 1:length(punctuation_marks)) {
+
+  buffer <- punctuation_marks[i]
+  
+  occurrence_punctuation_marks <- 
+    tweets_without_urls %>% 
+    select(text, device) %>%
+    mutate(number = str_count(text, fixed(punctuation_marks[i]))) %>%
+    group_by(device) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  output[[i, 1]] <- punctuation_marks[i]
+  output[[i, 2]] <- occurrence_punctuation_marks$number[1]
+  output[[i, 3]] <- occurrence_punctuation_marks$number[2] 
+  output[[i, 4]] <- occurrence_punctuation_marks$n_reg[2]
+
+}
+  
+# Creating an interactive data table, using the DT package. 
+
+datatable(output, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+rm(punctuation_marks, output)
+
+```
+
+The two devices diverge by some punctuation marks being present very differently from a quantitative point of view. This is the case for the following punctuation marks: semi-colon, slash, opening parenthesis, closing parenthesis, double quotes, ampersand and double hyphen. Imbalances can also be quantitatively important for other punctuation marks, but nevertheless less as a procentual ratio. 
+
+To be extremely accurate, let's notice that the numbers of instances could be a little revised for the underscore: the code above has discarded neither mentions nor hashtags; since the mentions and hashtags are comprised of a few underscore marks, this impacts the numbers of instances in the table above; but there is no substantial imbalance for the underscore mark between the two devices in the table above, consequently, the matter will not be investigated any further. 
+
+By the way, hyphens are numerous. There are only a few en dashes and no em dashes at all. 
+
+Something quantitavely more important. The imbalance in double quotes was expected since we had already pinpointed that the Android device uses double quotes and that the iPhone uses single quotes: consequently, it is absolutely normal to have much more double quotes in tweets sent by the Android device than in tweets sent by the iPhone. But couldn't we expect the inverse imbalance for single quotes? Actually, no, we couldn't. Why? Because there are many short forms (contractions such as it's) on both sides. There are also genitive possessive forms ('s or s'). Consequently, there are many *single quotes* as well on the side of the Android device, well actually apostrophes. We have to eliminate these apostrophes with a view to keeping (almost) only single quotes, hopefully with a strong imbalance in favor of the iPhone. 
+
+Consequently, we will discard apostrophes from short forms and from possessive forms. A list of short forms can be extracted from a list a stopwords, e.g. a list of stopwords from the package stopwords. To the extracted short forms we will add the short form *havn't*, which is obsolete according to https://en.wiktionary.org/wiki/havn%27t . The apostrophe of this short form has to be discarded just as the apostrophes from the *standard* short forms. But since it is used only by the Android device, it will be added to other *special sequences* below.
+
+```{r Frequency of single quotes}
+
+# In order to isolate single quotes from apostrophes,
+# we need to discard among others the apostrophes from short forms.
+# A list of short forms can be extracted from stopwords. 
+
+# First, let's load a list of stopwords from the package stopwords.
+list_stopwords <- stopwords::stopwords("en", source = "snowball")
+
+# Second, let's extract the short forms from the stopwords.
+index <- str_detect(list_stopwords, "[a-z]+\\'[a-z]+")
+index <- which(index == TRUE)
+list_short_forms <- list_stopwords[index]
+
+# Third, let's add the short form "havn't", which is used 
+# by the Android device. 
+list_short_forms <- append(list_short_forms, "havn't")
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased in the package stopwords. 
+
+tweets_without_urls_and_apostrophes <- 
+  tweets_without_urls %>%
+  select(id_str, text, device) %>%
+  mutate(text = str_to_lower(text, locale = "en"))
+
+# Let's remove the short forms from the tweets. 
+
+for (i in 1:length(list_short_forms)) {
+  
+  tweets_without_urls_and_apostrophes <- 
+    tweets_without_urls_and_apostrophes %>%
+    mutate(text = str_replace_all(text, list_short_forms[i], "")) 
+
+}
+
+# Let's remove 
+# - the possessive forms 's,
+# - enclosed apostrophes, in e.g. some family names like O'Reilly,
+# - apostrophes in abbreviated millenial figures,
+# - and trailing apostrophes at the end of two colloquialisms,
+#   i.e. "ya'" and "lyin'", used by the Android device. 
+
+# By the way, we do not eliminate apostrophes from 
+# the possessive forms s' because at the same time
+# we would eliminate much more quotation marks. 
+# We'll tackle that later on, in  acompletely different way. 
+
+tweets_without_urls_and_apostrophes <- 
+  tweets_without_urls_and_apostrophes %>%
+  mutate(text = str_replace_all(text, 
+                  "([^\\s])(\\')(s)", "\\1\\3")) %>%
+  mutate(text = str_replace_all(text, 
+                  "([A-Za-z])(\\')([A-Za-z])", "\\1\\3")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(\\')(\\d{2})", "\\2")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(ya)(\\')|(lyin)(\\')", "\\1"))
+
+# There can still remain apostrophes, irrespective of single 
+# quotation marks, even if their number is probably very 
+# limited. The number of single quotation marks should be 
+# an even number. 
+
+# If there is one apostrophe (e.g. in a possessive form 
+# of the type "s'" as in "parents'"), then the global number 
+# of "'" should be an odd number. In such a case, let's 
+# decrease the number of instances with one. 
+
+# Of course, this wouldn't solve the problem if there were 
+# two or three apostrophes left, but this is not very probable.
+ 
+tweets_without_urls_and_apostrophes <- 
+  tweets_without_urls_and_apostrophes %>%
+  mutate(number = str_count(text, "\\'")) 
+
+for (i in 1:nrow(tweets_without_urls_and_apostrophes)) {
+  
+  if ((tweets_without_urls_and_apostrophes$number[i] %% 2) > 0) {
+    
+    tweets_without_urls_and_apostrophes$number[[i]] <- 
+      tweets_without_urls_and_apostrophes$number[i] - 1
+    
+  }
+  
+}
+
+# Now, we can compute the number of single quotation marks.
+tab <-
+  tweets_without_urls_and_apostrophes %>%
+  group_by(device) %>%
+  summarise(number = sum(number)) %>%
+  mutate(n_reg = round(number * comparability_factor, 0)) %>%
+  `colnames<-`(c("Device", 
+                 "Number of Single Quotation Marks",
+                 "Number Regularized for Sample Size"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+# Keeping tweets_without_urls_and_apostrophes for next code chunk.
+
+rm(tab)
+
+```
+
+<br>
+
+Let's check up how the rule *no odd number of single quotations* works. First, in tweets from the Android device. 
+
+```{r Showing all Android tweets keeping apostrophes or single quotation marks}
+
+index <- 
+  str_detect(tweets_without_urls_and_apostrophes$text, "\\'")
+index <- which(index == T)
+
+tab <- tweets_without_urls_and_apostrophes[index, ] %>%
+  filter(device == "Android") %>%
+  select(- device) %>%
+  `colnames<-`(c("Identifier",
+                 "Android Tweet with Remaining ' Marks",
+                 "Counted as Quotation Mark"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-success\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+There are no single quotation marks. There remain one apostrophe among Android tweets in *Cruz' constitutional law professor*. *Cruz'* has been preferred to *Cruz's*. See e.g. https://www.grammar-monster.com/punctuation/apostrophe_after_z.html . In *Cruz's*, the apostrophe would have been discarded. It is not discarded in *Cruz'* but this peculiarity is compensated by the rule *no odd number of single quotations*: since the number of ' marks is one and thus an odd number, it is decreased with one and so becomes zero. 
+
+Let's now have a look at single quotation marks and remaining apostrophes among iPhone tweets. 
+
+```{r Showing all iPhone tweets with single quotation marks}
+
+index <- 
+  str_detect(tweets_without_urls_and_apostrophes$text, "\\'")
+index <- which(index == T)
+
+tab <- tweets_without_urls_and_apostrophes[index, ] %>%
+  filter(device == "iPhone") %>%
+  select(- device) %>%
+  `colnames<-`(c("Identifier",
+                 "iPhone Tweet with Remaining ' Marks",
+                 "Counted as Quotation Marks"))
+
+# Creating the interactive data table, using the DT package. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#999999', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#dedede";','}',
+              '}')
+            )
+          )
+
+``` 
+
+All instances of the punctuation mark *'* are registered as quotation marks except for one instance in tweet with identifier 736410143378792448: it is an apostrophe in the possessive form included in *refugees social media accounts*. This will not impact the count of quotation marks: indeed, since the number of instances of the punctuation mark *'* is 1, i.e. an odd number, it is decreased with 1 and becomes ... zero, in accordance with our rule *no odd number of single quotations*. 
+
+<br>
+
+### Enclosed Punctuation
+
+Let's go ahead with enclosed punctuation marks. What is an enclosed punctuation mark in this project? It is simply a punctuation mark that has neither leading nor trailing empty space. 
+
+We'll work outside of URLs. We are going to work without URLs, which are comprised of numerous enclosed punctuation marks. Discarding URLs without replacing them with placeholders slightly diminishes the number of enclosed punctuation marks because of a few punctuation marks being enclosed between URLs and other parts from the tweets. These cases can be considered as proportionally rare. 
+
+```{r Number of tweets with enclosed punctuation marks outside of urls}
+
+tweets_with_enclosed_punctuation <- tweets_without_urls %>% 
+  select(text, device) %>%
+  mutate(index = str_count(text, "[^\\s]+[[:punct:]][^\\s]+")) %>%
+  filter(index > 0) %>%
+  select(text, index, device)
+
+# Breakdown bu device of number of tweets with enclosed punctuation
+# and number regularized by the comparability factor
+
+tab <- tweets_with_enclosed_punctuation %>%
+  group_by(device) %>%
+  summarise(n = sum(n())) %>%
+  mutate(n_reg = round(n * comparability_factor, 0)) %>% 
+  select(device, n, n_reg) %>%
+  `colnames<-`(c("Device", 
+                 "Number of Tweets with Enclosed Punctuation",
+                 "Number of Tweets Regularized for Sample Size"))
+  
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+The regularized number of tweets with enclosed punctuation differs sensibly between the two devices. But we are looking for even more heavily unbalanced numbers. Maybe we can find that in subgroups of the tweets with enclosed punctuation. In order to potentially delineate such subgroups, let's have a look at these tweets. 
+
+```{r List of tweets with enclosed punctuation marks}
+
+tab <- tweets_with_enclosed_punctuation %>%
+  `colnames<-`(c("Tweet with Enclosed Punctuation",
+                 "Instances of Enclosed Punctuation",
+                 "Device"))
+
+# Creating the interactive data table, using the DT package. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+```
+
+Among enclosed punctuation, let's focus on some punctuation marks in particular. 
+
+```{r Frequency of some enclosed punctuation marks}
+
+# For loop to calculate the occurrence of enclosed punctuation marks
+ 
+punctuation_marks <- c("\\.", "\\?", "!", ",", "\\:", ";", "\\/", "\\+", 
+                       "\\=", "\\%", "\\$", "_", "\\-", "\\(", "\\)", "\\[", 
+                       "\\]", '"', "'", "\\&", "\\*", 
+                       "!!", "\\?\\?", 
+                       "\\.\\.", "\\.\\.\\.", "\\.\\.\\.\\.", 
+                       "\\-\\-", 
+                       '\\."', "\\.'", 
+                       '\\?"', "\\?'", '!"', "!'")
+
+output <- data.frame(matrix(length(punctuation_marks) * 4, 
+                            nrow = length(punctuation_marks), 
+                            ncol = 4) * 1) %>%
+  `colnames<-`(c("Enclosed Punctuation Mark", 
+                 "Number of Instances from Android",
+                 "Number of Instances from iPhone",
+                 "Number of Instances from iPhone Regularized for Sample Size"))
+
+for (i in 1:length(punctuation_marks)) {
+
+  buffer <- paste("\\S", punctuation_marks[i], "\\S", sep = "")
+
+  occurrence_punctuation_mark <- tweets_without_urls %>% 
+    select(text, device) %>%
+    mutate(number = str_count(text, buffer)) %>%
+    group_by(device) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  output[[i, 1]] <- str_replace_all(punctuation_marks[i], "\\\\", "")
+  output[[i, 2]] <- occurrence_punctuation_mark$number[1]
+  output[[i, 3]] <- occurrence_punctuation_mark$number[2] 
+  output[[i, 4]] <- occurrence_punctuation_mark$n_reg[2]
+
+}
+
+# Creating the interactive data table, using the DT package. 
+
+datatable(output, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+```
+
+Period, slash, closing parenthesis, double hyphen could be taken into consideration.
+
+But be careful! Periods can also be dots in a row (2, 3, 4, etc.). Splitting will be made later on. 
+
+<br>
+
+### Special sequences
+
+```{r Frequency of some special sequences}
+
+# For loop to calculate the occurrence of special sequences
+
+special_sequences <- 
+  c("\\\n", "\\&amp", "cc\\:", 
+    "!$", "\\?$", "\\.$", "(?=\\w)[^_]$",
+    "\\d+\\%", 
+    "\\sA.M.|\\sP.M.", 
+    "\\d{1,2}\\:\\d{2}(am|pm)", 
+    "\\d{1,2}/\\d{1,2}/(\\d{2}|\\d{4})",
+    "((?!\\.)[\\s\\S]\\.(?!\\.)[\\s\\S])|((?!\\.)[\\s\\S]\\.$)",
+    "(\\s\\.(?!\\.)[\\S])|((?!\\.)[\\S]\\.\\s)|(\\s\\.\\s)|((?!\\.)[\\s\\S]\\.$)", 
+    "(?!\\.)[\\S]\\.(?!\\.)[\\S]",
+    "U.S.[^A]", "U.S.A.",
+    "L\\.A\\.|N\\.Y\\.|S\\.C\\.|S\\.H\\.|O\\.K\\.",
+    "Lyin'", "lyin'", "Ya'", "ya'", "havn't")
+
+index1 <- str_detect(tweets_without_urls$text, 
+  "(\\s\\.(?!\\.)[\\S])|((?!\\.)[\\S]\\.\\s)|(\\s\\.\\s)|((?!\\.)[\\s\\S]\\.$)")
+index1 <- which(index1 == T)
+
+index2 <- str_detect(tweets_without_urls$text, 
+  "(?!\\.)[\\S]\\.(?!\\.)[\\S]")
+index2 <- which(index2 == T)
+int <- intersect(index1, index2)
+
+tab <- tweets_without_urls$text[int]
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+
+
+df <- tweets_without_urls %>%
+  select(text) %>%
+  mutate(text = str_replace_all(text, "\\.{2,}", "")) %>%
+  mutate(total = str_count(text,  "\\."),
+         non = str_count(text, "(\\s\\.)|(\\S\\.)|(\\.$)"),
+         enc = str_count(text, "\\S\\.\\S")) %>%
+  mutate(dif = total - non - enc) %>%
+  select(total, non, enc, dif) %>%
+  mutate(num = 1:nrow(tweets_without_urls)) %>%
+  select(num, everything())
+
+index <- which(df$dif > 0 | df$dif < 0)
+index
+
+head(df[index, ])
+
+
+
+str_extract_all(tweets_without_urls$text[129],
+   ".\\..|\\s\\..|.\\.\\s|((?!\\.)[\\s\\S]\\.$)")             
+
+
+
+output <- data.frame(matrix(length(special_sequences) * 4, 
+                            nrow = length(special_sequences), 
+                            ncol = 4) * 1) 
+
+for (i in 1:length(special_sequences)) {
+
+  buffer <- special_sequences[i]
+
+  occurrence_special_sequences <- tweets_without_urls %>% 
+    select(text, device) %>%
+    mutate(number = str_count(text, buffer)) %>%
+    group_by(device) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  output[[i, 2]] <- occurrence_special_sequences$number[1]
+  output[[i, 3]] <- occurrence_special_sequences$number[2] 
+  output[[i, 4]] <- occurrence_special_sequences$n_reg[2]
+  
+}
+
+# Reformats special sequences for printing in table.
+
+special_sequences <- c("\\\ n", "&amp", "cc:", 
+                       "Tweet End = !", 
+                       "Tweet End = ?",
+                       "Tweet End = .",
+                       "Tweet End = Alphanumeric",
+                       "Percentage", 
+                       "A.M. or P.M.", 
+                       "00:00am or 00:00pm",
+                       "00/00/00 or 00/00/0000",
+                       "Single Dots", 
+                       "Single Dots not Enclosed", 
+                       "Single Dots Enclosed",
+                       "U.S.", "U.S.A.",
+                       "L.A., N.Y., S.C., N.H., O.K.",
+                       "lyin'", "Lyin'", "Ya'", "ya'", "havn't")
+
+output$X1 <- special_sequences
+output$X1[[1]] <- str_replace(output$X1[1], " ", "")
+
+output <- output %>%
+  `colnames<-`(c("Special Sequences", 
+                 "Number of Instances from Android",
+                 "Number of Instances from iPhone",
+                 "Number of Instances from iPhone Regularized for Sample Size"))
+
+# Creating the interactive data table, using the DT package. 
+
+datatable(output, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 5, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#9ad2f2";','}',
+              '}')
+            )
+          )
+
+```
+
+Nine possibly interesting sequences 
+
+- \n 
+- &amp 
+- A.M. or P.M.
+- 00:00am or 00:00pm
+- 00/00/00 or 00/00/0000
+- U.S.
+- U.S.A.
+- dots not enclosed and not in suspension points,
+- dots enclosed but not in suspension points
+
+As far as dots are concerned, we had already collected some descriptibe statistics but there was a mixture between single dots and dots in a row. The last two concepts focus on dots outside of rows of dots; in particular the last one, i.e. dots enclosed but not in a row, is rather interesting as a candidate predictor. 
+
+Let's notice that *USA* without dots doesn't show the same imbalance between devices. And *US* can be found in a lot ow words.
+
+We can still investigate the requency of a last difference that has been noticed: the abbreviations of American States are generally with dots in Android tweets and without dots in iPhone tweets. 
+
+```{r Dots or no dots in abbreviations of American States}
+
+# List of abbreviations of American States without dots
+
+state_abb_without_dots <- state.abb
+
+# Breakdown by device of abbreviations without dots
+
+# First, pattern we are looking for in tweets: any
+# abbreviation without dot. Thus, empty space characters around. 
+
+looking_for <- 
+  paste(state_abb_without_dots, "| ", collapse = "")
+looking_for <- str_replace_all(looking_for, "(^[A-Z]{2})", " \\1")
+looking_for <- str_replace_all(looking_for, "(\\|\\s)$", "")
+
+# Second, alternative pattern 
+
+looking_for2 <- str_replace_all(looking_for, 
+                 "([A-Z]{2})", "\\1[[\\:punct\\:]]")
+
+# Second, counting by device the number of instances without dot.
+
+tab <- tweets_without_urls %>%
+  mutate(number = str_count(text, looking_for)) %>%
+  group_by(device) %>%
+  summarise(n = sum(number))
+
+tab2 <- tweets_without_urls %>%
+  mutate(number = str_count(text, looking_for2)) %>%
+  group_by(device) %>%
+  summarise(n = sum(number))
+
+tab_global <- cbind(tab[1], tab[2] + tab2[2]) %>%
+  mutate(n_reg = round(n * comparability_factor, 0)) %>% 
+  `colnames<-`(c("Device",
+                 "Number of State Abbreviations",
+                 "Number Regularized for Sample Size"))
+
+# Printing the global table.
+
+knitr::kable(tab_global, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Actually, the difference between devices is very limited for abbreviations of American States with dots. It is bigger for abbreviations without dots but imbalance remains limited: I might be tempted to not use it, since we already have enclosed dots, which is partially redundant with this from a stylometric point of view and which shows much stronger an imbalance.  
+
+<br>
+
+### Short Forms
+
+```{r Short forms}
+
+# First, let's load a list of stopwords from the packaged stopwords.
+list_stopwords <- stopwords::stopwords("en", source = "snowball")
+
+# Second, let's extract the short forms from the stopwords.
+index <- str_detect(list_stopwords, "[a-z]+\\'[a-z]+")
+index <- which(index == TRUE)
+list_short_forms <- list_stopwords[index]
+
+# Third, let's add the short form "havn't", which is used 
+# by the Android device. 
+list_short_forms <- append(list_short_forms, "havn't")
+
+list_short_forms <- paste(list_short_forms, "|", sep = "", collapse = "")
+list_short_forms <- str_replace(list_short_forms, "\\|$", "")
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased. 
+
+tab <- tweets_without_urls %>%
+  select(text, device) %>%
+  mutate(text = str_to_lower(text, locale = "en")) %>%
+  mutate(n = str_count(text, list_short_forms)) %>%
+  group_by(device) %>%
+  summarise(n = sum(n)) %>%
+  mutate(n_reg = round(n * comparability_factor, 0)) %>%
+  select(device, n, n_reg) %>%
+  `colnames<-`(c("Device",
+                 "Number of Short Forms",
+                 "Number of Short Forms Regularized for Sample Size"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+We are going to terminate here with our looking for punctuation marks, special characters and special sequences as candidate predictors, not because our search has been exhaustive, which it is not, but we already have harvested some strong candidate predictors in the spirit of stylometry. These strong candidate predictors will constitute a data set, more specifically a data frame. 
+
+## Stylometric Predictors
+
+Let's build a data frame with all candidate predictors originating in the stylometric Exploratory Data Analysis conducted above. The first ones are the count variables for URLs, mentions and hashtags. 
+
+```{r Creating data frame receptacle for all stylometric predictors}
+
+# Data frame with the first stylometric predictors. 
+stylo <- data.frame( 
+  urls_count = urls_count,
+  mentions_count = mentions_count,
+  hashtags_count = hashtags_count)
+
+# Numerous stylometric predictors 
+# will be added in the code chunks below.
+
+```
+
+### Mention Predictors
+
+Then come the top mentions, with one count variable for each of them. 
+
+```{r Preparing stylometric predictors from mentions}
+
+# Selecting frequent mentions
+
+top_mentions <- table_mentions %>%
+  filter(n_a >= 10 | n_i >= 10) %>%
+  mutate(mentions = str_trim(mentions)) %>%
+  .$mentions
+
+# Mentions with leading dot need escape characters
+# to correctly detect instances from tweets.
+
+top_mentions <- 
+  str_replace_all(top_mentions, "\\.", "\\\\\\.")
+
+# In tweets leading empty characters are inserted
+# in front of @ and .@ for detection convenience. 
+
+buffer <- 
+  str_replace_all(tweets_without_urls$text, 
+                  "([^\\.])(@)", "\\1 \\2")
+buffer <- 
+  str_replace_all(buffer, "(\\.@)", " \\1")
+
+# Constructing a data frame as receptacle 
+# for top mention predictors. 
+  
+df_mentions <- 
+  data.frame(matrix(nrow(tweets_without_urls) * length(top_mentions),
+             nrow = nrow(tweets_without_urls), 
+             ncol =  length(top_mentions)) * 1) %>%
+  `colnames<-`(str_replace_all(top_mentions, "\\\\\\.", "\\."))
+
+# Counting instances of top mentions.
+
+for (i in 1:length(top_mentions)) {
+
+  df_mentions[, i] <- 
+    str_count(buffer, 
+              paste("\\s", top_mentions[i], "\\s|\\s", 
+                    top_mentions[i], "[[:punct:]]|\\s", 
+                    top_mentions[i], "$", 
+                    sep = "", collapse = ""))
+
+}
+
+stylo <- cbind(stylo, df_mentions)
+
+rm(df_mentions)
+
+```
+
+### Hashtag Predictors
+
+Then come the top hashtags, with one count variable for each of them. 
+
+```{r Preparing stylometric predictors from hashtags}
+
+# Selecting frequent hashtags.
+
+top_hashtags <- table_hashtags %>%
+  filter(n_a >= 10 | n_i >= 10) %>%
+  mutate(hashtags = str_trim(hashtags)) %>%
+  .$hashtags
+
+# In tweets leading empty characters are inserted
+# in front of # because some hashtags stick to each other. 
+
+buffer <- str_replace_all(tweets_without_urls$text, 
+                          "#", " #")
+
+# Constructing a data frame as receptacle for top hashtag predictors. 
+  
+df_hashtags <- 
+  data.frame(matrix(nrow(tweets_without_urls) * length(top_hashtags),
+             nrow = nrow(tweets_without_urls), 
+             ncol =  length(top_hashtags)) * 1) %>%
+  `colnames<-`(str_replace_all(top_hashtags, "\\\\\\.", "\\."))
+
+# Counting instances of top mentions.
+
+for (i in 1:length(top_hashtags)) {
+
+  df_hashtags[, i] <- 
+    str_count(buffer, 
+              paste("\\s", top_hashtags[i], "\\s|\\s", 
+                    top_hashtags[i], "[[:punct:]]|\\s", 
+                    top_hashtags[i], "$", 
+                    sep = "", collapse = ""))
+
+}
+
+stylo <- cbind(stylo, df_hashtags)
+
+rm(df_hashtags)
+
+```
+
+### Punctuation Predictors
+
+Now punctuation marks:
+
+- question marks,
+- commas,
+- colons,
+- semi-colons,
+- slashes,
+- dollar signs,
+- slashes,
+- opening parentheses (opening round brackets),
+- closing parentheses (closing round brackets),
+- double quotation marks,
+- double hyphens.
+
+These punctuation marks are looked for outside of URLs, which are dealt with separately.
+
+Dots will be dealt with among special sequences, because we will differentiate single dots and dots in a row. 
+
+The percentage mark will also be dealt with among special sequences where we will look for sequences that are comprised of numbers and the percentage mark. 
+
+
+
+A separate code chunk will be dedicated to the punctuation mark ' because it can be either a single quote or an apostrophe. Disentangling is somewhat challenging and requires a *sui generis* approach. 
+
+```{r Preparing stylometric predictors from punctuation}
+
+# Selecting frequent punctuation marks. 
+
+top_punctuation_marks <- 
+  c("?", ",", ":", ";", "/", "$", "(", ")", '"', "--")
+
+# Constructing a data frame as receptacle 
+# for top punctuation mark predictors. 
+
+l <- length(top_punctuation_marks)
+n <- nrow(tweets_without_urls)
+
+df_punctuation <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(top_punctuation_marks)
+
+# Counting instances of top punctuation marks.
+
+for (i in 1:length(top_punctuation_marks)) {
+
+  df_punctuation[, i] <- 
+    str_count(tweets_without_urls$text, 
+              fixed(top_punctuation_marks[i]))
+
+}
+
+stylo <- cbind(stylo, df_punctuation)
+
+rm(df_punctuation)
+
+```
+
+*&* would be a goo candidate predictor as well, but actually it is the sequence *&amp*. There is exactly the same number of instances. This will be taken care of under special sequences. 
+
+### Enclosed Punctuation Predictors
+
+Now enclosed punctuation marks.
+
+```{r Preparing stylometric predictors from enclosed punctuation}
+
+# Selecting frequent punctuation marks. 
+
+top_enclosed_punctuation <- 
+  c(",", "\\:", "\\/", "\\-", "\\)", '"')
+
+# Constructing a data frame as receptacle 
+# for top enclosed punctuation mark predictors. 
+
+l <- length(top_enclosed_punctuation)
+n <- nrow(tweets_without_urls)
+colnam <- 
+  str_replace_all(top_enclosed_punctuation, "\\\\", "\\")
+
+df_enclosed_punctuation <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(colnam)
+
+# Counting instances of top punctuation marks.
+
+for (i in 1:length(top_enclosed_punctuation)) {
+  
+  buffer <- paste("\\S", top_enclosed_punctuation[i], "\\S", sep = "")
+
+  df_enclosed_punctuation[, i] <- 
+    str_count(tweets_without_urls$text, buffer)
+
+}
+
+stylo <- cbind(stylo, df_enclosed_punctuation)
+
+rm(df_enclosed_punctuation)
+
+```
+
+
+
+
+
+
+
+
+(outside of )
+
+- semi-colons,
+- slashes,
+- opening parentheses,
+- closing parentheses,
+- double quotes,
+- single quotes (no apostrophes),
+- 3 or 4 dots in a row,
+- double hyphens,
+- dots enclosed but not in suspension points, 
+- non enclosed slashes, 
+
+
+stylo_plus
+
+- dots not enclosed and not in suspension points,
+- question marks,
+- commas,
+- colons,
+- dollar signs,
+- ampersands,
+- enclosed commas,
+- enclosed slashes,
+
+
+
+We are now moving text mining, well word mining. 
+
+
+
+
+```{r Looking for biasing punctuation marks}
+
+tweet_vector <- train_tweets %>%
+  select(text) %>%
+  as.data.frame() %>%
+  `colnames<-`("tweets") 
+
+tab <- tweet_vector %>% 
+  mutate(index = str_detect(tweets, "great,")) %>%
+  filter(index == TRUE) %>%
+  select(- index) %>%
+  as.data.frame() %>%
+  `colnames<-`('Occurrences of Comma sticking to "Great"')
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+<br>
+
+These are just illustrative examples; if commas are not discarded, three appearances of great will not be added to the total occurrence of "great" because they will be treated as the token "great,".
+
+
+
+ERADICATING PUNCTUATION FOR TOKENIZATION AND SENTIMENT ANALYSIS
+
+First, some punctuation marks can stick to a word on their left and to another one on their right. Simply discarding these punctuation marks would lead to collapsing the two words into one token. This would result from applying the function removePunctuation() from the package tm. Consequently, punctuation marks will be replaced with an empty space character.
+
+Second, if dots (aka periods or full stops) are replaced 
+with empty space characters, then abreviations (and acronyms) 
+would be scattered: "U.S.A." would become "U S A", i.e. 
+in this case one abreviation would become three separate letters. 
+Consequently, all dots will be replaced with empty space characters 
+except when they just follow an uppercase letter. 
+
+Third, the symbols # and @ will not be removed at this stage, 
+in order to remain able to identify hashtags and mentions. Moreover, the token "#1" will be preserved: amalgamation with hashtags is to be avoided;
+discarding it might remove a difference between devices. Consequently,
+"#1" will be provisionally replaced with "NUMBERONE". 
+
+Fourth, the symbol $ will also be preserved: there might be more financial amounts in tweets from one device.
+
+By the way, apostrophes can be found essentially in two cases: in contractions and in genitives. At this stage, contractions will 
+be preserved but genitives will be dismantled: apostrophes will be replaced with an empty space character. 
+
+Digits are replaced with empty space characters instead of just being
+removed to avoid collapsing the $ symbol with words in transforming 
+"$13million" into "$million".
+
+Other tokens will also be removed: "\n" and "&amp".
+
+Replacing digits with empty space characters is problematic at 
+this stage because some mentions can contain digits. 
+
+"#1 " to avoid #100 ...
+
+```{r Removing punctutation marks}
+train_tweets <- train_tweets %>%
+  mutate(text = str_replace_all(text, "\n" , " ")) %>%
+  mutate(text = str_replace_all(text, "&amp", " ")) %>%
+  mutate(text = str_replace_all(text, '\"' , " ")) %>%  
+  mutate(text = str_replace_all(text, "http.*" , 
+                                " link_placeholder ")) %>%
+  mutate(text = str_replace_all(text, "[/(),:;!?–•…-]" , " ")) %>%
+  mutate(text = str_replace_all(text, "[?@]", " @")) %>%
+  mutate(text = str_replace_all(text, "[?#]", " #")) %>%
+  mutate(text = str_replace_all(text, "[$]", " $ ")) %>%
+  mutate(text = str_squish(text)) %>%
+  as.data.frame()
+```
+
+Let's replace dots with empty space characters if dots are trailing dots following a lowercase letter.
+
+```{r Removing dots after lowercase letter}
+text <- train_tweets$text
+seq_text <- seq_along(text)
+for (i in seq_text) {
+  g <-                                 # g = positions of lowercase + dot
+    unlist(gregexpr(pattern = "[a-z]\\.", text[i]))
+  seq_g <- seq_along(g)                # Sequence 
+  for (j in seq_g) {                   # loop on all positions of lower...
+    pos <- g[j] + 1                    # Calculating position of dot.
+    substr(text[i], pos, pos) <- " "   # Replacing dot with empty space.
+    }
+}
+
+train_tweets$text <- text
+```
+
+Now we can remove all remaining dots without replacing them with 
+empty space characters, which would ruin our preserving 
+abreviations. 
+
+```{r Removing all remaining dots}
+train_tweets <- train_tweets %>%
+  mutate(text = str_replace_all(text, "[\\.]", ""))
+```
+
+Let's replace apostrophes from genitives with empty space
+characters. 
+
+There are many genitives, few contractions ending in "s".
+
+```{r Replacing apostophes from genitives with empty space characters}
+# To preserve contractions ending in 's, they will be provisionally
+# replaced with placeholders.
+
+contractions <- c("here's", "he's", "how's", "it's", "let's", "she's", "that's", "there's", "what's", "when's", "where's", "who's", "why's")
+place_holders <- paste0("contraction", seq_along(contractions))
+
+for (i in seq_along(contractions)) {
+  train_tweets$text <- str_replace_all(train_tweets$text, 
+                         contractions[i], place_holders[i])
+}
+
+# Now, we can securely discard apostrophes from "'s " (mostly in genitives).
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                         "'s ", " s ")
+  
+# We also discard trailing apostrophes (at the end of words), e.g. in 
+# genitives without s or as trailing single quotation marks.
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                         "' ", " ") 
+
+# We also discard leading apostrophes, e.g. as leading single quotation marks or in abbreviated two-digit format for years.
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                         " '", " ")
+
+# Let's notice that contractions have been preserved:
+# on the first hand, 13 contractions ending in "'s" 
+# have been replaced with placeholders not containing apostrophes
+# and other contractions not ending in "'s" have not been
+# impacted. 
+
+# Now, let's reconvert placeholders to the original
+# contractions, just for clarity. 
+for (i in seq_along(contractions)) {
+  train_tweets$text <- str_replace_all(train_tweets$text, 
+                         place_holders[i], contractions[i])
+} 
+```
+
+Now, we have removed most punctuation marks; most tokens have
+been "liberated" from trailing punctuation marks; the tokens 
+"#1 " can now be converted into "NUMBERONE" to preserve them
+and isolate them from real Twitter hasthtags. Afterwards, 
+digits can be removed from tweets. 
+
+```{r Insulating tokens #1 and discarding digits}
+train_tweets$text <- str_replace_all(train_tweets$text, 
+                       "#1 ", " NUMBERONE ")
+train_tweets$text = str_replace_all(train_tweets$text, 
+                       "[0-9]", "")
+```
+
+Let's notice that digits are simplys removed and are
+not substituted for empty space characters to not dismantle
+hashtags and mentions containing digits. 
+
+We do not lowercase at this stage because we want to keep uppercase
+letters to expand hashstags and mentions.  
+
+###########################
+
+FREQUENCY OF HASHTAGS
+
+"#AmericaFirst\U0001f1fa\U0001f1f8"
+
+to extract hashtags
+https://stackoverflow.com/questions/13762868/how-do-i-extract-hashtags-from-tweets-in-r
+
+for uniform bar width, see Update by Roman
+https://stackoverflow.com/questions/38101512/the-same-width-of-the-bars-in-geom-barposition-dodge
+
+```{r Counting all hashtags and producing graph}
+hashtag_count <- seq_along(train_tweets$text)
+
+for (i in seq_along(train_tweets$text)) {
+  g <- unlist(gregexpr("#\\S+", train_tweets$text[i]))
+  hashtag_count[i] <- length(which(g > 0))
+}
+
+graph <- train_tweets %>%
+  mutate(hashtag_count = hashtag_count) %>%
+  select(device, hashtag_count) %>%
+  group_by(device, hashtag_count) %>%
+  summarize(n = n()) %>%
+  filter(hashtag_count > 0) %>%
+  ggplot(aes(hashtag_count, n, fill = device)) +
+  geom_bar(stat = "identity", position = 
+           position_dodge2(width = 0.9, preserve = "single")) +
+  labs(x = "Hour in the 24-Hour Clock",
+       y = "% of Tweets per Hour",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.5, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
+
+<br>
+
+The number of hashtags per tweet appears as a solid predictor in tweet attribution: indeed, the hashtags in iPhone tweets outnumber the hashtags in Android tweets. Consequently, the number of hashtags per tweet will surely be used in tweet attribution laten on. 
+
+```{r Adding the number of hashtags per tweet as a predictor}
+train_tweets <- train_tweets %>%
+  mutate(hashtag_count = hashtag_count)
+```
+
+What about mentions?
+
+<br>
+
+```{r Counting all mentions and producing graph}
+mention_count <- seq_along(train_tweets$text)
+
+for (i in seq_along(train_tweets$text)) {
+  g <- unlist(gregexpr("@\\S+", train_tweets$text[i]))
+  mention_count[i] <- length(which(g > 0))
+}
+
+graph <- train_tweets %>%
+  mutate(mention_count = mention_count) %>%
+  select(device, mention_count) %>%
+  group_by(device, mention_count) %>%
+  summarize(n = n()) %>%
+  filter(mention_count > 0) %>%
+  ggplot(aes(mention_count, n, fill = device)) +
+  geom_bar(stat = "identity", position = 
+           position_dodge2(width = 0.9, preserve = "single")) +
+  labs(x = "Number of Mentions per Tweet",
+       y = "Number of Tweets",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.5, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
+
+<br>
+
+Contrary to the picture of hashtag presence in tweets, the number of mentions in Android tweets and in iPhone tweets is not so different. Nevertheless, the number of mentions per tweet will be taken on board without first checking its predictive power in tweet attribution.
+
+
+```{r Adding the number of mentions per tweet as a predictor}
+train_tweets <- train_tweets %>%
+  mutate(mention_count = mention_count)
+```
+
+<br>
+
+Let's now examine the use of links. 
+
+<br>
+
+```{r Counting all links and producing graph}
+link_count <- seq_along(train_tweets$text)
+
+for (i in seq_along(train_tweets$text)) {
+  g <- unlist(gregexpr("link_placeholder", train_tweets$text[i]))
+  link_count[i] <- length(which(g > 0))
+}
+
+graph <- train_tweets %>%
+  mutate(link_count = link_count) %>%
+  select(device, link_count) %>%
+  filter(link_count > 0) %>%
+  group_by(device) %>%
+  summarize(sum = sum(n())) %>%
+  ggplot(aes(device, sum, fill = device)) +
+  geom_bar(width = 0.5, stat = "identity") +
+  labs(x = "",
+       y = "Number of Links",
+       fill = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 0.2, size = 12), 
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        # remove the vertical grid lines
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank()) +
+  scale_fill_manual(values = duo_Palette) +
+  theme(panel.background = element_rect(fill = sky_blue)) 
+graph
+```
+
+<br>
+
+Just as in the case of hashtags, the number of links appears as a strong predictor in tweet attribution: the number of iPhone tweets with a link clearly outnumbers the number of Android tweets with a link. It will surely be used in tweet attribution.
+
+```{r Adding predictor number of hashtags per tweet}
+train_tweets <- train_tweets %>%
+  mutate(link_count = link_count)
+```
+
+Here, no distinction is made on the basis of the number of links per tweet because the breakdown is bipolar: it is either zero or one link per tweet. 
+
+In a snapshot, in number of hashtags and number of links, the iPhone tweets outnumber the Android tweets, which contain a little bit more mentions. The number of hastags and the number of links appear as two solid predictors in tweet attribution and the number of mentions is a candidate predictor, whose predictive power has still to be checked up. 
+
+################################################
+
+Now let's turn to hashtag and mention expansion. 
+
+The idea is very simple: most hastags and mentions are comprised of several common nouns and/or proper nouns. From a semantic point of view, these separate nouns make sense to human beings. But as long as they are encapsulated, they cannot be used in sentiment analysis. Moreover, they cannot be amalgamated with the same nouns outside of hashtags or mentions and impact word frequencies. Consequently, these nouns are going to be extracted so that they can enter sentiment analysis and word frequencies. 
+
+The method will also be very simple. Very often nouns encapsulated in hashtags and mentions are capitalized. Consequently hashtags and mentions will be expanded using uppercase letters: hashtags and mentions will be split between a lowercase letter followed by a uppercase letter. E.g. "@MakeAmericaGreatAgain" will become "Make America Great Again".
+
+But there is no splitting on an uppercase letter following another uppercase letter.  In the case of "MAGA", which is an acronym referring to the same expression, it might make sense to expand "MAGA" into "Make America Great Again", which is symbolically the equivalent but cannot be dealt with in the same way if not expanded. Consequently, let's create a second vector called *hashtags_fully_expanded* with "MAGA" being expanded. 
+
+Let's get started with hashtags. 
+
+```{r Expanding hashtags}
+hashtags <-                                     # Hashtags by tweet
+  str_extract_all(train_tweets$text, "#\\S+")
+
+# Unlisting list of hashtags into character vector of hastags.
+for (i in seq_along(hashtags)) {
+  hashtags[i] <- paste(unlist(hashtags[i]), collapse = " ")    
+}
+hashtags <- unlist(hashtags)
+
+# Let's expand hashtags tweet by tweet
+hashtags_expanded <- seq_along(hashtags)        # Storage vector for 
+                                                # expanded hashtags
+for (i in seq_along(hashtags)) {
+  w <- hashtags[i]
+  w <- str_replace_all(w, "#", "")              # Removing # symbol
+  
+  # Splitting on uppercase letter following lowercase letter
+  # https://stackoverflow.com/questions/43706474/splitting-string-betw     een-capital-and-lowercase-character-in-r
+  
+  w <- strsplit(w, "(?<=[a-z])(?=[A-Z])", perl = TRUE)
+  w <- paste(unlist(w), collapse = " ")         # Unlisting again
+  ifelse(w == character(0), " ", w)
+  hashtags_expanded[i] <- w
+  }
+
+# Let's expand "MAGA" as "Make America Great Again".
+hashtags_fully_expanded <- hashtags_expanded
+hashtags_fully_expanded <- 
+  str_replace_all(hashtags_fully_expanded, 
+                  "MAGA", "Make America Great Again")
+
+# Let's add hashtages, expanded hashtags and fully expanded hashtags to data frame train_tweets. 
+train_tweets$hashtags <- hashtags
+train_tweets$hashtags_expanded <- hashtags_expanded
+train_tweets$hashtags_fully_expanded <- hashtags_fully_expanded
+
+# Let's retrieve hashtags from the feature text.
+train_tweets$text <- str_remove_all(train_tweets$text, "#\\S+")
+
+# Let's also isolate "link_placeholder" into a separate feature.
+# First retrieving "link_placeholder" into a list.
+l <- str_extract_all(train_tweets$text, "link_placeholder")
+
+# Then unlisting list of "link_placeholder" into character vector.
+for (i in seq_along(l)) {
+  l[i] <- paste(unlist(l[i]), collapse = " ")    
+  ifelse(l[i] == character(0), " ", l[i]) 
+}
+l <- unlist(l)
+
+# Then inserting the vector into the data frame.
+train_tweets$link_placeholder <- l
+
+# Finally, removing "link_placeholder" from the feature text.
+train_tweets$text <- 
+  str_remove_all(train_tweets$text, "link_placeholder")
+```
+
+<br>
+
+Four new features have been added in the data frame *train_tweets*: 
+- hastags,
+- expanded hastags,  
+- fully expanded hashtags
+- and link_placeholder. 
+
+<br>
+
+#########################################################
+
+DEALING WITH MENTIONS
+
+Are mentions worth expanding? 
+
+Mentions are mainly comprised of proper nouns. Proper nouns do not figure in sentiment analysis lexicons and consequently cannot help in sentiment analysis. But proper nouns can impact token frequency analysis. Consequently, mentions will also be expanded. 
+
+The expansion process used for hashtags will be applied again. But it will be preceded by an additional module. Among mentions in training_tweets$text, there are often two (or sometimes three) variants of the same mention: one with lowercase only and one with a mixture of lowercase letters and uppercase letters, the latter ones being used at the beginning of (some) words. Opting for the variants with a mix of letters would boost our splitting process, which is triggered by uppercase letters following lowercase letters. Consequently, let's opt for the variants with a mix of letters. 
+
+```{r Opting for mention variants with uppercase letters}
+# Extracting all mentions into a list. 
+mentions_per_tweet <- str_extract_all(train_tweets$text, "@\\S+")
+
+# Unlisting list of mentions into character vector of mentions.
+for (i in seq_along(mentions_per_tweet)) {
+  mentions_per_tweet[i] <- 
+    paste(unlist(mentions_per_tweet[i]), collapse = " ")    
+}
+mentions_per_tweet <- unlist(mentions_per_tweet)
+
+# Let's create a character vector with all mention variants.
+mentions <- unique(paste(unlist(mentions_per_tweet), sep = " "))
+
+# Let's remove the underscore symbol. 
+surrogate <- gsub("_", "", mentions)
+
+# Hashstags (partially or totally) uppercased will be substituted
+# for hashtags all lowercased.
+
+ind_mix <-                                   # Mix of upper and
+  grep("[A-Z]", surrogate[ind], perl=TRUE)   # possible lower
+
+ind_lower <-                                 # Only lowercase 
+  setdiff(seq_along(surrogate), ind_mix)   
+
+# Preference to hashtags with mix above
+# hashtags all in lowercase letters
+hashtags_lower <- surrogate[ind_lower]
+hashtags_mix <-                            # Preference to more upper
+  sort(surrogate[ind_mix], decreasing = TRUE) 
+
+for (i in seq_along(ind_lower)) {
+  
+  for (j in seq_along(ind_mix)) {
+    
+    if(hashtags_lower[i] == tolower(hashtags_mix[j]))
+    {hashtags_lower[i] <- hashtags_mix[j]
+    }
+    
+  }
+}
+
+# Reinstating newly partially uppercased hashtags.
+surrogate[ind_lower] <- hashtags_lower
+
+# Preference to hashtags with mix above
+# hashtags all in uppercase letters
+hashtags_upper <- surrogate[ind_upper]
+
+for (i in seq_along(ind_upper)) {
+  
+  for (j in seq_along(ind_mix)) {
+    
+    if(hashtags_upper[i] == toupper(hashtags_mix[j]))
+    {hashtags_upper[i] <- hashtags_mix[j]
+    }
+    
+  }
+}
+
+# Reinstating newly partially lowercased hashtags.
+surrogate[ind_upper] <- hashtags_upper
+
+# Reinstating uppercase letter in second position
+substr(surrogate, 2, 2) <- substr(toupper(surrogate), 2, 2)
+
+# Checking
+df <- data.frame(unique, surrogate)
+df
+
+g <- grep("#GOPdebate ", train_tweets$text)
+length(g)
+train_tweets$text[g]
+```
+
+In our search for candidate predictors, let's now turn to token frequency, looking for tokens with highly differentiated frequency between Android and iPhone. What matters is big difference in absolute frequencies and not ratios [if required, more explanation].
+
+------------------------------------------------------------------
+
+# EDA of Date and Time
+
+We have already seen that date and time of each tweet has been stored in the variable *created_at*. This variable can be used as such. 
+
+Decomposition of date and time will also be performed. Resulting components will be analyzed and possible used.
+
+For each tweet, we will extract from *created_at* 
+
+- the month,
+- the week, 
+- the day,
+- the hour (in the 24-hour clock, East Coast time zone (EST)),
+- the day section (am or pm).
+
+```{r Extracting date and time components}
+
+# The function Sys.setlocale() ensures that month names 
+# are in English in the graph below. 
+# The function capture.output() encapsulates the output
+# so as to avoid un message, which is then disposed of. 
+
+dustbin <- capture.output(Sys.setlocale("LC_TIME", "English"))
+rm(dustbin)
+
+train_tweets <- train_tweets %>%
+  mutate(year = year(created_at)) %>%
+  mutate(month = floor_date(with_tz(created_at, "EST"), 
+                            unit = "month")) %>%
+  mutate(month_name = month(created_at, label = T, abbr = T)) %>%
+  mutate(week = floor_date(with_tz(created_at, "EST"), 
+                           unit = "week")) %>%
+  mutate(day = floor_date(with_tz(created_at, "EST"), 
+                          unit = "day")) %>%
+  mutate(weekday = weekdays(with_tz(created_at, "EST"), 
+                            abbreviate = TRUE)) %>%
+  mutate(hour = hour(with_tz(created_at, "EST"))) %>%
+  mutate(minute = minute(with_tz(created_at, "EST"))) %>%
+  mutate(second = second(with_tz(created_at, "EST"))) %>%
+  mutate(decimal_hour = hour + (minute / 60) + (second / 3600)) %>%
+  mutate(am_pm = ifelse(hour >= 12, "PM", "AM")) %>%
+  arrange(created_at) %>%
+  select(- minute, - second) %>%
+  select(device, everything()) 
+
+```
+
+<br>
+
+## Timing of All Tweets
+
+```{r Time graph of all tweets with distinction per device}
+
+# Reverses hour order to have zero at the bottom of the y axis.
+df <- train_tweets %>%
+  mutate(reversed_hour = 24 - decimal_hour)
+
+# The function Sys.setlocale() ensures that month names 
+# are in English in the graph below. 
+# The function capture.output() encapsulates the output
+# so as to avoid un message, which is then disposed of. 
+dustbin <- capture.output(Sys.setlocale("LC_TIME", "English"))
+rm(dustbin)
+
+graph <- df %>%
+  select(created_at, reversed_hour, device) %>%
+  ggplot(aes(created_at, reversed_hour, color = device)) +
+  geom_point(alpha = 0.5) +
+
+  # Specifies y scale.
+  
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  scale_y_continuous(breaks = seq(0, 24, 4), 
+                     labels = c("24", "20", "16", "12", "8", "4", "0")) +
+  
+  # Specifies labels.
+  labs(title = "Tweet Activity per Device",
+       y = "Hour in the 24-Hour Clock") +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold",
+                                  color = deep_blue),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 2, size = 14, 
+                                    color = deep_blue), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 0.5, 
+                                   size = 12, color = deep_blue), 
+        axis.text.y = element_text(size = 12, color = deep_blue),
+        legend.text = element_text(size = 14, face = "bold",
+                                   color = deep_blue),
+        legend.background = element_rect(fill = white),
+        legend.position = "bottom",
+        
+        # Removes the grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 2, color = deep_blue),
+        axis.ticks.y = element_line(size = 2, color = deep_blue),
+        
+        panel.border = element_rect(color = deep_blue, fill = NA, size = 2),
+        
+        # Specifies background colors. 
+        panel.background = element_rect(fill = white),
+        plot.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_color_manual(values = duo_Palette_bluishgreen_black) 
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.25, y = -0.2))
+
+for (i in 1:2) {
+  
+  # Suppresses hours for redundancy and lack of readability
+  # linked to scale parameterization complexity. 
+  
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>reversed_hour:\\s+\\d+.\\d+", 
+                "")
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+## Breakdown AM/PM
+
+Let's investigate tweet concentration in the 12-hour clock, simply separating days into am and pm. We'll work with percentages because the iPhone device has tweeted somewhat more than the Android device.
+
+```{r Graph breakdown Android iPhone in AM/PM}
+
+graph <- train_tweets %>%
+  select(device, am_pm) %>%
+  group_by(am_pm, device) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(am_pm, percent, fill = device)) +
+  geom_bar(width = 0.5, stat = "identity") +
+  scale_y_continuous(breaks = seq(0, 100, 25),
+                     labels = paste(seq(0, 100, 25), "%", sep = " ")) +
+  ggtitle("Breakdown Android/iPhone in AM and PM") +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 0.5, size = 16,
+                                   face = "bold", color = black), 
+        axis.text.y = element_text(hjust = 0.5, size = 12,
+                                   color = black),
+        legend.text = element_text(size = 14, face = "bold"),
+        
+        # Removes vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Removes axis ticks
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(color = yellow,
+                                          size = 2),
+        panel.grid.minor.y = element_line(color = yellow,
+                                          size = 2),        
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_fill_manual(values = duo_Palette_bluishgreen_black)  
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+<br>
+
+Clear-cut difference: 66 % in AM for Android, i.e. almost twice as much than iPhone. And in PM, proportions are reversed: 35 % for the Android device and 65 % for the iPhone. 
+
+This positions the breakdown AM/PM as a promising predictor in tweet attribution. Indeed, if it is a tweet tweeted in the AM part of the day, it is more probably a tweet tweeted by the Android device; if it is a tweet tweeted in the second part of the day, it is more probably from the iPhone. These proportions (66/34 or 35/65) provide useful insights with a view to predicting, with a view to tweet attribution. They are meant to measure the breakdown in AM and then in PM between the two devices. 
+They are not meant to measure the proportions between AM and PM in the activity of each device, which would be somewhat different since the iPhone tweeted some more tweets that the Android device. For readers interested in the breakdown AM/PM for each device, here is an appropriate graph. 
+
+```{r Graph am_pm 24 hour-clock}
+
+graph <- train_tweets %>%
+  select(device, am_pm) %>%
+  group_by(device, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(device, percent, fill = am_pm)) +
+  geom_bar(width = 0.5, stat = "identity") +
+  scale_y_continuous(breaks = seq(0, 100, 25),
+                     labels = paste(seq(0, 100, 25), "%", sep = " ")) +
+  ggtitle("Breakdown AM/PM for Android and iPhone") +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_blank(), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 0.5, size = 16,
+                                   face = "bold", color = black), 
+        axis.text.y = element_text(hjust = 0.5, size = 12,
+                                   color = black),
+        legend.text = element_text(size = 14, face = "bold"),
+        
+        # Removes vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Removes axis ticks
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(color = sky_blue,
+                                          size = 2),
+        panel.grid.minor.y = element_line(color = sky_blue,
+                                          size = 2),        
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_fill_manual(values = duo_Palette_vermilion_deepblue)  
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+Proportions are more balanced for the Android device, with 54 % in AM and 46 % in PM. On the contrary, proportions are steeper for the iPhone, with approximately 25 % and 75 %. This does not at all infirm the usefulness of time decompositions as candidate predictors. It simply compliments previous statements, which have already been made about the graph *Timing of All Tweets* inserted above. The Android's activity is more concentrated between 5 am and 9 am, which explains the higher proportion in am versus pm; neverteless, it remains rather widespread all over the 24-hour clock, with the exception of the hour slot between 1 am and 3 am. The iPhone's activity is concentrated in the second part of the day but is neverteless present in the first part. Actually, time decompositions remain valide candidate predictors but maybe the breakdow AM/PM is not the best one: we could try as well some hours slots such as 5 am to 9 am or pm afte 15, or hours, and also months. E.g. the breakdown between the Android device and the iPhone might be hight unbalanced in favor of the Android device during the first months.  
+
+Let's switch to the same picture per hour in the 24-hour clock. Let's investigate tweet concentration per hour in the 24-hour clock.
+
+<br>
+
+## Breakdown per Hour
+
+```{r Graph of activity per hour and per device}
+
+# Specifies tick values for x axis.
+seq_ticks_x <- seq(0, 20, 4)
+
+# Specifies tick values and labels for y axis.
+
+# First, calculating the percentages of tweet activity
+# per device and for each hour over the whole period. 
+
+buffer <- train_tweets %>%
+  select(device, hour) %>%
+  group_by(device, hour) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) 
+
+# Second, calculating the maximum percentage and the 
+# nearest even integer that is just larger.
+
+max <- max(buffer$percent)
+even_top <- ceiling(max)
+if (even_top %% 2 > 0) {
+  even_top <- even_top + 1 
+}
+
+# Third, determining y axis ticks and labels.
+seq_ticks_y <- seq(0, even_top, 2)
+labels_y <- c(paste(seq_ticks_y, "%", sep = " "))
+
+# Graph of percentages of tweet activity per device
+# per hour over the whole period. 
+
+graph <- buffer %>%
+  ggplot(aes(hour, percent, color = device)) +
+  geom_point(aes(size = percent), 
+             position = position_jitter(width = 0.3, height = 0, 
+                                        seed = 1)) +
+  # Specifies dot sizes.
+  scale_size_continuous(range = c(2, 6)) + 
+  
+  # Discards legend referring to dot sizes because that piece 
+  # of information would be redundant with y-axis labels. 
+  guides(size = "none") +
+  
+  # Specifies scales.
+  scale_x_continuous(breaks = seq_ticks_x, 
+                     labels = paste(seq_ticks_x, ".00", sep = "")) +
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), max(seq_ticks_y)),
+                     labels = labels_y) +
+
+  # Specifies labels.
+  labs(title = "Tweet Activity per Hour per Device over the Whole Period",
+       x = "") +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 16), 
+        axis.title.y = element_blank(), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 1, size = 12,
+                                   color = black), 
+        axis.text.y = element_text(size = 12, color = black),
+        legend.text = element_text(size = 14, face = "bold"),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+  
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(color = yellow,
+                                          size = 2),
+        panel.grid.minor.y = element_line(color = yellow,
+                                          size = 2),
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_color_manual(values = duo_Palette_bluishgreen_black) 
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Prevents double information about percentage when hovering. 
+# The first for loop is on the two devices.
+# The inner for loop is on the hours.
+
+for (i in 1:2) {
+
+  p$x$data[[i]]$text <- 
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>percent:\\s+\\d", "")
+  
+} 
+
+
+# Centers the graph, because the centering opts_chunk 
+# previously inserted is not operative with ggplotly().
+
+htmltools::div(p, align = "center")
+
+rm(number_false, number_true, row_number, seq_ticks, unique_identifiers)
+rm(buffer, graph, p)
+```
+
+We notice a big peak for the Android in early hours of the morning, between 6 and 9 AM (8 according to Raf). There seems to be a clear different in these patterns. 
+
+Some previous research has inferred that two different entities are using these two devices. Autonomy has also been assumed. Personnally, I do not see any proof in the graph. Is this graph incompatible with global coordination but with some lind of specialization in tasks? Concentration varies between devices, but both devices are active around the clock, at least in day averages. The Android device is We'll come back to this point later on, when we have gathered more insights Anyway, this point is not material to our objective, which is retrieving insights to better attribute tweets either to the Android device or to the iPhone device. 
+
+What matters here is the statistical representativeness of these average day schedule curves. 
+
+<br>
+
+## Day Schedule
+
+Would that mean that average day schedule is actually repetitive?
+
+Or would the day schedule vary, day after day? Or month after month? On a day-to-day basis, maybe there is some strict temporal separation between devices? 
+
+Results will be shown under the form of graphs.
+
+```{r Creating a function to produce multiple daily time schedule graphs}
+
+# Creates function building_graph_series to produce series 
+# of daily time schedule graphs. The arguments are d and sub_title. 
+# d is the sample of days that graphs have to be produced for. 
+# sub_titlte is a set of titles for the graphs to be produced. 
+
+building_graph_series <-                          
+  function(d, sub_title) {                          
+    
+    # Scale of x tick marks to be incorporated into ggplot2 graphs
+    seq_ticks_x <- seq(0, 20, 4)
+    
+    # The maximum number of tweets during one hour is useful 
+    # in order to build up a correspondence table for the y scale.
+    # It has been previously calculated using this module.
+    # buffer <- train_tweets %>%
+    #   select(id_str, day, hour) %>%
+    #   group_by(day, hour) %>%
+    #   summarise(n = n()) %>%
+    #   arrange(desc(n))
+    # max <- buffer$n[1]
+    
+    # That small module has delivered 8 as the value of max
+    # and has permitted to build up the next correspondence table 
+    # between on the one hand the maximum number of tweets 
+    # for one hour during a day and on the other hand the top grid 
+    # and the step between grids.
+    
+    tab <- data.frame(number = 0:8, 
+                      top_grid = c(4, 4, 4, 4, 8, 8, 8, 8, 10),
+                      grid_step = c(1, 1, 1, 1, 2, 2, 2, 2, 2))
+    
+    # Builds up data frame for days in d.
+    tweets_per_day <- train_tweets %>%              
+      select(device, day, hour) %>% 
+      
+      # Filters days on the basis of argument d.
+      filter(day %in% d) %>%
+      
+      group_by(device, day, hour) %>%              
+      summarize(number_of_tweets = n()) %>%
+      as.data.frame()
+
+    # Creates storage list l for the graphs to be produced.
+    l <- list(1)                                    
+                                                    
+    # For loop creating graphs for day i from argument d.
+    for (i in seq_along(d)) {                       
+                                            
+      # Filters data further for day i.
+      buffer <- tweets_per_day %>%                
+        filter(day == d[i]) %>%                     
+        as.data.frame()
+      
+      # Scale of y tick marks to be incorporated into graph
+      # referring to the correspondence table defined above
+      max <- max(buffer$number_of_tweets) + 1
+      top_grid <- tab$top_grid[max]
+      grid_step <- tab$grid_step[max]
+      seq_ticks_y <- seq(0, top_grid, grid_step)   
+      
+      # To keep mastering symbolic colors: Android's green
+      # and Apple's black (or gray but we have chosen black).
+      # To do so, let's compute the number of Android's tweets
+      # for day i: indeed, if there is no Android's tweet,
+      # an iPhone's tweet number, which alphabetically comes
+      # second, would rank first for colors ... and take 
+      # Android's green color over. 
+      temp <- buffer %>% 
+        filter(device == "Android") 
+      n_android <- nrow(temp)
+      palette <- duo_Palette_bluishgreen_black
+      if (n_android == 0) { 
+        palette <- c("black", "black")
+        }
+      
+      # For further use
+      temp <- buffer %>% 
+        filter(device == "iPhone") 
+      n_iphone <- nrow(temp)
+      
+      # Creates graph for day i.
+      graph <- buffer %>%                                                                    ggplot(aes(hour, number_of_tweets, color = device)) +
+        
+        # Creates dot gradience.
+        geom_point(aes(size = number_of_tweets)) +  
+        
+        # Specifies dot size range.
+        scale_size_continuous(range = c(4, 6)) +
+        
+        # Discards legend for dot size since dot size meaning
+        # will show on the y-axis and when hovering upon dots.
+        guides(size = "none") +    
+        
+        scale_x_continuous(breaks = seq_ticks_x, limits = c(0, 23), 
+                           labels = seq_ticks_x) +
+        
+        scale_y_continuous(breaks = seq_ticks_y, limits = c(0, top_grid),
+                           labels = seq_ticks_y) +
+
+        # Labels for graph of day i. 
+        labs(title = paste(sub_title, "-", "Day", i, ":", d[i], sep = " "),
+             x = "Hour",
+             y = "Number of Tweets",
+             color = "") +
+        
+        # Layout for day i graph
+        theme(plot.title = element_text(hjust = 0.5, vjust = 2, 
+                                        size = 16, face = "bold"),
+              axis.title.x = element_text(vjust = -1, size = 14), 
+              axis.title.y = element_text(vjust = 3, size = 14), 
+              legend.title = element_blank(),
+              axis.text.x = element_text(hjust = 1, size = 12), 
+              axis.text.y = element_text(size = 12),
+              legend.text = element_text(size = 14),
+              
+              # Removes the vertical grid lines.
+              panel.grid.major.x = element_blank(),
+              panel.grid.minor.x = element_blank(),
+        
+              # Removes y-axis ticks
+              axis.ticks.y = element_blank(),
+  
+              # Colors horizontal grid lines.
+              panel.grid.major.y = element_line(colour = white,
+                                          size = 2),
+              panel.grid.minor.y = element_line(colour = white,
+                                          size = 2),
+        
+              # Specifies background color. 
+              panel.background = element_rect(fill = yellow)) +
+        
+        # Specifies color palette for the 2 devices.
+        # If there is no tweet from the Android device 
+        # during a day that is depicted in a graph,
+        # we do not want iPhone's values to take over
+        # Android's green color: we want Apple (iPhone)
+        # to keep its black color, for visual consistency.
+        scale_color_manual(values = palette)
+        
+    # Makes the graph interactive.
+    p <- ggplotly(graph, height = 360) 
+    
+    # Prevents double information about percentage when hovering. 
+    
+    # First case scenario: there are tweets from both devices.
+    # The first for loop is on the two devices.
+    # The inner for loop is on the hours.
+
+    if (n_android > 0 & n_iphone > 0) {
+      
+    for (j in 1:2) {
+
+      p$x$data[[j]]$text <- 
+        str_replace(p$x$data[[j]]$text, 
+                    "\\<br\\s+\\/\\>number_of_tweets:\\s+\\d", "")
+  
+    } 
+    }
+    
+    # Second case scenario: there are no tweets 
+    # from one and only one device. 
+    
+    if ((n_android == 0 | n_iphone == 0) & 
+        (n_android > 0 | n_iphone > 0)) {
+      
+      p$x$data[[1]]$text <- 
+        str_replace(p$x$data[[1]]$text, 
+                    "\\<br\\s+\\/\\>number_of_tweets:\\s+\\d", "")
+      
+    }
+    
+    # Places graph i into list of graphs.
+    l[[i]] <- p 
+    
+    }                                             
+
+# Prints all graphs corresponding to day range d.     
+htmltools::tagList(l)
+
+}
+```
+
+48 day schedule graphs have been produced and analyzed:
+
+- 4 graphs picked up at random,
+- 2 graphs with the top days in global activity,
+- 2 graphs with the top days in Android activity,
+- 2 graphs with the top days in iPhone activity. 
+
+For brevity reasons, not all of them will be visualized below. For illustrative purposes, ten of them are reproduced below: 
+
+- 4 graphs picked up at random,
+- 2 graphs with the top days in global activity,
+- 2 graphs with the top days in Android activity,
+- 2 graphs with the top days in iPhone activity.
+
+Conclusions drawn on the basis of the 48 graphs or on the basis of the 10 graphs are the same. Let's examine the 10 graphs, group by group. Let's get started with the 4 graphs produced at random. 
+
+<br>
+
+```{r 12 graphs at random}
+
+# Let's determine the number of graphs.
+sample_size <- 12
+
+# Let's establish of list of days. 
+days <- unique(train_tweets$day)
+
+# Let's select days at random. 
+
+set.seed(1)
+sample_r <- sample(days, sample_size, replace = FALSE)
+
+# Let's determine the subtitle of the graphs,
+# the title being automatically generated. 
+
+sub_title <- "Random Pick"
+
+# Calls function building_graph_series 
+# to produce the 4 graphs.
+
+building_graph_series(sample_r, sub_title)
+
+rm(sample_size, days, sub_title)
+```
+
+<br>
+
+In day 1, Android activity spread in the morning and in the evening. 
+
+In day 2, as described am-pm.
+
+On day 3, Android activity spread in the morning and in the evening.
+
+On day 4, Android activity spread in the morning and in the evening, with even more in the evening; moreover, concomitance Android and iPhone!
+
+In a snapshot, days 1, 3 and 4, the Android device was active in the am and in the pm period. Moreover, during day 4, the Android's activity was concomitant in the am and in the pm period with the iPhone's activity.
+
+Conclusions were similar when drawn from a 30-day sample.
+
+Let's turn to the top activity days. First, the two top activity days of the two devices together.  
+
+<br>
+
+```{r graphs of the 2 top actitiy days of the 2 devices taken together}
+
+# Let's build up a sample based on 
+# global tweet activity per day, called 
+# sample_g, g standing for "global tweet activity".
+
+sample_size <- 2
+
+sample_g <- train_tweets %>%
+  select(day) %>% 
+  
+  # Prevents picking a day already addressed above.
+  filter(!day %in% sample_r) %>%
+  
+  group_by(day) %>% 
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  head(., sample_size) 
+
+# Keeps the 2 top days for printed graphs.  
+d <- sample_g$day 
+
+sub_title <- "Top Tweet Activity"
+
+# Calls the function building_graph_series
+# to produce the two graphs. 
+building_graph_series(d, sub_title)
+
+rm(sample_size, d, sub_title)
+```
+
+<br>
+
+```{r 2 graphs of top Android actitiy days}
+
+# Vector of days
+days <- unique(train_tweets$day)
+
+# Excluding the 2 day vectors previously used.
+
+# Let's build up a sample based on global tweet activity per day,
+# called sample_g, a being for "Android tweet activity".
+sample_size <- 2
+sample_a <- train_tweets %>%
+  filter(device == "Android") %>%
+  select(day) %>%  
+  filter(!day %in% sample_r & 
+           !day %in% sample_g$day) %>%
+  group_by(day) %>% 
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  head(., sample_size) 
+
+# Keeping the 2 top days for printed graphs.  
+d <- sample_a$day
+
+sub_title <- "Top Android's Activity"
+
+building_graph_series(d, sub_title)
+
+rm(sample_size, d, days)
+```
+
+<br>
+
+```{r 2 graphs of top iPhone actitiy days}
+
+# Vector of days
+days <- unique(train_tweets$day)
+
+# Let's build up a sample based on global tweet activity per day,
+# called sample_i, i being for "iPhone tweet activity".
+sample_size <- 2
+sample_i <- train_tweets %>%
+  filter(device == "iPhone") %>%
+  select(day) %>%  
+  filter(!day %in% sample_r & 
+           !day %in% sample_g$day &
+           !day %in% sample_a$day) %>%
+  group_by(day) %>% 
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  head(., sample_size) 
+
+# Keeping the 2 top days for printed graphs.  
+d <- sample_i$day
+
+sub_title <- "Top iPhone's Activity"
+
+building_graph_series(d, sub_title)
+
+rm(sample_size, d, days)
+```
+
+<br>
+
+```{r Cleaning up}
+
+rm(sample_a, sample_g, sample_i, sample_r)
+```
+
+Visual evidence provided by the 10 day schedule graphs suggests rather great variety in day schedule away from average day schedules per device. 
+
+Let's get broader insights about dayly time schedule, using the whole dataset. We've illustrated variety, let's now illustrate proximity.  
+
+<br> 
+
+## Hour Slots
+
+```{r Intermingling measurement bi-device time slots}
+
+df <- train_tweets %>%                            # Temporary data frame
+  select(device, id_str, created_at, hour)  
+
+df_android <- df %>%                              # Android only
+  filter(device == "Android") %>%                  
+  select(- device)
+
+df_iphone <- df %>%                               # iPhone only
+  filter(device == "iPhone") %>%
+  select(- device)
+
+df1 <- df_android
+df2 <- df_iphone
+hour_slots_duration <- 1:4
+str(data.frame(matrix(1:16, nrow = 4, ncol = 4) * 1))
+output <- data.frame(matrix(1:16, nrow = 4, ncol = 4) * 1) %>%
+  `row.names<-`(c("Android Tweets coexisting in Same Hour Slot 
+                  with iPhone Tweet(s)", 
+                  "iPhone Tweets coexisting in Same Hour Slot 
+                  with Android Tweet(s)", 
+                  "TOTAL", 
+                  "% of Training Set")) %>%
+  `colnames<-`(c(paste0(hour_slots_duration, "-hour Slot")))
+
+for (j in hour_slots_duration) {
+  
+    coex <- vector(mode = "character", length = 0)
+
+    for (i in 1:nrow(df1)) {
+      
+      date_ref <- df1$created_at[i]
+      
+      temp <- df2 %>%
+        mutate(diff = difftime(created_at, date_ref, 
+                               units = "hours"))
+
+      diff_pos <- which(temp$diff > 0 & temp$diff <= j)
+      
+      diff_neg <- which(temp$diff < 0 & temp$diff >= -j) 
+      
+      diff_zero <- which(temp$diff == 0)
+      
+      index <- append(diff_pos, diff_neg) 
+      index <- append(index, diff_zero)
+  
+      if(length(index) > 0) {
+        prox <- append(df1$id_str[i], df2$id_str[index])
+        coex <- append(coex, prox)
+      }
+    }
+
+    coex <- unique(coex)
+    
+    # How many from Android and from iPhone?
+    split_coex <- train_tweets %>%
+      filter(id_str %in% coex) %>%
+      select(device) %>%
+      group_by(device) %>%
+      summarise(n = n()) %>%
+      as.data.frame()
+    
+    output[[1, j]] <- split_coex$n[1]
+    output[[2, j]] <- split_coex$n[2]
+
+}
+
+# Completes dataframe "output".
+
+for (i in 1:length(hour_slots_duration)) {
+  
+  # Adds line 1 and line 2 to get total in line 3.
+  output[[3, i]] <- output[1, i] + output[2, i]
+  
+  # Computes the totals in row 3 as percentages of 
+  # number of observations in the training set. 
+  dummy <- round(output[3, i] * 100 / nrow(train_tweets), 1) 
+  dummy <- paste(dummy, "%", sep = " ")
+  output[[4, i]] <- dummy
+}
+
+# Printing table with "bg-primary" layout. 
+
+knitr::kable(output, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(df, df1, df2, output, split_coex, temp)
+rm(coex, date_ref, diff_neg, diff_pos, diff_zero, dummy)
+rm(hour_slots_duration, i, index, j, prox, sub_title)
+```
+
+<br>
+
+This is a try to quantify intermingling between Android tweets and iPhone tweets. On that basis, intermingling, proximity, has been evaluated at more than one fourth, or even on third if all tweets are taken into account.
+
+In a snapshot, day schedule has shown variety away from the average day schedule per device. On the contrary, some temporal proximity has been shown in one third of tweets in the case of 3-hour slots. 
+
+Let's remember that the hour slots are determined by taking into account the hour of the tweets, but the number of hours has a decimal part, which implies that e.g. a 3-hour slot is limited exactly to 180 minutes. 
+
+Let's also remember that the Android devices tweeted more in AM and the iPhone more in PM. Even if all iPhone's tweets had been tweeted after all Android's tweets during the same day, even in that case there would some measured proximity because e.g. Android's tweets during hour 11 a.m. would be in the same 3-hour slot as an iPhone's tweet during hour 2 p.m. So, if there had been perfect shift work during two separate parts of the day, nevertheless we woul measure such proximity. 
+
+To remedy that possible bias, let's exclude all tweets sent, let's say, after 11 a.m. and before 2 p.m.  
+
+
+```{r Intermingling_measurement bi-device time slots with break}
+
+# Intermediary data with hour slot duration 
+# plus begin and end of break
+
+hour_slots_duration <- 1:4
+break_begin <- c(12, 12, 11, 11)
+break_end <- c(13, 14, 14, 15)
+
+# Output table 
+
+output <- data.frame(matrix(1:16, nrow = 4, ncol = 4) * 1) %>%
+  `row.names<-`(c("Android Tweets coexisting in Same Hour Slot 
+                  with iPhone Tweet(s)", 
+                  "iPhone Tweets coexisting in Same Hour Slot 
+                  with Android Tweet(s)", 
+                  "TOTAL",
+                  "% of Number of Tweets")) %>%
+  `colnames<-`(c(paste0(hour_slots_duration, "-hour Slot")))
+
+# For loop on hour slot furation, begin and end of break 
+
+for (j in hour_slots_duration) {
+
+  # Excluding Android tweets tweeted during break
+  df_android_short <- df_android %>%           
+  filter(hour < break_begin[j] | hour >= break_end[j])                   
+
+  # Excluding iPhone tweets tweeted during break
+  df_iphone_short <- df_iphone %>%                 
+  filter(hour < break_begin[j] | hour >= break_end[j])                 
+
+  # Builds up new data frames after excluding break tweets.
+  df1 <- df_android_short
+  df2 <- df_iphone_short
+
+  # Intermediary output vector from for loop on tweets
+  coex <- vector(mode = "character", length = 0)
+
+  # For loop on tweets
+  
+  for (i in 1:nrow(df1)) {
+      
+    date_ref <- df1$created_at[i]
+      
+    temp <- df2 %>%
+      mutate(diff = difftime(created_at, date_ref, 
+                             units = "hours"))
+
+      diff_pos <- which(temp$diff > 0 & temp$diff <= j)
+      
+      diff_neg <- which(temp$diff < 0 & temp$diff >= -j) 
+      
+      diff_zero <- which(temp$diff == 0)
+      
+      index <- append(diff_pos, diff_neg) 
+      index <- append(index, diff_zero)
+  
+      if(length(index) > 0) {
+        prox <- append(df1$id_str[i], df2$id_str[index])
+        coex <- append(coex, prox)
+      }
+  }
+
+    coex <- unique(coex)
+    
+    # How many from Android and from iPhone?
+    split_coex <- train_tweets %>%
+    filter(id_str %in% coex) %>%
+    select(device) %>%
+    group_by(device) %>%
+    summarise(n = n()) %>%
+    as.data.frame()
+    
+    output[[1, j]] <- split_coex$n[1]
+    output[[2, j]] <- split_coex$n[2]
+    
+    # Adds line 1 and line 2 to get total in line 3.
+    output[[3, j]] <- output[1, j] + output[2, j]
+  
+    # Computes number of tweets during break.
+    break_tweets <- nrow(df_android) + 
+                    nrow(df_iphone) -
+                    nrow(df_android_short) - 
+                    nrow(df_iphone_short)
+    
+    # Number of tweets after excluding break tweets
+    nr_obs <- nrow(train_tweets) - break_tweets
+    
+    # Percentage of intermingling
+    dummy <- round(output[3, j] * 100 / nr_obs, 1)
+  
+    # Formats percentage.
+    dummy <- paste(dummy, "%", sep = " ")
+    
+    # Inserts percentage.
+    output[[4, j]] <- dummy    
+}
+
+# Printing table with "bg-primary" layout. 
+
+knitr::kable(output, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+rm(df_android, df_android_short)
+rm(df_iphone, df_iphone_short, df1, df2)
+rm(output, split_coex, temp)
+rm(break_begin, break_end, break_tweets)
+rm(coex, date_ref, diff_neg, diff_pos, diff_zero)
+rm(dummy, hour_slots_duration)
+rm(i, index, j, nr_obs, prox)
+```
+
+Actually, excluding break tweets have hardly lowered intermingling. Almost one fourth of tweets outside of breaks have in the same 2-hour slot at least one tweet from the other device. Almost 30 % of tweets outside of breaks have in the same 2-hour slot at least one tweet from the other device. 
+
+This is no statistical support for the idea of shift work. 
+
+Could hour be an effective predictor for attribution? This will be tested. The same holds for the breakdown am/pm, which will also be tested as an attribution predictor. Publication time will be used as a predictor to attribute tweets, in hour format or am-pm. 
+
+But would day schedule also vary month after month? Let's try to retrieve pre-attentive insights from drawing am-pm breakdown per month and per device. 
+
+<br>
+
+## AM/PM per month per device
+
+Maybe the percentage of AM and PM varies per month and per device. If this be the case, it might be useful to use that percentage as an attribution predictor. Let's have a look at the percentages of AM and PM for the Android device.
+
+```{r Graph AM per month for Android}
+
+seq_ticks_y <- c(0, 25, 50, 75, 100)
+labels_y <- c(paste(seq_ticks_y, "%", sep = ""))
+
+graph <- train_tweets %>%
+  filter(device == "Android") %>%
+  select(month, am_pm) %>%
+  group_by(month, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(month, percent, fill = am_pm)) +
+  geom_bar(stat = "identity") +
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), 
+                                max(seq_ticks_y)),
+                     labels = labels_y) +
+  ggtitle("AM/PM per Month for Android") +
+  labs(x = "",
+       y = "% of Tweets",
+       fill = "") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, 
+                                  face = "bold", color = white),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 14,
+                                    color = white), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 1, 
+                                   size = 12, color = white),
+        axis.text.y = element_text(size = 12, color = white),
+        legend.text = element_text(size = 14, color = white),
+        legend.background = element_rect(fill = bluish_green),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(size = 2, color = white),
+        panel.grid.minor.y = element_line(size = 2, color = white),     
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 4, color = white),
+        axis.ticks.y = element_blank(),
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = bluish_green),
+        plot.background = element_rect(fill = bluish_green)) +
+  
+  # Specifies device colors.
+
+  scale_fill_manual(values = duo_Palette_white_yellow)  
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Simplifies hover information.
+
+month_names <- c("Jun 2015", "Jul 2015", "Aug 2015", "Sep 2015", 
+                 "Oct 2015", "Nov 2015", "Dec 2015", "Jan 2016", 
+                 "Feb 2016", "Mar 2016", "Apr 2016", "May 2016",
+                 "Jun 2016", "Jul 2016", "Aug 2016", "Sep 2016", 
+                 "Oct 2016", "Nov 2016")
+
+for (i in 1:2) {
+  
+  # Suppresses month names for lack of readability.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "month:\\s+\\d+-\\d+-\\d+\\s+\\d+:\\d+:\\d+\\<br\\s+\\/\\>", 
+                "")
+  
+  # Inserts buffer sequence to be replaced at the next steps.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<", 
+                "tabulationmonthnames<")
+  
+  # Inserts tabulation instruction.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "tabulation", 
+                "\\<br \\/\\>") 
+  
+  # Inserts standardized month names.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "monthnames", 
+                paste("month: ", month_names))
+  
+}
+      
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+
+```
+
+On the graph above, we see that the percentage of AM is usually above 50 %, but there are exceptions, especially the first and the fourth periods.What about the percentages of the iPhone?
+
+```{r Graph AM per month for iPhone}
+
+seq_ticks_y <- c(0, 25, 50, 75, 100)
+labels_y <- c(paste(seq_ticks_y, "%", sep = ""))
+
+graph <- train_tweets %>%
+  filter(device == "iPhone") %>%
+  select(month, am_pm) %>%
+  group_by(month, am_pm) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(month, percent, fill = am_pm)) +
+  geom_bar(stat = "identity") +
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), 
+                                max(seq_ticks_y)),
+                     labels = labels_y) +
+  ggtitle("AM/PM per Month for iPhone") +
+  labs(x = "",
+       y = "% of Tweets",
+       fill = "") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, 
+                                  face = "bold", color = white),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 14,
+                                    color = white), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 1, 
+                                   size = 12, color = white),
+        axis.text.y = element_text(size = 12, color = white),
+        legend.text = element_text(size = 14, color = white),
+        legend.background = element_rect(fill = gray),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(size = 2, color = white),
+        panel.grid.minor.y = element_line(size = 2, color = white),     
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 4, color = white),
+        axis.ticks.y = element_blank(),
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = gray),
+        plot.background = element_rect(fill = gray)) +
+  
+  # Specifies device colors.
+
+  scale_fill_manual(values = duo_Palette_white_yellow)  
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Simplifies hover information.
+
+month_names <- c("Jun 2015", "Jul 2015", "Aug 2015", "Sep 2015", 
+                 "Oct 2015", "Nov 2015", "Dec 2015", "Jan 2016", 
+                 "Feb 2016", "Mar 2016", "Apr 2016", "May 2016",
+                 "Jun 2016", "Jul 2016", "Aug 2016", "Sep 2016", 
+                 "Oct 2016", "Nov 2016")
+
+for (i in 1:2) {
+  
+  # Suppresses month names for lack of readibility.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "month:\\s+\\d+-\\d+-\\d+\\s+\\d+:\\d+:\\d+\\<br\\s+\\/\\>", 
+                "")
+  
+  # Inserts buffer sequence to be replaced at the next steps.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<", 
+                "tabulationmonthnames<")
+  
+  # Inserts tabulation instruction.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "tabulation", 
+                "\\<br \\/\\>") 
+  
+  # Inserts standardized month names.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "monthnames", 
+                paste("month: ", month_names))
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+For the iPhone, the percentage of AM is usually below 25 %. The percentage of PM is usually above 75 %, in two thirds of periods. For the second period in particular, percenages are diametrically opposed: 62 % AM for the Android device, 13 % for the iPhone. 
+
+This predictor is worth a try.
+
+Instead of percentages of AM and PM per month and per device, it might also make sense to calculate the percentages of devices per month and per part of the day. Let's draw two graphs on that basis. 
+
+
+```{r Graph AM for both devices per month}
+
+seq_ticks_y <- c(0, 25, 50, 75, 100)
+labels_y <- c(paste(seq_ticks_y, "%", sep = ""))
+
+graph <- train_tweets %>%
+  select(device, month, am_pm) %>%
+  filter(am_pm == "AM") %>%
+  group_by(month, device) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(month, percent, fill = device)) +
+  geom_bar(stat = "identity") +
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), 
+                                max(seq_ticks_y)),
+                     labels = labels_y) +
+  ggtitle("AM per Month per Device") +
+  labs(x = "",
+       y = "% of Tweets",
+       fill = "") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, 
+                                  face = "bold", color = black),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 14, color = black), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 1, 
+                                   size = 12, color = black),
+        axis.text.y = element_text(size = 12, color = black),
+        legend.text = element_text(size = 14, color = black),
+        legend.background = element_rect(fill = white),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(size = 2, color = orange),
+        panel.grid.minor.y = element_line(size = 2, color = orange),     
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 8, color = orange),
+        axis.ticks.y = element_blank(),
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = white),
+        plot.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+
+  scale_fill_manual(values = duo_Palette_bluishgreen_black)  
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Simplifies hover information.
+
+month_names <- c("Jun 2015", "Jul 2015", "Aug 2015", "Sep 2015", 
+                 "Oct 2015", "Nov 2015", "Dec 2015", "Jan 2016", 
+                 "Feb 2016", "Mar 2016", "Apr 2016", "May 2016",
+                 "Jun 2016", "Jul 2016", "Aug 2016", "Sep 2016", 
+                 "Oct 2016", "Nov 2016")
+
+for (i in 1:2) {
+  
+  # Suppresses month names for lack of readibility.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "month:\\s+\\d+-\\d+-\\d+\\s+\\d+:\\d+:\\d+\\<br\\s+\\/\\>", 
+                "")
+  
+  # Inserts buffer sequence to be replaced at the next steps.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<", 
+                "tabulationmonthnames<")
+  
+  # Inserts tabulation instruction.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "tabulation", 
+                "\\<br \\/\\>") 
+  
+  # Inserts standardized month names.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "monthnames", 
+                paste("month: ", month_names))
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+Actually, the graph above shows something that did not appear clearly on the two graphs above this one: there is an upward trend of the percentage of iPhone tweets.
+
+During periods 1, 2, 3 and 5, the percentage of the Android device in the AM part of the day is predominant: it is more than 87 %. It is very different in the last but one or two periods, with percentages below 37 %!
+
+Actually, this does not necessarily come from the percentages of each device between AM and PM, this can also originate in the volume of tweets tweeted by each device, which can vary over time; we will check that up later on. 
+
+Let's now do the same for the PM part of the day. 
+
+
+```{r Graph PM for both devices per month}
+
+seq_ticks_y <- c(0, 25, 50, 75, 100)
+labels_y <- c(paste(seq_ticks_y, "%", sep = ""))
+
+graph <- train_tweets %>%
+  select(device, month, am_pm) %>%
+  filter(am_pm == "PM") %>%
+  group_by(month, device) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(month, percent, fill = device)) +
+  geom_bar(stat = "identity") +
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), 
+                                max(seq_ticks_y)),
+                     labels = labels_y) +
+  ggtitle("PM per Month per Device") +
+  labs(x = "",
+       y = "% of Tweets",
+       fill = "") +
+  theme(plot.title = element_text(hjust = 0.5, size = 16, 
+                                  face = "bold", color = black),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(size = 14,
+                                    color = black), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 1, 
+                                   size = 12, color = black),
+        axis.text.y = element_text(size = 12, color = black),
+        legend.text = element_text(size = 14, color = black),
+        legend.background = element_rect(fill = white),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(size = 2, color = orange),
+        panel.grid.minor.y = element_line(size = 2, color = orange),     
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 8, color = orange),
+        axis.ticks.y = element_blank(),
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = white),
+        plot.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+
+  scale_fill_manual(values = duo_Palette_bluishgreen_black)  
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Simplifies hover information.
+
+month_names <- c("Jun 2015", "Jul 2015", "Aug 2015", "Sep 2015", 
+                 "Oct 2015", "Nov 2015", "Dec 2015", "Jan 2016", 
+                 "Feb 2016", "Mar 2016", "Apr 2016", "May 2016",
+                 "Jun 2016", "Jul 2016", "Aug 2016", "Sep 2016", 
+                 "Oct 2016", "Nov 2016")
+
+for (i in 1:2) {
+  
+  # Suppresses month names for lack of readibility.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "month:\\s+\\d+-\\d+-\\d+\\s+\\d+:\\d+:\\d+\\<br\\s+\\/\\>", 
+                "")
+  
+  # Inserts buffer sequence to be replaced at the next steps.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<", 
+                "tabulationmonthnames<")
+  
+  # Inserts tabulation instruction.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "tabulation", 
+                "\\<br \\/\\>") 
+  
+  # Inserts standardized month names.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "monthnames", 
+                paste("month: ", month_names))
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+Most interesting: the upward tendency is even steeper for PM than for AM.
+
+At the very beginning, the proportion of the iPhone tweets is very low but it rather steadily increases towards 100 % in the last period. 
+
+As a partial conclusion, the proportion of each device in each part of the day seems to be a solid indicator. 
+
+Now, let's move to the month evolution in volume. 
+
+<br>
+
+## Breakdown by Weekday
+
+```{r Graph of activity per weekday and per device}
+
+# The function Sys.setlocale() ensures that month names 
+# are in English in the graph below. 
+# The function capture.output() encapsulates the output
+# so as to avoid un message, which is then disposed of. 
+
+dustbin <- capture.output(Sys.setlocale("LC_TIME", "English"))
+rm(dustbin)
+
+# Specifies tick values for x axis.
+seq_ticks_x <- seq(1, 7, 1)
+labels_ticks_x <- c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+# Specifies tick values and labels for y axis.
+
+# First, calculating the percentages of tweet activity
+# per device and for each hour over the whole period. 
+
+buffer <- train_tweets %>%
+  select(device, weekday) %>%
+  mutate(weekday = factor(weekday, levels = labels_ticks_x)) %>%
+  group_by(device, weekday) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) 
+
+# Second, calculating the maximum percentage and the 
+# nearest even integer that is just larger.
+
+max <- max(buffer$percent)
+even_top <- ceiling(max)
+if (even_top %% 2 > 0) {
+  even_top <- even_top + 1 
+}
+
+# Third, determining y axis ticks and labels.
+seq_ticks_y <- seq(0, even_top, 2)
+labels_y <- c(paste(seq_ticks_y, "%", sep = " "))
+
+# Graph of percentages of tweet activity per device
+# per hour over the whole period. 
+
+graph <- buffer %>%
+  ggplot(aes(weekday, percent, color = device)) +
+  geom_point(aes(size = percent)) +
+  # Specifies dot sizes.
+  scale_size_continuous(range = c(2, 6)) + 
+  
+  # Discards legend referring to dot sizes because that piece 
+  # of information would be redundant with y-axis labels. 
+  guides(size = "none") +
+  
+  # Specifies scales.
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), max(seq_ticks_y)),
+                     labels = labels_y) +
+
+  # Specifies labels.
+  labs(title = "Tweet Activity per Weekday per Device over the Whole Period",
+       x = "") +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 16), 
+        axis.title.y = element_blank(), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 1, size = 12,
+                                   color = black), 
+        axis.text.y = element_text(size = 12, color = black),
+        legend.text = element_text(size = 14, face = "bold"),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 14, color = black),
+        axis.ticks.y = element_blank(),
+  
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(color = yellow,
+                                          size = 2),
+        panel.grid.minor.y = element_line(color = yellow,
+                                          size = 2),
+        
+        # Specifies background color. 
+        panel.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_color_manual(values = duo_Palette_bluishgreen_black) 
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Prevents double information about percentage when hovering. 
+
+for (i in 1:2) {
+
+  p$x$data[[i]]$text <- 
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>percent:\\s+\\d+.\\d+", 
+                "")
+  
+} 
+
+
+# Centers the graph, because the centering opts_chunk 
+# previously inserted is not operative with ggplotly().
+
+htmltools::div(p, align = "center")
+
+rm(number_false, number_true, row_number, seq_ticks, unique_identifiers)
+rm(buffer, graph, p)
+
+```
+
+Useful insight: there is heavy imbalance on Sunday in favor of the Android device. Imbalance is less big on other weekdays. Even if it were only for Sunday, this looks like an interesting candidate predictor.
+
+<br>
+
+## Month Evolution by Device
+
+All datetime values have been aggregated by month. This gives chronological evolution with a strong smoothing effect. This month component will be used in this section to show activity per month and per device. 
+
+Since there are more iPhone tweets than Android tweets, for comparability reasons, activity per month could be expressed as an activity percentage per device with mutate(percent = n / sum(n)) %>%.
+  
+```{r Graph of activity per month and per device}
+
+# The function Sys.setlocale() ensures that month names 
+# are in English in the graph below. 
+# The function capture.output() encapsulates the output
+# so as to avoid un message, which is then disposed of. 
+
+dustbin <- capture.output(Sys.setlocale("LC_TIME", "English"))
+rm(dustbin)
+
+# Specifies tick values and labels for y axis.
+
+# First, calculating the percentages of tweet activity
+# per device and for each month over the whole period. 
+
+buffer <- train_tweets %>%
+  select(device, month) %>%
+  group_by(device, month) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) 
+
+# Second, calculating the maximum percentage and the 
+# nearest even integer that is just larger.
+
+max <- max(buffer$percent)
+even_top <- ceiling(max)
+
+if (even_top %% 2 > 0) {
+  even_top <- even_top + 1 
+}
+
+# Third, determining y axis ticks and labels.
+seq_ticks_y <- seq(0, even_top, 2)
+labels_y <- c(paste(seq_ticks_y, "%", sep = " "))
+
+# Graph of percentages of tweet activity per device
+# per month over the whole period. 
+
+graph <- train_tweets %>%
+  select(device, month) %>%
+  group_by(device, month) %>%
+  summarize(n = n()) %>%
+  mutate(percent = round(n * 100 / sum(n), 1)) %>%
+  ggplot(aes(month, percent, color = device)) +
+  geom_point(aes(size = percent)) +
+  scale_size_continuous(range = c(2, 6)) +         # Size of dots
+  guides(size = "none") +                          # No legend for size
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  scale_y_continuous(breaks = seq_ticks_y, 
+                     limits = c(min(seq_ticks_y), max(seq_ticks_y)),
+                     labels = labels_y) +
+  ggtitle("Tweet Activity per Month per Device") +
+  labs(x = "",
+       y = "% of Tweets per Month",
+       color = "") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 1, 
+                                   vjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 16, face = "bold"),
+        
+        # Removing vertical grid
+        panel.grid.major.x = element_blank(),     
+        panel.grid.minor.x = element_blank(),
+  
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(size = 2, color = yellow),
+        panel.grid.minor.y = element_line(size = 2, color = yellow),     
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 8, color = orange),
+        axis.ticks.y = element_blank(),
+        
+        # Colors background.
+        panel.background = element_rect(fill = white)) +
+  
+  scale_color_manual(values = duo_Palette_bluishgreen_black)
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Simplifies hover information.
+
+month_names <- c("Jun 2015", "Jul 2015", "Aug 2015", "Sep 2015", 
+                 "Oct 2015", "Nov 2015", "Dec 2015", "Jan 2016", 
+                 "Feb 2016", "Mar 2016", "Apr 2016", "May 2016",
+                 "Jun 2016", "Jul 2016", "Aug 2016", "Sep 2016", 
+                 "Oct 2016", "Nov 2016")
+
+for (i in 1:2) {
+  
+  # Suppresses month names for lack of readibility.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>month:\\s+\\d+-\\d+-\\d+", 
+                "")
+  
+  # Suppresses redundancies.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>percent:\\s+\\d+.\\d+", 
+                "")
+  
+  # Inserts standardized month names.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<", 
+                paste("\\<br \\/\\>month: ",  month_names, "\\<"))
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+<br>
+
+Interpreting curve evolution would probably require additional information; it is out of the scope of this project. 
+
+General tendency is rather similar up to July 2016: first, there is an upward tendency, up to the first trimester of 2016, then activity plummets, with the exception of July 2016 for Android; for the iPhone, activity surges again from July until October 2016; decrease in November is linked to the month period being shortened.  
+
+Moreover, in levels, at the beginning of the period, the activity of the Android device is higher than the one from the iPhone, and vice versa at the end of the period. 
+
+These differences qualify month as a candidate predictor in tweet attribution, the more so since average day schedule also varies on a monthly basis. 
+
+<br>
+
+## Provisional Conclusion
+
+Conclusions can be drawn at two levels.
+
+On the one hand, as far as tweet attribution is concerned, several predictors seem promising:
+
+- indication of hour, 
+- indication of AM and PM,
+- indication of AM and PM per month,
+- indication of customized hour slots,
+- indication of weekday,
+- indication of weekday per month,
+- indication of month,
+- indication of year.
+
+On the other hand, it should be realized that all date and time predictors can make sense because the validation set is in the same period. If the validation set were not in the same period, e.g. if it were posterior to the training set, some candidate predictors might lose their usefulness because some temporal patterns might no be reproduced in the period of the validation set. Anyway, the same holds for candidate predictors originating in NLM, Text Mining or Sentiment Analysis.
+
+<br>
+
+# Interaction 
+
+## Replies
+
+**in_reply_to_user_id_str**: The package description reads: *If a reply, the user ID of person being replied to.* It is the tweeter's action! Could make sense.We could derive at least two predictors. On the first hand, is it or is it not a reply (a binary variable)? On the second hand, the user ID of the person replied to could also be a predictor. Do we have enough IDs in *in_reply_to_user_id_str*? Is the number of unique lower enough or, in other words, is there enough concentration to make this variable an attractive predictor? Is it substantially different by device? 
+
+```{r Checking up the number of available IDs of people replied to in the variable in_reply_to_user_id_str}
+
+# Table with breakdown of tweets by device
+
+tab <- train_tweets[!is.na(train_tweets$in_reply_to_user_id_str), ] %>%
+  select(id_str, device, in_reply_to_user_id_str) %>%
+  arrange(device)
+  
+tab <- tab %>%
+  `colnames<-`(c("Tweet Identifier", 
+                 "Device", 
+                 "Number of IDs Replied to in Tweets"))
+
+# Prints table with "bg-danger" layout. 
+
+knitr::kable(tab, align = "c", table.attr = "class=\'bg-danger\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+This is limited information. There are nine tweets that were replies. Two tweets from the Android device were replies to the same account.
+
+<br>
+
+## retweet_count
+
+```{r Graph retweet_count}
+
+graph <- train_tweets %>%
+  select(device, month, retweet_count) %>%
+  group_by(device, month) %>%
+  summarise(n = n(), ret = sum(retweet_count), avg = round(ret / n, 0)) %>%
+  ggplot(aes(month, avg, color = device)) +
+  geom_point(aes(size = avg)) +
+  scale_size_continuous(range = c(2, 6)) +    
+  guides(size = "none") +    
+  scale_x_datetime(breaks= scales::breaks_width("2 months"),
+                   labels = label_date_short()) +
+  ggtitle("Retweet Activity per Month per Device") +
+  labs(x = "",
+       y = "Average of Retweets per Month",
+       color = "Device") +
+  theme(plot.title = element_text(hjust = 0.4, vjust = 3, 
+                                  size = 16, face = "bold"),
+        axis.title.x = element_text(vjust = -1, size = 14), 
+        axis.title.y = element_text(vjust = 3, size = 14), 
+        legend.title = element_text(size = 14),
+        axis.text.x = element_text(hjust = 1, 
+                                   vjust = 1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        
+        # Removes the vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+  
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(size = 2, color = yellow),
+        panel.grid.minor.y = element_line(size = 2, color = yellow),     
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 8, color = orange),
+        axis.ticks.y = element_blank(),
+        
+        # Colors background.
+        panel.background = element_rect(fill = white)) +
+          
+  scale_color_manual(values = duo_Palette_bluishgreen_black)
+  
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.2))
+
+# Simplifies hover information.
+
+month_names <- c("Jun 2015", "Jul 2015", "Aug 2015", "Sep 2015", 
+                 "Oct 2015", "Nov 2015", "Dec 2015", "Jan 2016", 
+                 "Feb 2016", "Mar 2016", "Apr 2016", "May 2016",
+                 "Jun 2016", "Jul 2016", "Aug 2016", "Sep 2016", 
+                 "Oct 2016", "Nov 2016")
+
+for (i in 1:2) {
+  
+  # Suppresses month names for lack of readibility.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>month:\\s+\\d+-\\d+-\\d+", 
+                "")
+  
+  # Suppresses redundancies.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>avg:\\s+\\d+.\\d+", 
+                "")
+  
+  # Inserts standardized month names.
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<", 
+                paste("\\<br \\/\\>month: ",  month_names, "\\<"))
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+
+```
+
+<br>
+
+Differences are very limited in average between the two devices, except for October and November 2016. Maybe it can help for both months when predicting device. 
+
+In order to have a more detailed picture, let's build up a table with all tweets from the training set.
+
+```{r Table with retweets}
+
+# Table with retweets
+
+tab <- train_tweets %>%
+  select(id_str, created_at, device, retweet_count) %>%
+  mutate(retweet_count = format(retweet_count, big.mark = " ")) %>%
+  arrange(desc(retweet_count)) %>%
+  `colnames<-`(c("Tweet Identifier", "Date and Time",
+               "Device", "Retweet Count"))
+
+# Creating the interactive data table, 
+# using the DT package. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+          
+          options = list(pageLength = 10, scrollX = T,
+                         
+          # Sets background color and font color in header.              
+                         
+            initComplete = JS(
+              "function(settings, json) {",
+              "$(this.api().table().header()).css({
+                  'background-color': '#0072B2', 
+                  'color': 'white'});", 
+              "}"),
+            
+          # Sets background color in rows.  
+            
+            rowCallback = JS(
+              'function(row, data, index, rowId) {',
+              'console.log(rowId)',
+              'if(rowId >= 0) {',
+                   'row.style.backgroundColor = "#56b4e9";','}',
+              '}')
+            )
+          )
+
+```
+
+<br>
+
+When looking at tweets from October or November 2016, we can see that tweets tweeted by the Android device have a tendency to get more retweets but there are many exceptions. Let's have a look at a graph with the retweet count of all tweets tweeted in October and November 2016.
+
+```{r Time graph of retweet count of all tweets tweeted in October and November 2016}
+
+# The function Sys.setlocale() ensures that month names 
+# are in English in the graph below. 
+# The function capture.output() encapsulates the output
+# so as to avoid un message, which is then disposed of. 
+dustbin <- capture.output(Sys.setlocale("LC_TIME", "English"))
+rm(dustbin)
+
+graph <- train_tweets %>%
+  select(created_at, device, retweet_count) %>%
+  filter(created_at > ymd("2016-09-30")) %>%
+  ggplot(aes(created_at, retweet_count, color = device)) +
+  geom_point(alpha = 0.75) +
+
+  # Specifies scales.
+  scale_x_datetime(breaks= scales::breaks_width("1 week"),
+                   labels = label_date_short()) +
+
+  # Specifies labels.
+  labs(title = "Retweet Count per Device",
+       y = "Retweet Count") +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold",
+                                  color = deep_blue),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(vjust = 2, size = 14, 
+                                    color = deep_blue), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 0.5, 
+                                   size = 12, color = deep_blue), 
+        axis.text.y = element_text(size = 12, color = deep_blue),
+        legend.text = element_text(size = 14, face = "bold",
+                                   color = deep_blue),
+        legend.background = element_rect(fill = white),
+        legend.position = "bottom",
+        
+        # Removes the grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 2, color = deep_blue),
+        axis.ticks.y = element_line(size = 2, color = deep_blue),
+        
+        panel.border = element_rect(color = deep_blue, fill = NA, size = 2),
+        
+        # Specifies background colors. 
+        panel.background = element_rect(fill = white),
+        plot.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_color_manual(values = duo_Palette_bluishgreen_black) 
+
+# Makes the graph interactive.
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.25, y = -0.2))
+
+for (i in 1:2) {
+  
+  # Suppresses hours for redundancy and lack of readability
+  # linked to scale parameterization complexity. 
+  
+  p$x$data[[i]]$text <-
+    str_replace(p$x$data[[i]]$text, 
+                "\\<br\\s+\\/\\>reversed_hour:\\s+\\d+.\\d+", 
+                "")
+  
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+rm(graph, p)
+```
+
+<br>
+
+Indeed, in October and beginning of November 2016, the Android device's tweets are generally reteeted more than 10,000 times while numerous iPhone's tweets were retweeted less than 10,000 times. Maybe this candidate predictor can bring some additional accuracy when predicting. 
+
+Provisional conclusion 
+######################
+
+Activity by the two devices is intermingled in the sense that there is no clear-cut separation; the busiest hour periods differ clearly on average, but on a daily basis the busiest hour periods do not systematically differ. 
+
+So, there are partial time leads and lags between devices. Would that be compatible with the hypothesis of two separate entities each using  one device? Actually, beyond the factual statement of these leads and lags, anything else is sheer speculation on the basis of information available. Moreover, the approach in this project is not at all person-related. Whether the two devices are or are not operated by the same entity or by two different entities is not material to our purposes. 
+
+The factual statement of leads and lags is used in this EDA section to characterize tweets from the two devices. In machine learning, this piece of information can be used to attribute tweets to one particular device. 
+
+---------------------------------------------------------------------------
+
+STYLOMETRY
+
+STYLO PACKAGE
+
+le package �stylo� a �t� compil� avec la version R 4.0.5
+### stylo version: 0.7.4 ###
+
+If you plan to cite this software (please do!), use the following reference:
+    Eder, M., Rybicki, J. and Kestemont, M. (2016). Stylometry with R:
+    a package for computational text analysis. R Journal 8(1): 107-121.
+    <https://journal.r-project.org/archive/2016/RJ-2016-007/index.html>
+
+To get full BibTeX entry, type: citation("stylo")
+
+https://www.kmworld.com/Articles/Editorial/Features/How-Do-Function-Words-Function-in-Text-Analytics-(Video)-131862.aspx
+
+---------------------------------------------------------------------------
+
+COLORS
+
+The first two references deal with color-blind-friendly issues. 
+
+http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/
+
+https://venngage.com/blog/color-blind-friendly-palette/#2
+
+http://www.sthda.com/english/wiki/ggplot2-themes-and-background-colors-the-3-elements
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+
+---------------------------------------------------------------------
+
+Donald Trump and Twitter – 2009 / 2021 analysis
+
+https://www.tweetbinder.com/blog/trump-twitter/
+
+------------------------------------------------------------------
+
+BASIC TEXT ANALYSIS IN R
+
+https://sicss.io/2018/materials/day3-text-analysis/basic-text-analysis/rmarkdown/Basic_Text_Analysis_in_R.html
+
+------------------------------------------------------------------
+
+tidytext package
+https://www.tidytextmining.com/
+janeaustenr package !!!!
+https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
+
+REGEX
+
+https://bookdown.org/rdpeng/rprogdatascience/regular-expressions.html
+
+Removing unwanted characters from a corpus with tm package
+
+https://community.rstudio.com/t/tm-package-removing-unwanted-characters-works-in-r-but-not-knitr/26734
+
+Extracting the 12 hour interval as am/pm values has been done using a piece of advice of Jaap's on Stack Overflow. This is interesting. But this solution has proven unstable in my workenvironnement and I have opted out of this solution and have opted into something simpler (see above).
+
+https://stackoverflow.com/questions/37896824/grouping-time-and-counting-instances-by-12-hour-bins-in-r
+
+Since you are using fixed strings, not regular expressions, you need to tell the regex engine to use the patterns as plain, literal text. With fixed().
+
+https://stackoverflow.com/questions/45828985/error-in-stri-detect-regex-in-r
+
+---------------------------------------------------------------------
+
+NLP
+
+https://cran.r-project.org/web/views/NaturalLanguageProcessing.html
+https://stackoverflow.com/questions/21533899/in-r-use-gsub-to-remove-all-punctuation-except-period/39745610
+The \\1 is syntax for the last capture in a regular expression using the () 
+It says whatever was matched, replace it with that. 
+I put only the "." and "-" in the group (), so \\1 will replace .- 
+(by the same vale), so it keeps them here. – agstudy Feb 3 '14 at 20:02
+
+https://stackoverflow.com/questions/25485298/how-to-get-words-that-end-with-certain-characters-within-each-string-r
+
+Extracting hashtags
+https://stackoverflow.com/questions/13762868/how-do-i-extract-hashtags-from-tweets-in-r
+There are two levels of parsing going on here. 
+Before the low level regexp function within str_extract 
+gets the pattern you want to search for (i.e. "#\S+") 
+it is first parsed by R. R does not recognize \S 
+as a valid escape character and throws an error. 
+By escaping the slash with \\ you tell R to pass the \ and S 
+as two normal characters to the regexp function, 
+instead of interpreting it as one escape character.
+v <- str_extract_all(train_tweets$text, "#\\S+")
+
+SPLITTING BETWEEN LOWER CASE AND UPPER CASE
+
+https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
+We can use regex lookaround to match lower case letters 
+(positive lookbehind - (?<=[a-z])) followed by upper case letters 
+(positive lookahead -(?=[A-Z]))
+
+Not used but ...
+https://cran.r-project.org/web/packages/textclean/textclean.pdf
+
+---
+
+Sorting in case insensitive way
+mentions <- mentions[order(tolower(mentions))]
+https://stackoverflow.com/questions/29890303/case-insensitive-sort-of-vector-of-string-in-r
+Thanks to lukeA
+
+---
+
+STOPWORDS PACKAGE
+
+https://www.rdocumentation.org/packages/stopwords/versions/2.2
+
+---------------------------------------------------------------------
+
+https://blog.datazar.com/first-debate-2016-sentimental-analysis-of-candidates-58d87092fc6a
+twitter authentication
+web scraping
+sentiment analysis
+simplistic in comments?
+
+https://www.kaggle.com/erikbruin/text-mining-the-clinton-and-trump-election-tweets
+awesome!
+
+LIMITS OF LEXICONS
+https://hoyeolkim.wordpress.com/2018/02/25/the-limits-of-the-bing-afinn-and-nrc-lexicons-with-the-tidytext-package-in-r/
+
+Pas moyen d'ouvrir nrc
+https://github.com/juliasilge/tidytext/issues/146
+
+Vocabulary
+
+https://www.vocabulary.com/dictionary/wrath
+
+https://www.fluentu.com/blog/english/american-english-slang-words-esl/
+This one refers to other lists. 
+
+President Trum linguistically is unadorned, oddly adolescent.
+https://www.youtube.com/watch?v=phsU1vVHOQI
+Professor John McWhorter
+He uses tags at the end of a sentence: "believe me"
+and enforcers 
+more than ever before
+more than we've seen before
+
+Informal English
+https://www.engvid.com/english-resource/formal-informal-english/
+
+Teen slang
+https://www.verywellfamily.com/a-teen-slang-dictionary-2610994
+
+---------------------------------------------------------------------
+
+STUDY ITSELF - BOOK FROM RAF
+https://books.google.be/books?id=62K-DwAAQBAJ&pg=PA459&lpg=PA459&dq=str_replace_all(text,+https://t.co/%5BA-Za-z%5C%5Cd%5D%2B%7C%26amp;,+)&source=bl&ots=bDWhUw2slL&sig=ACfU3U3Kvhh-parwC0mYLod1HL_yvlWLnQ&hl=en&sa=X&ved=2ahUKEwiGycS7pNHpAhXElqQKHR7RDvcQ6AEwAHoECAoQAQ#v=onepage&q=str_replace_all(text%2C%20https%3A%2F%2Ft.co%2F%5BA-Za-z%5C%5Cd%5D%2B%7C%26amp%3B%2C%20)&f=false
+
+Todd Vaziri
+https://twitter.com/tvaziri/status/762005541388378112
+
+David Robinson
+http://varianceexplained.org/r/trump-tweets/
+
+Introduction to automated text analysis of other Trump's tweets
+Pablo Barbera
+July 2, 2018
+http://pablobarbera.com/social-media-upf/code/01-text-intro.html
+
+---------------------------------------------------------------------
+
+TWITTER SENTIMENT ANALYSIS
+
+https://towardsdatascience.com/twitter-sentiment-analysis-and-visualization-using-r-22e1f70f6967
+
+---------------------------------------------------------------------
+
+WORDCLOUDS
+
+Retrieving, unnesting and building up wordclouds
+https://www.littlemissdata.com/blog/wordclouds
+
+---
+
+Focused on wordclouds, with Twitter logo!
+https://cran.r-project.org/web/packages/wordcloud2/vignettes/wordcloud.html
+
+---
+
+Focused on wordclouds
+https://www.r-graph-gallery.com/196-the-wordcloud2-library.html
+
+---
+
+Wordclouds and DRACULA gutenbergr
+https://www.learningrfordatascience.com/post/dynamic-wordclouds-with-wordcloud2/
+
+----------------------------------------------------------------------
+
+GGPLOT2 IN GENERAL 
+
+http://www.sthda.com/english/wiki/ggplot2-essentials
+
+----------------------------------------------------------------------
+
+GGPLOT2 datetime scales with breaks_width() and breaks_pretty() 
+
+https://bookdown.org/Maxine/ggplot2-maps/posts/2019-11-27-using-scales-package-to-modify-ggplot2-scale/
+
+https://scales.r-lib.org/reference/breaks_pretty.html
+
+----------------------------------------------------------------------
+
+TICKS ON A DISCRETE NUMERIC X AXIS
+
+https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
+
+ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
+
+----------------------------------------------------------------------
+
+GGPLOT2 SUBTITLES
+
+hrbrmstr
+https://stackoverflow.com/questions/11724311/how-to-add-a-ggplot2-subtitle-with-different-size-and-colour
+
+----------------------------------------------------------------------
+
+GGPLOT2 SIZE OF DOT SYMBOLS
+ialm
+
+https://stackoverflow.com/questions/20251119/increase-the-size-of-variable-size-points-in-ggplot2-scatter-plot
+
+----------------------------------------------------------------------
+
+GGPLOT2 SUPPRESSING LEGEND RELATED TO geom_point(aes(size = n))
+Brandon Bertelsen
+https://stackoverflow.com/questions/4207518/how-can-i-hide-the-part-of-the-legend-using-ggplot2
+
+Actually didn't work because size grading disappeated with legend.
+
+But
+Didzis Elferts
+https://stackoverflow.com/questions/14604435/turning-off-some-legends-in-a-ggplot
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+----------------------------------------------------------------------
+
+GGPLOT2 adding border.panel without losing everything inside
+
+https://stackoverflow.com/questions/26191833/add-panel-border-to-ggplot2
+
+----------------------------------------------------------------------
+
+https://stackoverflow.com/questions/12977073/how-to-find-the-difference-between-two-dates-in-hours-in-r
+How to find the difference between two dates in hours in R?
+Thank you Andrie
+
+----------------------------------------------------------------------
+
+PLOTLY with GGPLOT2
+
+https://stackoverflow.com/questions/45801389/disable-hover-information-for-a-specific-layer-geom-of-plotly
+
+Example of modifying hover information
+
+----------------------------------------------------------------------
+
+PLOTLY with GGPLOT2
+
+https://stackoverflow.com/questions/54695153/fix-plotly-legend-position-and-disable-plotly-panel-for-shiny-in-rmarkdown
+
+Fixing plotly legend position at the bottom
+
+----------------------------------------------------------------------
+
+KNITR::KABLE()
+
+https://stackoverflow.com/questions/51418946/how-to-align-column-title-and-content-in-knitr
+
+----------------------------------------------------------------------
+
+WATERMARK
+
+http://freerangestats.info/blog/2017/09/09/rmarkdown
+
+----------------------------------------------------------------------
+
+TWITTER
+
+https://www.techwalla.com/articles/what-characters-are-allowed-in-a-twitter-name
+
+https://stackoverflow.com/questions/8451846/actual-twitter-format-for-hashtags-not-your-regex-not-his-code-the-actual
+
+https://advicemedia.com/blog/social-media/hashtags-101/
+
+https://www.hashtags.org/featured/what-characters-can-a-hashtag-include/
+
+----------------------------------------------------------------------
+
+UNDERSTAND YOUR DATA SET WITH XGBOOST
+
+https://cran.r-project.org/web/packages/xgboost/vignettes/discoverYourData.html#feature-importance
+
+----------------------------------------------------------------------
+
+PUNCTUATION
+
+https://www.thepunctuationguide.com/
+
+https://www.grammarly.com/blog/hyphens-and-dashes/
+
+https://blog.esllibrary.com/2014/09/24/punctuation-rules-parentheses/
+
+
+----------------------------------------------------------------------
+
+
+
+
+
