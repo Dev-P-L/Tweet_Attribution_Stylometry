@@ -1,0 +1,5735 @@
+---
+title: "Trump's Tweets Attribution"
+subtitle: "Philippe Lambot -- September 30, 2021"
+
+output: 
+  html_document:
+    toc: true               # TOC (table of contents) required
+    toc_depth: 2            # Depth of headers in TOC
+    number_sections: true   # Adding section numbering to headers.
+    css: styles.css         # Calling CSS file.
+    toc_float:              # Floats TOC to left of the main doc.
+      collapsed: false      # Floating TOC with levels from toc_depth.
+      smooth_scroll: true   # Controls scrolls related to TOC navigation.
+    code_folding: hide      # Includes R code but has it hidden by default.
+    highlight: espresso     # Specifies code highlighting style.
+    theme: readable         # HTML document theme 
+                            # (essentially superseded by CSS file)
+    df_print: paged         # HTML tables with support for pagination
+    smart: false            # Avoids typographical correction.
+
+# styles.css is a CSS file that regulates many layout aspects. 
+# It is lodged in the same GitHub repository as 
+# Sentiment_Analysis__Tweet_Attribution__Code.Rmd, i.e. in 
+# https://github.com/Dev-P-L/Sentiment_Analysis__Tweet_Attribution .
+
+# If you wish to run the file 
+# Sentiment_Analysis__Tweet_Attribution__Code.Rmd on your computer, 
+# I suggest placing the file
+# Sentiment_Analysis__Tweet_Attribution__Code.Rmd and styles.css 
+# in the same folder.
+
+---
+
+```{r Initial arrangement about RAM management and code verbosity and layout in addition to the rules already contained in the CSS file referred to and called above}
+
+# CLEARING UP WORKSPACE FOR RAM MANAGEMENT.
+
+# 1. Clearing plots
+invisible(if(!is.null(dev.list())) dev.off())
+
+# 2. Cleaning workspace
+rm(list=ls())
+
+# 3. Cleaning console
+cat("\014")
+
+# AVOIDING MESSAGES AND WARNINGS.
+
+# We want to avoid messages and warnings in 
+# Sentiment_Analysis__Tweet_Attribution__Insights_and_Results.html. 
+# Anyway, messages and warnings produced by the code 
+# at least on my computer have already been dealt with.
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = FALSE, 
+                      warning = FALSE)
+
+# The next opts_chunk fully deploys figures and centers them.
+
+knitr::opts_chunk$set(out.width = "100%", 
+                      fig.align = "center")
+
+# The next instruction facilitates table layout in HTML.
+
+options(knitr.table.format = "html")
+
+# The string <br> is used to generate empty lines.
+
+# Below this code chunk, there are 2 purely typographical
+# commands, just to mark a distinction with the body text. 
+# The command <center> \* </center> generates a centered asterisk.
+# The command
+# <center> \* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \* </center>
+# generates 2 asterisks separated by 5 empty space characters. 
+
+```
+
+<center> \* </center>
+<center> \* &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \* </center>
+<br>
+
+# Executive Summary
+
+**An accuracy level of ... %** has been reached in attributing tweets. 
+
+Tweets come from the account of Candidate Donald Trump during the 2016 presidential election campaign. Two devices have been used to issue tweets: an Android device and an iPhone. The challenge has been to predict the device on the validation set. 
+
+Four types of predictors have been used:
+
+- first, differences in **time patterns**, identified through **Exploratory Data Analysis**;
+- second, differences in **token frequencies** (unigrams and bigrams), brought out through **Natural Language Processing** and **Text Mining**;
+- third, differences in **sentiments** through **Sentiment Analysis**;
+- fourth, differences in sentiment intensity and especially in **hyperbolism**, quantified through **Sentiment Analysis**.
+
+The existence of differences in hyperbolism had been clearly exposed by ... For the record, ... quantified the differences in hyperbolism; our results and conclucions partially diverge from his. During the 2016 US presidential election then candidate Donald J. Trump used his tweeter account as a way to communicate with potential voters. On August 6, 2016 Todd Vaziri tweeted about Trump that "Every non-hyperbolic tweet is from iPhone (his staff). Every hyperbolic tweet is from Android (from him)." Data scientist David Robison conducted an analysis to determine if data supported this assertion. Here we go through David's analysis to learn some of the basics of text mining. 
+
+Tweet attribution has been operated through Machine Learning with one algorithm: eXtreme Gradient Boosting. Several models have been tried and their performances have been evaluated thanks to bootstrapped resampling. The performance metric has been accuracy because the proportion of tweets sent by each device is close to 50 %, which means that a baseline model would have accuracy performance hardly larger than 50 %. 
+
+On the validation set, the accuracy metric has reached ... %, ... percentage points being brought by Sentiment Analysis, ... percentage points by token frequencies and ... percentage points by time predictors.
+
+Beyond prediction performance, previous Sentiment Analysis had mentioned a larger probability ... This project shows that ... Moreover, results are diametrically different when expanding hashtags since most hashtags are in tweets issued by ... 
+
+A clear caveat should be issued: these results are based on Sentiment Analysis based on feelings associated with words. This does not at all take into account context, e.g. sarcasm, which is outside the scope of this project. This does not take on board negation either although negation can reverse sentiment polarity. To investigate that avenue, some Text Analytics has been conducted, showing that negation ...
+
+A second caveat should be clearly expressed about the scope of this project. Data originate from the R package *dslabs*, and in particular from the dataset *trump_tweets*...; the dataset *trump_tweets* has itself been built up out of ...; this means that usage of this project is limited to ... 
+
+Moreover, this project is merely technical; it expresses absolutely no political vision or standpoint; it is in no way person-related; and the author's methods, results and conclusions are only the ones explicitely expressed in this project itself, which only encompasses files lodged with the GitHub repository ...  
+
+A colorblind friendly palette has been used (please see explanations in the next section).
+
+
+TAGS: tweet attribution, time patterns, tokens, unigrams, bigrams, Natural Language Processing, Text Mining, Sentiment Analysis, lexicons, Bing, ncr, afinn, loughran, wordcloud2, comparison wordcloud, machine learning, Generalized Logistic Regression, Support Vector Machine, eXtreme Gradient Boosting, bootstrapped resampling, etc.
+
+<br>
+
+GITHUB: https://github.com/Dev-P-L/Sentiment_Analysis__Tweet_Attribution
+
+<br>
+
+# Welcoming Readers
+
+Dear Readers,
+
+For your convenience, the final document, i.e. ..., is an HTML document with all code available on demand, by pushing tag buttons on the right-hand-side of the HTML document. 
+
+Furthermore, for everyone's convenience, I have tried using color-blind-friendly colors, following pieces of advice given at 
+http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/ . The idea is to have distinguishable colors in Protan, Deutan and Tritan vision. I hope this is useful. 
+
+```{r Initial arrangement about colorblind friendly palette}
+
+# With a view to providing visual comfort to everybody,
+# colors have been picked up from the cbbPalette
+# from http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/ .
+# More specifically, the objective is to have 
+# distinguishable colors in "normal", Protan, Deutan and 
+# Tritan visions.
+
+# When used as main colors on one figure, 
+# both colors are combined in a duo palette 
+# just with orange and deep blue, the colors 
+# assigned to respectively Android and iPhone. 
+# Let's use a named vector as recommended.
+
+duo_Palette_bluishgreen_gray <- c("#009E73", "#999999")
+
+sky_blue <- "#56b4e9"
+
+deep_blue <- "#0072B2"
+
+bluish_green <- "#009E73"
+
+yellow <- "#F0E442"
+
+gray_palette <- "#999999"
+
+black <- "#000000"
+
+white <- "#ffffff"
+
+# Added outside of palette
+gray <- "gray"
+light_sky_blue <- "#f5fafe"
+
+```
+
+Code has been kept hidden by default but it can be visualized by actioning tags in the results HTML document. The code highlighting style has been chosen in the YAML in this file: the value chosen is espresso, which, to my best knowledge, takes previous pieces of advice into account and, I hope, can be read with satisfaction by everyone. If code were not readily readable, you only have to change the value of *highlight* (please see available values at ... ) in the YALM and knit it again. 
+
+You are most welcome to knit file ... to produce the document ... It only takes ... on my computer. For the record, some characteristics of my work environment are visible in the last section of this document, titled *R Session Info*. 
+
+...
+
+While knitting the file ..., I got a little bit into trouble with two tasks, and I was obviously not the only one according to complaints on the internet:
+
+- downloading the lexicon ncr from package textdata 
+- and with producing several wordcloud2 figures. 
+
+Tips found on the internet are available here and here. These tips have worked perfectly well for me. Thanks to people who helped on the internet. Here links to the internet. Great pieces of advice. 
+
+They are repeated in comments in code chunksbelow, also further in this document when using these functions and last in references. 
+
+<br>
+
+# R Packages & Data
+
+Besides the R packages related to data, *tidyverse*, Machine Learning, wordclouds, etc., there are very different packages related to texts: *textreg*, *tm*, *quanteda*, *tidytext*, *stringr*, *textdata*, etc. 
+
+```{r Downloading packages}
+
+# PACKAGE CONTAINING THE DATASET
+
+if(!require(dslabs)) install.packages("dslabs", repos = "http://cran.us.r-project.org")
+
+# PACKAGES ASSOCIATED WITH TIDYVERSE
+
+# Other packages could be added to this group but have been
+# linked to text processing.
+
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(scales)) install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if(!require(ggthemes)) install.packages("ggthemes", repos = "http://cran.us.r-project.org")
+
+# PACKAGES ASSOCIATED WITH R MARKDOWN
+
+if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
+if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
+
+# PACKAGES RELATED TO NLP, TEXT MINING OR SENTIMENT ANALYSIS
+
+# If you get into trouble while trying to access lexicon ncr
+# from package textdata, I suggest having a look at 
+# https://github.com/juliasilge/tidytext/issues/146 .
+
+if(!require(utf8)) install.packages("utf8", repos = "http://cran.us.r-project.org")
+if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
+if(!require(tm)) install.packages("tm", repos = "http://cran.us.r-project.org")
+if(!require(textreg)) install.packages("textreg", repos = "http://cran.us.r-project.org")
+if(!require(quanteda)) install.packages("quanteda", repos = "http://cran.us.r-project.org")
+if(!require(tidytext)) install.packages("tidytext", repos = "http://cran.us.r-project.org")
+if(!require(textdata)) install.packages("textdata", repos = "http://cran.us.r-project.org")
+if(!require(stopwords)) install.packages("stopwords", repos = "http://cran.us.r-project.org")
+
+# PACKAGES ASSOCIATED WITH INTERACTIVE WORDCLOUDS
+# TABLES AND GRAPHS
+
+# If you get into trouble with package and function wordcloud2,
+# I suggest having a look at 
+# https://github.com/Lchiffon/wordcloud2/issues/65 .
+
+if(!require(devtools)) install.packages("devtools", repos = "http://cran.us.r-project.org")
+if(!require(htmltools)) install.packages("htmltools", repos = "http://cran.us.r-project.org")
+if(!require(shiny)) install.packages("shiny", repos = "http://cran.us.r-project.org")
+if(!require(httpuv)) install.packages("httpuv", repos = "http://cran.us.r-project.org")
+if(!require(xtable)) install.packages("xtable", repos = "http://cran.us.r-project.org")
+if(!require(sourcetools)) install.packages("sourcetools", repos = "http://cran.us.r-project.org")
+if(!require(fastmap)) install.packages("fastmap", repos = "http://cran.us.r-project.org")
+if(!require(DT)) install.packages("DT", repos = "http://cran.us.r-project.org")
+if(!require(plotly)) install.packages("plotly", repos = "http://cran.us.r-project.org")
+
+
+# PACKAGES FOR MACHINE LEARNING
+
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(xgboost)) install.packages("xgboost", repos = "http://cran.us.r-project.org")
+
+# INFORMATIONAL PACKAGE
+
+if(!require(states)) install.packages("states", repos = "http://cran.us.r-project.org")
+
+# REQUIRING LIBRARIES
+
+library(dslabs)
+library(tidyverse)
+library(scales)
+library(lubridate)
+library(ggthemes)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+library(utf8)
+library(stringr)
+library(tm)
+library(textreg)
+library(quanteda)
+library(tidytext)
+library(textdata)
+library(stopwords)
+library(devtools)
+library(htmltools)
+library(shiny)
+library(httpuv)
+library(xtable)
+library(sourcetools)
+library(fastmap)
+library(DT)
+library(plotly)
+library(caret)
+library(xgboost)
+library(states)
+
+# FROM GITHUB
+
+if(!require(githubinstall)) install.packages("githubinstall", repos = "http://cran.us.r-project.org")
+library(githubinstall)
+
+# Emojis
+devtools::install_github("hadley/emo")
+library(emo)
+
+# Repair Tool
+# Prevents the function wordcloud2() from silently failing 
+# after the first wordcloud. For explanation, please see 
+# https://github.com/Lchiffon/wordcloud2/issues/65 .
+
+devtools::install_github("gaospecial/wordcloud2")
+library(wordcloud2)
+
+```
+
+## Data
+
+Data are downloaded from the dataset *trump_tweets* from the R package *dslabs*. Let's have a look at the features from that dataset. Here are the eight features from the dataset. 
+
+```{r Downloading data, class.output = "bg-info"}
+
+data("trump_tweets")
+
+tweets <- trump_tweets
+
+# Let's normalize the dataset into utf8. Otherwise, 
+# a problem was previously encountered with apostrophes: 
+# the difference between curly and straight apostrophes 
+# can impede stopword removal, especially so in case of 
+# contractions; moreover, it can bias token frequency counts 
+# by splitting appearances of the same token.
+
+# Thanks to SarahWeaver 
+# https://stackoverflow.com/questions/46814856/use-gsub-to-replace-curly-apostrophe-with-straight-apostrophe-in-r-list-of-chara
+
+tweets_utf8 <- tweets %>%
+  mutate(text = sapply(text, utf8_normalize, map_quote = TRUE)) %>%
+  mutate(text = str_replace_all(text, "“|”", '"'))
+
+rm(trump_tweets, tweets)
+
+# Prints data frame description with bg-info layout
+# as requested in the chunk header.
+str(tweets_utf8, vec.len = 1)
+
+```
+
+<br>
+
+Documentation is available at ?trump_tweets in an R session.
+
+Let's extract the relevant data, i.e. tweets issued by the Android device and by the iPhone. 
+
+<br>
+
+## Squeezing Data
+
+We are interested in what happened during the campaign, so for the analysis here we will focus on what was tweeted between the day Trump announced his campaign and election day. So we define the following table. Here are the eight features again, this time from the new dataset, i.e. the squeezed dataset.
+
+```{r Squeezing dataset, class.output = "bg-info"}
+
+# The device names are kept only for both devices
+# we are interested in. Moreover, they are simplified.
+
+# The tweets are kept only if they were tweeted between 
+# the day Trump announced his campaign and election day.
+
+temporary_data_set <- tweets_utf8 %>% 
+  mutate(device = str_replace_all(
+    str_replace_all(source, "Twitter for Android", "Android"), 
+    "Twitter for iPhone", "iPhone")) %>%  
+  filter(device %in% c("Android", "iPhone") &
+         created_at >= ymd("2015-06-17") & 
+         created_at < ymd("2016-11-08")) %>%  
+  select(- source)
+
+rm(tweets_utf8)
+
+# Prints data frame description with bg-info layout
+# as requested in chunk header.
+str(temporary_data_set, vec.len = 1)
+
+```
+
+<br>
+
+The table above tells us, among others, that the total number of rows is 3,950.
+
+This is only one fifth of the original dataset but the number of observations suffices in principle to apply machine learning algorithms, even if the dataset is split into training set and validation set. 
+
+Let's have a look at each variable. 
+
+**id_str** is the tweet identifier. 
+
+Is it an operational identifier: is it exclusively comprised of unique values?
+
+```{r Checking up uniqueness of identifiers}
+
+# Calculates number of observations and 
+# number of unique identifiers. 
+
+row_number <- nrow(temporary_data_set)
+unique_identifiers <- 
+  length(unique(temporary_data_set$id_str))
+
+# Table with both variables
+
+tab <- data.frame(format(row_number, big.mark = " "),
+                  format(unique_identifiers, big.mark = " ")) %>%
+  `colnames<-`(c("Number of Observations", 
+                 "Number of Unique Identifiers"))
+
+rm(row_number, unique_identifiers)
+
+# Prints table with "bg-info" layout. 
+
+knitr::kable(tab, align = "c", 
+             table.attr = "class=\'bg-info\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+The number of unique identifiers is exactly the number of tweets. Which means that the identifier has a different value for each tweet, which is a requirement for an identifier. Consequently, we'll keep this identifier.
+
+**source** The source variable tells us the device that was used to compose and upload each tweet. We already know it is a character vector. Actually, it is the dependent variable or label: tweet attribution will be attribution of tweets either to the first device or to the second one. It might be interesting to know the breakdown of tweets by device.
+
+```{r Breakdown of tweets by device}
+
+# Table with breakdown of tweets by device
+
+tab <- data.frame(temporary_data_set$device) %>%
+  group_by(temporary_data_set$device) %>% 
+  summarize(n = n(), 
+            perc = n * 100 / length(temporary_data_set$device)) %>%
+  mutate(n = format(n, big.mark = " ")) %>%
+  mutate(perc = paste(round(perc, 0), "%", sep = " ")) 
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- c("Device", 
+          "Number of Tweets by Device",
+          "Percentage of Tweets by Device")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette) 
+
+
+```
+
+<br>
+
+As shown in the table above, tweets by the iPhone are somewhat more numerous but the difference in percentage is limited.
+
+A baseline model would predict device attributing to all observations the class with the most occurrences, i.e. iPhone. This would deliver very low prediction accuracy. 
+
+Consequently, accuracy appears to be a rather satisfactory performance metric. It will be the performance metric in this project. 
+
+**text**: the tweet itself; the tweets are represented by the text variable. Actually, the tweets will produce a lot of predictors — or independent variables — such as tokens, mentions, sentiment measurements or hyperbolism measurements. Thsi will be substantially developed in the following sections.
+
+**created_at** containing the date and time at which the tweet was tweeted." 
+
+It can be essential. It can deliver several predictors such as month, day, hour, etc. Again, this will be strongly developed in further sections. 
+
+There are also two predictor candidates that relate to the tweeter's behaviour: *in_reply_to_user_id_str* and *is_retweet*. They might be good predictors. This will be investigated in the exploratory data analysis. 
+
+*is_retweet*: "A logical telling us if it is a retweet or not." We see in the table above that the first value is *FALSE*; are there any "TRUE" values? It is a matter of variability: are there enough variations in this variable? 
+
+```{r Checking for TRUE in is_retweet}
+
+# Number of FALSE/TRUE values in is_retweet 
+# in order to check up whether there are TRUE values. 
+
+number_true <- sum(temporary_data_set$is_retweet)
+number_false <- 
+  length(temporary_data_set$is_retweet) - number_true
+
+# Tab with number of FALSE/TRUE values in is_retweet
+
+tab <- 
+  data.frame(event = c("FALSE", "TRUE"), 
+             number = c(number_false, number_true)) %>%
+  mutate(number = format(number, big.mark = " ")) %>%
+  `colnames<-`(c("Is the Tweet Actually a Retweet?",
+                      "Number of Tweets"))
+
+rm(number_true, number_false)
+
+# Prints table with bg-info layout.
+
+knitr::kable(tab, align = "c", 
+             table.attr = "class=\'bg-info\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+We can see that there is no TRUE value. This won't be investigated any further. This variable will be excluded since all values are *FALSE* and there is no variation.   
+
+There can be some copy-paste inside of tweets, though. Could that be identified on the basis of quotes? This is a matter of analysis of the variable *text*, of the tweets themselves; it is a matter of content analysis; it will be done in the exploratory data analysis (EDA) on the training set on not on the part of the dataset that will become the validation set. 
+
+*retweet_count*: "How many times tweet had been retweeted at time dataset was created." 
+
+Would it make sense? Attribution would be made partially on the basis of other people's reactions! It is also dependent on the inventory date! It can prove an impactful predictor.
+
+*favorite_count* is a problem similar to that of retweet_count.
+
+As far as the last two variables are concerned, there could be prediction with them as predictors and one without them. This will be further investigated in the exploratory data analysis.
+
+<br>
+
+## Training Set
+
+What about the training set?
+
+In the previous section, we have noticed that the number of observations is almost 4,000 and the breakdown by device is almost even.
+
+Let's take a prudent approach when splitting data in order to preemptively avoid suboptimal representation.
+
+The number of rows suffices to reach statistical representativeness even in case of splitting into training set and validation set. It would be unadvisable to split more finely between training set, test set and validation set, though: this would further reduce the size of samples and, anyway, training set model optimization can be readily operated through e.g. bootstrapped resampling. 
+
+The splitting proportion will be two thirds for the training set and one third for the validation set. What's the number of tweets by device in the training set?
+
+```{r Splitting into training and validation sets and counting tweets by device}
+
+# Creating the index of the validation set at random.
+
+set.seed(1)
+ind_val <- 
+  createDataPartition(y = temporary_data_set$device, times = 1, 
+                      p = 1/3, list = FALSE)
+
+# Deducting the index of the training set.
+ind_train <- as.integer(setdiff(1:nrow(temporary_data_set), ind_val))
+
+# Creating the training set.
+train_utf8 <- temporary_data_set[ind_train, ]
+
+# The validation set will be created at the very end of this project
+# for the validation phase.  
+
+# The indexes are saved locally with the function write_csv()
+# and on https://github.com/Dev-P-L
+write_csv(as.data.frame(ind_val), "ind_val.csv")
+write_csv(as.data.frame(ind_train), "ind_train.csv")
+
+rm(temporary_data_set, ind_val)
+
+# Table with tweet count by device
+
+tab <- train_utf8 %>% 
+  group_by(device) %>%
+  summarise(n = n()) %>%
+  mutate(n = format(n, big.mark = " ")) 
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- 
+  c("Device",
+    "Number of Tweets by Device in the Training Set")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette) 
+
+```
+
+<br>
+
+# Way Forward
+
+Now, let's get insights from the four groups of predictors:
+
+- publication time: *created_at*,
+- interaction: *in_reply_to_user_id_str*, *retweet_count* and *favorite_count*,
+- token frequencies in *text*,
+- sentiment nature and intensity in *text*.
+
+About date and time, we will conduct Exploratory Data Analysis (EDA),  exploring whether various predictors would seem relevant; morevoer, it will be an opportunity to check up whether each device's timing is so different from the other one that shift work is highly probable.
+
+About interaction, we'll check up whether each candidate for predictor shows significant variation from one device to the other. 
+
+Through Natural Language Processing (NLP) and Text Mining, token frequencies will be scrutinized. Do we habe significant differences between devices? Are differences stable or do they modify over time? Tokens can also be proper nouns, data (a device could possibly use more data), symbols (e.g. #1 can more frequent with one device, mentions and links. Mentions will also be split. MAGA will be explicited and split; we will check whether this impacts predictive power or not.
+
+Sentiment analysis will be conducted. Words will be linked to sentiments, on the basis of preexisting sentiment files. They will also be ranked as positively polarized words or negatively polarized words and in intensity, once again on the basis of a preexisting file. Word intensity will be a criterion to measure up hyperbolism. Predictive power will be checked, as well for sentiments as for positiveness and negativeness and as for hyperbolism.
+
+<br>
+
+# EDA
+
+Let's try to obtain some pre-emptive insights into tweets in order to better construct candidate predictors for tweet attribution. 
+
+<br>
+
+## Introduction 
+
+The tidytext package helps us convert from text into a tidy table. Having the data in this format greatly facilitates data visualization and applying statistical techniques.
+
+The main function needed to achieve this is unnest_tokens. A token refers to the units that we are considering to be a data point. The most common tokens will be words, but they can also be single characters, ngrams, sentences, lines or patterns defined by a regex. The functions will take a vector of strings and extract the tokens so that each one gets a row in the new table. 
+
+Note that the function tries to convert tokens into words and strips characters important to twitter such as # and @. A token in twitter is not the same as in regular english. For this reason instead of using the default, words, we define a regex that captures twitter character. The pattern appears complex but all we are defining is a patter that starts with @, # or neither and is followed by any combination of letter or digits.
+
+The first thing will be the number of hashtags, of mentions and of links to pictures. 
+
+OBJECTIVES
+
+We've got several and very different intermediary objectives, but the final objective is the same, i.e. attributing tweets to devices.
+
+Intermediary objectives:
+- words with high frequencies for one device and only a few ones (or at least fewer ones) for the other device;
+- sentiments with high occurrence for one device and low occurrence (or at least lower) for the other one. 
+
+In a first step, for both intermediary objectives, we do not necessarily need to discard stopwords. Why?
+
+As far as sentiments are concerned, actually, there will be matching between the file (or files) of words from the tweets and the lexicons encompassing words supposedly liked to sentiments. If stopwords do not match any lexicon word, they will be discarded anyway. Moreover, discarding stopwords before matching could be couterproductive: some stopwords from some lists appear in some lexicons, e.g. "great"! Two examples! 
+
+As far as word frequencies are concerned, the same reasoning holds, mutatis mutandis: if for some stopwords frequencies differ between devices, that can be effectual while attributing tweets. 
+
+For sentiment, comparison strategy is simple: simple matching between lists of words and lexicon lists; selecting sentiments with diverging frequencies and high frequencies for one device. 
+
+For words, comparison strategy is a bit more complex: comparing frequencies between devices; selecting words with diverging frequencies and high frequencies for one device. 
+
+Actually, the criterion is not so much about percentage comparison, it is much more about absolute occurrence. If word frequencies are 10 for one device and 1 for the other one, OK word frequency is ten times higher for the first device, but it is not relevant on 2,633 tweets. But if word frequencies are 500 and 100, that can be significant even if ratio is "only" 5:1 instead of 10:1 in the first example. 
+
+One expansion has to be provided: not only words matter to attribute tweets, but also the frequency of 
+- hashtags, 
+- mentions,
+- links to videos,
+- the $ symbol
+- and #1 . 
+
+Before getting started with Natural Language Processing and Text Mining, let's build up some standard data sets: vectors of URLs, mentions, and hashtags; tweets without URLs and/or mentions and/or hashtags.
+
+```{r Standard data sets}
+
+# URLS
+
+# In case 2 URLs might stick to each other, let's use buffer
+# with empty space character before URLs when extracting URLs.
+buffer <- str_replace_all(train_utf8$text, "http", " http")
+
+# VECTOR OF URLS
+
+urls <- str_extract_all(buffer, "https://\\S+|http://\\S+")
+rm(buffer)
+
+# Converts a list of lists into a character vector.
+urls <- unlist(urls)
+
+# Drops punctuation at the end of extractions.
+urls <- str_replace_all(urls, "[:punct:]+$", "")
+
+# Keeps only unique URLs.
+urls <- unique(urls)
+
+# URLS AS REGEX PATTERN FOR TEXT MINING
+
+# Escape characters in front of question marks in URLs.
+urls_with_question_marks <- 
+  str_replace_all(urls, "\\?", "\\\\?")
+
+# URLs assembled into a REGEX pattern for Text Mining
+urls_as_pattern <- 
+  paste(urls_with_question_marks, "|", sep = "", collapse = "")
+urls_as_pattern <- 
+  str_replace(urls_as_pattern, "\\|$", "")
+
+# TWEETS WITH URL PLACEHOLDER
+
+buffer <- train_utf8$text 
+
+for (i in 1:length(urls)) {
+
+  buffer <- 
+    str_replace_all(buffer, 
+                    urls_with_question_marks[i], 
+                    "URLPLACEHOLDER")
+  
+}
+
+train_utf8_no_urls <- 
+  train_utf8 %>%
+  select(id_str, device) %>%
+  mutate(text = buffer) %>%
+  select(id_str, text, device)
+
+rm(i, buffer)
+
+# NUMBER OF URL INSTANCES PER TWEET
+
+urls_count <- str_count(train_utf8$text, urls_as_pattern)
+
+# or it could be done with  
+# str_count(train_utf8_no_urls$text, "URLPLACEHOLDER")
+
+# VECTOR WITH ALL MENTIONS
+
+buffer <- train_utf8_no_urls$text
+
+mentions <- str_extract_all(buffer, "@\\w+")
+
+mentions <- unique(unlist(mentions))
+
+# MENTIONS AS REGEX PATTERN FOR TEXT MINING
+
+mentions_as_pattern <- paste(mentions, "|", sep = "", collapse = "")
+
+mentions_as_pattern <- str_replace(mentions_as_pattern, "\\|$", "")
+
+# NUMBER OF MENTION INSTANCES PER TWEET
+
+mentions_count <- str_count(buffer, mentions_as_pattern)
+
+# VECTOR OF ALL HASHTAGS
+
+hashtags <- str_extract_all(buffer, "#\\w+")
+
+hashtags <- unique(unlist(hashtags))
+
+# Discards strings #1 and #2 that are followed neither 
+# with letters, nor with digits, nor with underscore marks. 
+# Discards #1for .
+# #'s is discarded by code above, which accepts 
+# only underscore as punctuation mark after #.
+
+index1 <- str_detect(hashtags, "#1\\s|#1(?!_)[:punct:]|#1$")
+index1 <- which(index1 ==TRUE)
+
+index2 <- str_detect(hashtags, "#2\\s|#2(?!_)[:punct:]|#2$")
+index2 <- which(index2 ==TRUE)
+
+index3 <- str_detect(hashtags, "#1for")
+index3 <- which(index3 ==TRUE)
+
+index <- as.integer(c(index1, index2, index3))
+
+index <- setdiff(1:length(hashtags), index)
+
+hashtags <- hashtags[index]
+
+rm(index, index1, index2, index3)
+
+# HASHTAGS AS REGEX PATTERN FOR TEXT MINING
+
+hashtags_as_pattern <- paste(hashtags, "|", sep = "", collapse = "")
+
+hashtags_as_pattern <- str_replace(hashtags_as_pattern, "\\|$", "")
+
+# NUMBER OF URL INSTANCES PER TWEET
+
+hashtags_count <- str_count(buffer, hashtags_as_pattern)
+
+# TWEETS WITH NEITHER URLS NOR MENTIONS NOR HASHTAGS
+
+new <- str_replace_all(buffer, 
+                       mentions_as_pattern,
+                       "MENTIONPLACEHOLDER")
+
+new <- str_replace_all(new, 
+                       hashtags_as_pattern,
+                       "HASHTAGPLACEHOLDER")
+
+train_utf8_no_urls_mentions_hashtags <- 
+  train_utf8_no_urls %>%
+  mutate(text = new)
+
+rm(urls_with_question_marks, buffer, new)
+
+```
+
+Let's have a first look at Android tweets, as a first step in exploratory data analysis. 
+
+```{r Having a first look at Android tweets}
+
+tab <- 
+  train_utf8 %>% 
+  select(created_at, text, device) %>%
+  filter(device == "Android") %>%
+  select(- device) %>%
+  mutate(created_at = format(created_at, usetz = TRUE)) %>%
+  as.data.frame() %>%
+  `colnames<-`(c("DATETIME", 
+                 "TWEETS SENT BY THE ANDROID DEVICE"))
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#009E73',
+            row.style.color = 'white';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```
+
+And now, let's have a look at the same table but for the iPhone.
+
+```{r Having a first look at iPhone tweets}
+
+tab <- 
+  train_utf8 %>% 
+  select(created_at, text, device) %>%
+  filter(device == "iPhone") %>%
+  select(- device) %>%
+  mutate(created_at = format(created_at, usetz = TRUE)) %>%
+  as.data.frame() %>%
+  `colnames<-`(c("DATETIME", "TWEETS SENT BY THE IPHONE"))
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#999999',
+            row.style.color = 'white';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```
+
+Hasty conclusion with some preemptive insights.
+
+First about Android tweets:
+
+- many capitalized words,
+- MAGA expanded, capitalized and not in hashtag,
+- more mentions,
+- quotes are double ones,
+- not many urls.
+
+Second about iPhone tweets:
+
+- lots of urls, much more than in Android tweets,
+- also more hashtags, but difference might be less important,
+- MAGA expanded but in hashtags,
+- simple quotes,
+- numerous &amp,
+- rather numerous hyphens followed by empry space,
+- numerous tweets do not end with a period. 
+
+These are some differences without paying much attention to words but mainly to typography. We can go some further and pay more attention to differences in using punctuation marks ... before getting rid of punctuation marks to disentangle words. 
+
+Let's check up how much tweets from the two devices differ in occurrence of these typographical patterns. 
+
+Let's deal with URLs first.
+
+<br>
+
+## Emojis
+
+``` {r emojis count table}
+
+# Calculates a comparability factor to proportionally reduce 
+# iPhone data when comparing the two devices. We'll keep 
+# the comparability factor for further use. 
+
+temp <- 
+  train_utf8 %>%
+  mutate(device = as.factor(device)) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n())
+
+comparability_factor <- c(1, temp$n[1] / temp$n[2])
+rm(temp)
+
+# Calculates the instances of emojis with package hadley/emo.
+tab <-
+  train_utf8_no_urls_mentions_hashtags %>%
+  select(device, text) %>%
+  mutate(n = ji_count(text)) %>%
+  mutate(device = as.factor(device)) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = sum(n)) %>%
+  mutate(n_reg = round(n * comparability_factor, 0)) %>%
+  mutate(device = as.character(device))
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- c("Device", 
+          "Number of Emojis",
+          "Number Sample-adjusted")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette)
+
+```  
+
+And now tables with tweets that contain emojis
+
+``` {r Table of tweets with emojis}
+
+# Detects tweets containing emojis with package hadey/emo.
+
+tab <-
+  train_utf8_no_urls_mentions_hashtags %>%
+  select(text, device) %>%
+  mutate(ind = ji_detect(text)) 
+
+index <- which(tab$ind == TRUE)
+
+tab <- tab[index, ]
+rm(index) 
+
+# Using the package DT and more specifically the function datatable()
+# the emojis and not their code.  
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#999999',
+            row.style.color = 'White';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab, rownames = FALSE,  
+  options = 
+    list(pageLength = 10, scrollX = F,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```  
+
+
+
+## Punctuation Marks
+
+Punctuation marks can be one characteristic of a style, of a twitter. Consequently, it might be productive to pinpoint punctuation marks that are used differently by the two devices, be it in frequency, or in combination with other text components. That's a stylometry approach. Let's, on the contrary, observe punctuation patterns and try to differentiate in that field between the two devices. 
+
+We are going to work without URLs, which have been dealt with separately and they have shown huge imbalance in favor of th iPhone. URLs can contain numerous periods (full stops), or colons, or other punctuation marks; URLs would impact prediction as URLs but also as punctuation receptacles and this might obliterate the specific impact of some punctuation marks meant as punctuation marks in plain text and possibly, in some cases, imbalances in favor of the Android device, which could possibly reveal as useful co-predictors.  
+
+Let's start with single punctuation mark frequency. 
+
+```{r 1st graph about frequency of single punctuation marks}
+
+# Objects from from previous code chunk are removed here 
+# and not at the end of previous code chunk after printing 
+# in order to avoid additional tag in HTML document.
+rm(tab, initComplete, rowCallback)
+
+# Vector of punctuation marks to be detected
+ 
+single_punctuation_marks <- 
+  c(".", "…", "?", "!", ",", ":", "/", "+", "=", "$", 
+    "_", "-", "–", "—", "(", ")", '"', "'")
+
+list_of_names_single_punctuation <- 
+  c("Dot", "Ellipsis", "Question Mark", "Exclamation Mark", "Comma",
+    "Colon", "Slash", "Plus", "Equal", "Dollar", 
+    "Underscore", "Hyphen", "En Dash", "Em Dash", 
+    "Left Parenthesis", "Right Parenthesis",
+    "Double Quote", "Single Quote")
+
+# Vector of multiple punctuation marks that will be first 
+# discarded before counting single punctuation marks.
+
+to_be_discarded <- 
+  c("\\.", "\\?", "!", ",", ":", "/", "\\+", "=", "\\$", 
+    "_", "-", "–", "—", "\\(", "\\)", '\\"', "\\'")
+
+to_be_discarded <- 
+  paste(to_be_discarded, "{2,}", "|", sep = "", collapse = "")
+
+to_be_discarded <- str_replace(to_be_discarded, "\\|$", "")
+
+# Are discarded as well two special sequences: numbers followed 
+# with percentage mark and &amp; both will be treated 
+# with other special sequences below. 
+
+to_be_discarded <- 
+  paste(to_be_discarded, "\\d+%|&amp;", sep = "", collapse = "")
+
+# Discards multiple punctuation marks from tweets 
+# just for counting single punctuation marks. 
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, to_be_discarded, "")
+rm(to_be_discarded)
+
+# Receptacle data frame for numbers of instances
+
+output <- 
+  data.frame(matrix(length(single_punctuation_marks) * 3, 
+                    nrow = length(single_punctuation_marks), 
+                    ncol = 3) * 1) %>%
+  `colnames<-`(c("punct", "Android", "iPhone"))
+
+# For loop to compute the numbers of instances
+# of single punctuation marks
+
+for (i in 1:length(single_punctuation_marks)) {
+
+  occurrence_punctuation_marks <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(number = str_count(text,
+                      fixed(single_punctuation_marks[i]))) %>%
+    group_by(device) %>%
+    summarise(number = sum(number))  
+
+  output[[i, 1]] <- list_of_names_single_punctuation[i]
+  output[[i, 2]] <- occurrence_punctuation_marks$number[1]
+  output[[i, 3]] <- occurrence_punctuation_marks$number[2] 
+
+}
+
+rm(i, buffer, list_of_names_single_punctuation, 
+   occurrence_punctuation_marks)
+
+# Three presentation graphs according to size in order to 
+# foster readability.
+
+# First graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format  for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] >= 100 | .[3] >= 100) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+graph_title <- "Punctuation Usage by Device - Graph 1"
+x_title <- ""
+y_title <- "Number of Instances"
+angle <- 30
+name1 <- "Punctuation Mark"
+name2 <- "Number of Instances"
+
+# Function to produce the 3 graphs separately
+
+graphic_function <- function(data, title1, title2, title3, 
+                             angle, name1, name2) {
+  
+graph <- data %>% 
+  ggplot(aes(x = reorder(punct, -n), y = n, fill = device)) +
+  geom_bar(stat='identity', position = "dodge") +
+
+  # Specifies labels.
+  labs(title = title1,
+       x = title2,
+       y = title3) +
+  
+  theme(plot.title = element_text(hjust = 0.5, vjust = 3, 
+                                  size = 16, face = "bold",
+                                  color = deep_blue),
+        axis.title.x = element_text(vjust = 2, size = 14, 
+                                    color = deep_blue), 
+        axis.title.y = element_text(vjust = 2, size = 14, 
+                                    color = deep_blue), 
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust = 0.5, angle = angle,
+                                   size = 12, color = deep_blue), 
+        axis.text.y = element_text(size = 12, color = deep_blue),
+        legend.text = element_text(size = 14, face = "bold",
+                                   color = deep_blue),
+        legend.background = element_rect(fill = white),
+        legend.position = "bottom",
+        
+        # Removes vertical grid lines.
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        
+        # Colors horizontal grid lines.
+        panel.grid.major.y = element_line(color = sky_blue,
+                                          size = 2),
+        panel.grid.minor.y = element_line(color = sky_blue,
+                                          size = 2), 
+        
+        # Formats axis ticks.
+        axis.ticks.x = element_line(size = 25, color = deep_blue),
+        axis.ticks.y = element_blank(),
+        
+        panel.border = element_blank(),
+        
+        # Specifies background colors. 
+        panel.background = element_rect(fill = white),
+        plot.background = element_rect(fill = white)) +
+  
+  # Specifies device colors.
+  scale_fill_manual(values = duo_Palette_bluishgreen_gray) 
+
+# Makes the graph interactive.
+
+p <- ggplotly(graph, height = 500) %>%
+       layout(legend = list(orientation = "h", x = 0.3, y = -0.3),
+              hoverlabel = list(bordercolor = white))
+
+rm(graph)
+
+# Clarifies hover information.
+
+for (i in 1:2) {
+
+  p$x$data[[i]]$text <- 
+    str_replace(p$x$data[[i]]$text, 
+                "reorder\\(punct, -n\\)", 
+                name1)
+
+  p$x$data[[i]]$text <- 
+    str_replace(p$x$data[[i]]$text, "n:", paste(name2, ":", sep = ""))
+  
+  p$x$data[[i]]$text <- 
+    str_replace(p$x$data[[i]]$text, "device", "Device")
+
+}
+
+# Centers the graph, because the centering 
+# opts_chunk previously inserted is not operative 
+# in the case of the ggplotly() function.
+
+htmltools::div(p, align = "center")
+
+}
+
+graphic_function(output_partial, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+```
+
+Dot comma colon double quotation mark
+
+The two devices diverge by some punctuation marks being present very differently from a quantitative point of view. This is the case for the following punctuation marks: dots, question marks, commas, colons, slashes, dollar signs, en dashes, em dashes, opening parenthesis, closing parentheses, double quotes. Imbalances can also be quantitatively important for other punctuation marks, but nevertheless less as a procentual ratio. 
+
+There are no percentage marks because combinations of numbers directly followed with the percentage mark have been discarded; they will be treated separately, among special sequences. The same holds, *mutatis mutandis*, for the & mark because the special sequence *&amp;* has also been discarded and will also be tackled among special sequences; the same again for the semi-colon. Semi-colon appears once, & and % do not appear at all. 
+
+To be extremely accurate, let's notice that the numbers of instances could be a little revised for the underscore: the code above has discarded neither mentions nor hashtags; since the mentions and hashtags are comprised of a few underscore marks, this impacts the numbers of instances in the table above; but there is no substantial imbalance for the underscore mark between the two devices in the table above, consequently, the matter will not be investigated any further. 
+
+By the way, hyphens are numerous. There are only a few en dashes and em dashes, but all of them on the iPhone side. 
+
+Something quantitavely more important. The imbalance in double quotes was expected since we had already pinpointed that the Android device uses double quotes and that the iPhone uses single quotes: consequently, it is absolutely normal to have much more double quotes in tweets sent by the Android device than in tweets sent by the iPhone. But couldn't we expect the inverse imbalance for single quotes? Actually, no, we couldn't. Why? Because there are many short forms (contractions such as it's) on both sides. There are also genitive possessive forms ('s or s'). Consequently, there are many *single quotes* as well on the side of the Android device, well actually apostrophes. We have to eliminate these apostrophes with a view to keeping (almost) only single quotes, hopefully with a strong imbalance in favor of the iPhone. 
+
+Consequently, we will discard apostrophes from short forms and from possessive forms. A list of short forms can be extracted from a list a stopwords, e.g. a list of stopwords from the package stopwords. To the extracted short forms we will add the short form *havn't*, which is obsolete according to https://en.wiktionary.org/wiki/havn%27t . The apostrophe of this short form has to be discarded just as the apostrophes from the *standard* short forms. But since it is used only by the Android device, it will be added to other *special sequences* below.
+
+Now focus will be moved to multiple punctuation marks, i.e. several times the same punctuation mark in a row, e.g. two hyphens in a row, two dots in a row, etc. 
+
+..............................................
+
+Second graph below 100 for both above or equal to 50 for at least one of them
+
+```{r 2nd graph about frequency of single punctuation marks}
+
+# Second graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format  for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] < 100 & .[3] < 100) %>%
+  filter(.[2] >= 50 | .[3] >= 50) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+graph_title <- "Punctuation Usage by Device - Graph 2"
+x_title <- ""
+y_title <- "Number of Instances"
+angle <- 30
+name1 <- "Punctuation Mark"
+name2 <- "Number of Instances"
+
+# Graphic function defined in previous code chunk
+
+graphic_function(output_partial, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+```
+
+From a global point of view, intersting, especially opening and closing parentheses and slashes
+
+Now third graph
+
+```{r 3rd graph about frequency of single punctuation marks}
+
+# Third graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format  for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] < 50 & .[3] < 50) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+graph_title <- "Punctuation Usage by Device - Graph 3"
+x_title <- ""
+y_title <- "Number of Instances"
+angle <- 30
+name1 <- "Punctuation Mark"
+name2 <- "Number of Instances"
+
+# Graphic function defined two code chunks above
+
+graphic_function(output_partial, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+```
+
+From a global point of view, interesting from dollar. Only the iPhone is present in en dashes, em dashes and plus signs: very limited frequencies but could be a characteristic of one entity. 
+
+Double punctuation marks
+
+```{r Frequency of double punctuation marks in a row}
+
+# Removes from previous code chunk here in ordder to avoid
+# additional tag in HTML document.
+rm(output, output_partial, graph_title, x_title, y_title, 
+   angle, name1, name2, p)
+
+# Vector of double punctuation marks to be detected
+ 
+punctuation_marks <- c("..", "??", "!!", "--")
+
+list_of_names <- 
+  c("Double Dot", "Double Question Mark",
+    "Double Exclamation Mark", "Double Hyphen")
+
+# Vector of triple (or more) punctuation marks that will be first 
+# discarded before counting double punctuation marks.
+
+to_be_discarded <- c("\\.", "\\?", "!", "-")
+
+to_be_discarded <- 
+  paste(to_be_discarded, "{3,}", "|", sep = "", collapse = "")
+
+to_be_discarded <- str_replace(to_be_discarded, "\\|$", "")
+
+# Discards triple (or more) punctuation marks from tweets 
+# just for counting double punctuation marks. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, to_be_discarded, "")
+rm(to_be_discarded)
+
+# Receptacle data frame for numbers of instances
+
+output <- 
+  data.frame(matrix(length(punctuation_marks) * 4, 
+                    nrow = length(punctuation_marks), 
+                    ncol = 4) * 1) 
+
+# For loop to compute the numbers of instances
+# of double punctuation marks
+
+for (i in 1:length(punctuation_marks)) {
+
+  occurrence_punctuation_marks <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(number = str_count(text, 
+                              fixed(punctuation_marks[i]))) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  output[[i, 1]] <- list_of_names[i]
+  output[[i, 2]] <- occurrence_punctuation_marks$number[1]
+  output[[i, 3]] <- occurrence_punctuation_marks$number[2] 
+  output[[i, 4]] <- occurrence_punctuation_marks$n_reg[2]
+
+}
+
+rm(i, buffer, occurrence_punctuation_marks)
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(output) <- NULL
+
+# A new vector of column names is created. 
+
+name <- c("Double Punctuation Mark", 
+          "# Instances from Android",
+          "# Instances from iPhone",
+          "iPhone # Regularized for Size")
+
+# Assembles output and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, output) 
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE) %>%
+  column_spec(1, color = white, background = deep_blue) %>%
+  column_spec(2, color = white, background = bluish_green) %>%
+  column_spec(3, color = white, background = gray) %>%
+  column_spec(4, color = white, background = gray_palette) %>%
+  row_spec(1, color = white, background = deep_blue)
+  
+```
+
+Double hyphens shows clear imbalance and is a potential candidate predictor. Let's move to triple punctuation marks.
+
+```{r Frequency of triple punctuation marks in a row}
+
+# Vector of triple punctuation marks to be detected
+ 
+punctuation_marks <- c("...", "---")
+
+list_of_names <- c("Triple Dot", "Triple Hyphen")
+
+# Vector of quadruple (or more) punctuation marks that will be first 
+# discarded before counting double punctuation marks.
+
+to_be_discarded <- c("\\.", "\\?", "!", "-")
+
+to_be_discarded <- 
+  paste(to_be_discarded, "{4,}", "|", sep = "", collapse = "")
+
+to_be_discarded <- str_replace(to_be_discarded, "\\|$", "")
+
+# Discards quadruple (or more) punctuation marks from tweets 
+# just for counting triple punctuation marks. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, to_be_discarded, "")
+rm(to_be_discarded)
+
+# Receptacle data frame for numbers of instances
+# of triple punctuation marks
+
+output <- 
+  data.frame(matrix(length(punctuation_marks) * 4, 
+                    nrow = length(punctuation_marks), 
+                    ncol = 4) * 1) 
+
+# For loop to compute the numbers of instances
+# of triple punctuation marks
+
+for (i in 1:length(punctuation_marks)) {
+
+  occurrence_punctuation_marks <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(number = str_count(text, 
+                              fixed(punctuation_marks[i]))) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  output[[i, 1]] <- list_of_names[i]
+  output[[i, 2]] <- occurrence_punctuation_marks$number[1]
+  output[[i, 3]] <- occurrence_punctuation_marks$number[2] 
+  output[[i, 4]] <- occurrence_punctuation_marks$n_reg[2]
+
+}
+
+rm(i, buffer, occurrence_punctuation_marks)
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(output) <- NULL
+
+# A new vector of column names is created. 
+
+name <- 
+  c("Triple Punctuation Mark", 
+    "Instances from Android",
+    "Instances from iPhone",
+    "iPhone Number Size-adjusted")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, output) 
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE) %>%
+  column_spec(1, color = white, background = deep_blue) %>%
+  column_spec(2, color = white, background = bluish_green) %>%
+  column_spec(3, color = white, background = gray) %>%
+  column_spec(4, color = white, background = gray_palette) %>%
+  row_spec(1, color = white, background = deep_blue)
+
+```
+Triple hyphens seem interesting. Possibly triple dots (ellipses or suspension points or *dot-dot-dot*).
+
+what about quadruple punctuation marks?
+
+```{r Frequency of quadruple punctuation marks in a row}
+
+# Vector of quadruple punctuation marks to be detected
+ 
+punctuation_marks <- c("....", "----")
+
+list_of_names <- c("Quadruple Dot", "Quadruple Hyphen")
+
+# Vector of quintuple (or more) punctuation marks that will be first 
+# discarded before counting double punctuation marks.
+
+to_be_discarded <- c("\\.", "\\?", "!", "-")
+
+to_be_discarded <- 
+  paste(to_be_discarded, "{5,}", "|", sep = "", collapse = "")
+
+to_be_discarded <- str_replace(to_be_discarded, "\\|$", "")
+
+# Discards quintuple (or more) punctuation marks from tweets 
+# just for counting quadruple punctuation marks. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, to_be_discarded, "")
+
+# Receptacle data frame for numbers of instances
+# of quadruple punctuation marks
+
+output <- 
+  data.frame(matrix(length(punctuation_marks) * 4, 
+                    nrow = length(punctuation_marks), 
+                    ncol = 4) * 1) 
+
+# For loop to compute the numbers of instances
+# of quadruple punctuation marks
+
+for (i in 1:length(punctuation_marks)) {
+
+  occurrence_punctuation_marks <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(number = str_count(text, 
+                              fixed(punctuation_marks[i]))) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  output[[i, 1]] <- list_of_names[i]
+  output[[i, 2]] <- occurrence_punctuation_marks$number[1]
+  output[[i, 3]] <- occurrence_punctuation_marks$number[2] 
+  output[[i, 4]] <- occurrence_punctuation_marks$n_reg[2]
+
+}
+
+rm(i, buffer, occurrence_punctuation_marks)
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(output) <- NULL
+
+# A new vector of column names is created. 
+
+name <- 
+  c("Quadruple Punctuation Mark", 
+    "Number of Instances from Android",
+    "Number of Instances from iPhone",
+    "Number from iPhone Regularized for Sample Size")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, output) 
+rm(name, output)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE) %>%
+  column_spec(1, color = white, background = deep_blue) %>%
+  column_spec(2, color = white, background = bluish_green) %>%
+  column_spec(3, color = white, background = gray) %>%
+  column_spec(4, color = white, background = gray_palette) %>%
+  row_spec(1, color = white, background = deep_blue)
+
+```
+Quadruple dots might be taken into consideration.
+
+Single quotation marks are now under scrutiny.
+
+```{r Frequency of single quotes}
+
+# Removes from previous code chunk here in order to avoid
+# additional tag in HTML document.
+rm(punctuation_marks, list_of_names, output, name, tab)
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased in the package stopwords. 
+
+train_utf8_no_urls_no_apostrophes <- 
+  train_utf8_no_urls_mentions_hashtags %>%
+  select(id_str, text, device) %>%
+  mutate(text = str_to_lower(text, locale = "en"))
+
+# Let's also remove 
+# - the possessive forms 's,
+# - plural forms such as $'s, 
+# - enclosed apostrophes, in e.g. some family names like O'Reilly,
+# - apostrophes in abbreviated millenial figures,
+# - and trailing apostrophes at the end of two colloquialisms,
+# - i.e. "ya'" and "lyin'", used mainly by the Android device. 
+
+# By the way, we do not eliminate apostrophes from 
+# the possessive forms s' because at the same time
+# we would eliminate much more quotation marks. 
+# We'll tackle that later on, in a completely different way. 
+
+train_utf8_no_urls_no_apostrophes <- 
+  train_utf8_no_urls_no_apostrophes %>%
+  mutate(text = str_replace_all(text, 
+                  "([^\\s])(\\')(s)", "\\1\\3")) %>%
+  mutate(text = str_replace_all(text, 
+                  "([A-Za-z])(\\')([A-Za-z])", "\\1\\3")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(\\')(\\d{2})", "\\2")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(ya)(\\')", "\\1")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(lyin)(\\')", "\\1")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(#)(\\')(s)", "\\1\\3")) %>%
+  mutate(text = str_replace_all(text, 
+                  "(\\$)(\\')(s)", "\\1\\3"))
+
+# There can still remain apostrophes, irrespective of single 
+# quotation marks, even if their number is probably very 
+# limited. The number of single quotation marks should be 
+# an even number. 
+
+# If there is one apostrophe (e.g. in a possessive form 
+# of the type "s'" as in "parents'"), then the global number 
+# of "'" should be an odd number. In such a case, let's 
+# decrease the number of instances with one. 
+
+# Of course, this wouldn't solve the problem if there were 
+# two or three apostrophes left, but this is not very probable.
+ 
+train_utf8_no_urls_no_apostrophes <- 
+  train_utf8_no_urls_no_apostrophes %>%
+  mutate(number = str_count(text, "\\'")) 
+
+for (i in 1:nrow(train_utf8_no_urls_no_apostrophes)) {
+  
+  # If the number of ' is an odd number ...
+  if ((train_utf8_no_urls_no_apostrophes$number[i] %% 2) > 0) {
+    
+    # ... then the number is reduced with 1.
+    train_utf8_no_urls_no_apostrophes$number[[i]] <- 
+      train_utf8_no_urls_no_apostrophes$number[i] - 1
+    
+  }
+  
+}
+
+rm(i)
+
+# Now, we can compute the number of single quotation marks.
+
+tab <-
+  train_utf8_no_urls_no_apostrophes %>%
+  group_by(device) %>%
+  summarise(number = sum(number)) %>%
+  mutate(n_reg = round(number * comparability_factor, 0)) 
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- c("Device", 
+          "Number of Single Quotation Marks",
+          "Number Regularized for Sample Size")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette)
+  
+# Keeping train_utf8_no_urls_no_apostrophes for 
+# the next two code chunks.
+
+```
+
+<br>
+
+Let's check up how the rule *no odd number of single quotations* works. First, in tweets from the Android device. 
+
+```{r Showing all Android tweets keeping apostrophes or single quotation marks}
+
+index <- 
+  str_detect(train_utf8_no_urls_no_apostrophes$text, "\\'")
+
+index <- which(index == T)
+
+tab <- 
+  train_utf8_no_urls_no_apostrophes[index, ] %>%
+  filter(device == "Android") %>%
+  select(- device) %>%
+  `colnames<-`(NULL)
+
+rm(index)
+
+# Vector of column names
+
+name <- c("Identifier",
+          "Android Tweet with Remaining ' Mark",
+          "Counted as Quotation Mark")
+
+# Constructs a table, taking the vector of column names
+# as a row for formatting convenience.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green)
+
+```
+
+There are no single quotation marks. There remain one apostrophe among Android tweets in *Cruz' constitutional law professor*. *Cruz'* has been preferred to *Cruz's*. See e.g. https://www.grammar-monster.com/punctuation/apostrophe_after_z.html . In *Cruz's*, the apostrophe would have been discarded. It is not discarded in *Cruz'* but this peculiarity is compensated by the rule *no odd number of single quotations*: since the number of ' marks is one and thus an odd number, it is decreased with one and so becomes zero. 
+
+Let's now have a look at single quotation marks and remaining apostrophes among iPhone tweets. 
+
+```{r Showing all iPhone tweets with single quotation marks}
+
+index <- 
+  str_detect(train_utf8_no_urls_no_apostrophes$text, "\\'")
+
+index <- which(index == T)
+
+tab <- 
+  train_utf8_no_urls_no_apostrophes[index, ] %>%
+  filter(device == "iPhone") %>%
+  select(- device) %>%
+  `colnames<-`(c("Identifier",
+                 "iPhone Tweet with Remaining ' Marks",
+                 "Quotation Marks"))
+
+rm(index, train_utf8_no_urls_no_apostrophes) 
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#999999',
+            row.style.color = 'White';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+``` 
+
+All instances of the punctuation mark *'* are registered as quotation marks except for one instance in tweet with identifier 736410143378792448: it is an apostrophe in the possessive form included in *refugees social media accounts*. This will not impact the count of quotation marks: indeed, since the number of instances of the punctuation mark *'* is 1, i.e. an odd number, it is decreased with 1 and becomes ... zero, in accordance with our rule *no odd number of single quotations*. 
+
+<br>
+
+Grammatically distinguishing single quotes and apostrophes has lead to a promising candidate predictor: the number of single quotes, which have been used only by the iPhone in the training set tweets. Per saldo, the number of apostrophes is not so different between devices, especially so if sample size is taken into account. 
+
+As far as double quotes are concerned, not surprisingly the Android device dominates clearly, which is not surprising since it does not use the single quotes... This will be used, as a candidate predictor.
+
+Consequently, there are until now three predictors based on quotes and apostrophes: 
+
+- the number of single quotes, with sheer monopoly from the iPhone,
+- the number of apostrophes, with slight predominance from the iPhone,
+- the number of double quotes, with predominance from the Android device.
+
+These predictors have been produced by drilling down through tweets after they have been UTF-8 formatted with the option *map_quote = TRUE*, so replacing curly quotes and apostrophes with straight ones. This has simplified Exploratory Data Analysis and has fostered the splitting between single quotes and apostrophes. It has only deprived further analysis from part of the information. The hidden part of information needs fetching back now, in order to mine into increased typographical diversity. 
+
+With the option *map_quote = TRUE*, there are three typographical characters: straight single quote/apostrophe and straight double quote. Without that option, there are five characters: straight single quotes/apostrophes, curvy single quotes/apostrophes, straight double quotes, opening double quotes (curvy) and closing double quotes (curvy). 
+
+After fine tuning analysis, which is not shown here for reasons of brevity, it appears that:
+
+- the Android device only uses straight quotes and apostrophes, and never any curly ones;
+- the iPhone uses quotes and apostrophes in a mixed way, using both straight and curly single quotes/apostrophes and using both straight and curly double quotes.
+
+The piece of additional that will be used is the following one: only the iPhone uses curly quotes and apostrophes. Consequently, there will be a predictor with the whole number of all curly quotes and apostrophes, with sheer monopoly from the iPhone. Readers interested in finer break-downs could easily derive them. 
+
+What is above needs revising in a cautious way: maybe there are other characters, straight apostrophes but with a slope...
+
+After checking, in iPhone tweets, there are straight single quotes and straight apostrophes (same character) and there are curly single quotes and curly apostrophes (same character). Consequently, the typographical difference between straight and curly single quote/apostrophe was anyway no solution to differentiate single quotes and apostrophes, which has been done completely differently before. 
+
+As single character, the iPhone uses more straight ones than curly ones. 
+
+As quotes, the iPhone uses mainly single quotes but also straight double quotes and a few curly double quotes (opening ones and closing ones). 
+
+There is a clear-cut difference between the Android device and the iPhone: the Android device uses no curly quote or apostrophe. A straightforward additional predictor will be the number of curly characters per tweet. 
+
+For information, the next table shows the number of curly characters used by the iPhone in the training set tweets.
+
+``` {r Curly quotes and apostrophes}
+
+data("trump_tweets")
+tweets <- trump_tweets
+rm(trump_tweets)
+
+# The device names are kept only for both devices
+# we are interested in. Moreover, they are simplified.
+
+# The tweets are kept only if they were tweeted between 
+# the day Trump announced his campaign and election day.
+
+temporary_data_set <- tweets %>% 
+  mutate(device = str_replace_all(
+    str_replace_all(source, "Twitter for Android", "Android"), 
+    "Twitter for iPhone", "iPhone")) %>%  
+  filter(device %in% c("Android", "iPhone") &
+         created_at >= ymd("2015-06-17") & 
+         created_at < ymd("2016-11-08")) %>%  
+  select(- source)
+
+rm(tweets)
+
+# Creating the training set.
+train_no_utf8 <- temporary_data_set[ind_train, ]
+rm(temporary_data_set, ind_train)
+
+tab <- train_no_utf8 %>%
+  select(text, device) %>%
+  mutate(n = str_count(text, "’|‘|“|”")) %>%
+  mutate(device = as.factor(device)) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = sum(n)) %>%
+  mutate(device = as.character(device)) %>%
+  mutate(n_reg = round(n * comparability_factor, 0))
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- 
+  c("Device",
+    "Number of Curly Quotes/Apostrophes",
+    "Number Sample-adjusted")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette)
+
+```
+
+## Enclosed Punctuation
+
+Let's go ahead with enclosed punctuation marks. What is an enclosed punctuation mark in this project? It is simply a punctuation mark that has neither leading nor trailing empty space. 
+
+We'll work outside of URLs. We are going to work without URLs, which are comprised of numerous enclosed punctuation marks. Discarding URLs without replacing them with placeholders slightly diminishes the number of enclosed punctuation marks because of a few punctuation marks being enclosed between URLs and other parts from the tweets. These cases can be considered as proportionally rare. 
+
+```{r Number of tweets with enclosed punctuation marks outside of URLs}
+
+# Generates a random placeholder for enclosed punctuation.
+set.seed(1)
+enclosed_punctuation_placeholder <-
+  paste(sample(c(0:9, letters, LETTERS), 16), collapse = "")
+
+# Replaces enclosed punctuation with placeholder: round 1!
+text <- train_utf8_no_urls_mentions_hashtags$text
+text <- 
+  str_replace_all(text, 
+    "((?![:punct:])[\\S])([:punct:]+)((?![:punct:])[\\S])",
+    paste("\\1", enclosed_punctuation_placeholder, "\\3"))
+                  
+# In case instances of enclosed punctuation stick to each other
+# some instances can escape replacement. In e.g. S.C./N.H./N.Y.
+# only three sequences are replaced: S.C    N.H    N.Y
+# Two sequences could not be replaced: C./N    H./N
+# In order to have 5 instances of the placeholder,
+# let's launch a second replacement round.
+
+text <- 
+  str_replace_all(text, 
+    "((?![:punct:])[^\\s])([:punct:]+)((?![:punct:])[^\\s])",
+    paste("\\1", enclosed_punctuation_placeholder, "\\3"))
+
+# Data frame with enclosed punctuation being identified
+tweets_with_enclosed_punctuation <- 
+  train_utf8_no_urls_mentions_hashtags %>% 
+  select(device) %>%
+  mutate(text = text) %>%
+  mutate(index = str_count(text, enclosed_punctuation_placeholder)) 
+
+rm(enclosed_punctuation_placeholder, text)
+
+# We'll keep the data frame tweets_with_enclosed_punctuation
+# for printing in the next code chunk.
+
+# In this code chunk, let's count the number of tweets corresponding 
+# to specific numbers of instances of enclosed punctuation sequences. 
+
+df <- tweets_with_enclosed_punctuation %>%
+  select(- text) %>%
+  mutate(device = as.factor(device), 
+         index = as.factor(index)) %>%
+  group_by(device, index, .drop = FALSE) %>%
+  summarise(n = n()) %>%
+  filter(n > 12) %>%
+  
+  # Reformats for the user-defined function graphic_function().
+  mutate(punct = index) %>%
+  select(punct, device, n)
+
+# Parameters for the function graphic_function
+
+graph_title <- "Enclosed Punctuation"
+x_title <- "Number of Enclosed Punctuation Sequences per Tweet"
+y_title <- "Number of Tweets"
+angle <- 0
+name1 <- "Number of Enclosed Punctuation Sequences per Tweet"
+name2 <- "Number of Tweets"
+
+graphic_function(df, graph_title, x_title, y_title, angle, name1, name2)
+
+```
+
+The biggest imbalance in absolute numbers is for zero enclosed punctuation sequence per tweet. But imbalance are bigger in percentage for 2 or 3 enclosed punctuation sequences per tweet, the Android device being above 70 %. The number of enclosed punctuation sequences per tweet seems a valuable candidate predictor.
+
+But that is a global statistic. Statistics can be produced by type of enclosed punctuation sequence. E.g. in *S.H./N.C./N.Y.* we have five enclosed punctuation sequences: .    ./     .    ./    . 
+
+Below, we will distinguish the different punctuation marks.
+
+We are looking for even more heavily unbalanced numbers. For two, three or four enclosed punctuation sequences per tweet, there is some imbalance between the number of tweets involved by device. 
+
+Maybe we can find that in subgroups of the tweets with enclosed punctuation. In order to potentially delineate such subgroups, let's have a look at these tweets. 
+
+```{r Android tweets with enclosed punctuation marks}
+
+# Removes from previous code chunk here in order to avoid
+# additional tag in HTML document.
+rm(df, graph_title, x_title, y_title, angle, name1, name2)
+
+# Table with single enclosed punctuation marks 
+# in Android tweets
+
+tab <- train_utf8_no_urls_mentions_hashtags %>%
+  select(device, text) %>%
+  mutate(index = tweets_with_enclosed_punctuation$index) %>%
+  filter(device == "Android" & index > 0) %>%
+  select(text, index) %>%
+  `colnames<-`(c("ANDROID TWEET",
+                 "# ENCLOSED PUNCTUATION SEQUENCES"))
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#009E73',
+            row.style.color = 'White';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```
+
+Enclosed punctuation sequences are often about numbers with thousand or decimal separators, about time and date. These will be dealt with under special sequences later on. 
+
+The same presentation will be done now for the iPhone.
+
+```{r iPhone tweets with enclosed punctuation marks}
+
+# Table with single enclosed punctuation marks 
+# in iPhone tweets
+
+tab <- train_utf8_no_urls_mentions_hashtags %>%
+  select(device, text) %>%
+  mutate(index = tweets_with_enclosed_punctuation$index) %>%
+  filter(device == "iPhone" & index > 0) %>%
+  select(text, index) %>%
+  `colnames<-`(c("IPHONE TWEET",
+                 "# ENCLOSED PUNCTUATION SEQUENCES"))
+
+rm(tweets_with_enclosed_punctuation)
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#999999',
+            row.style.color = 'White';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```
+
+Apostrophes, underscores in mentions ...
+
+Punctuation marks separately
+
+```{r Frequency of single enclosed punctuation marks Graph 1}
+
+# Removes from previous code chunk here in order to avoid
+# additional tag in HTML document.
+rm(tab, initComplete, rowCallback)
+
+# For loop to calculate the occurrence of enclosed punctuation marks
+ 
+punctuation_marks <- c("\\.", "\\?", "!", ",", ":", "/", 
+                       "%", "-", "\\(", "\\)", "\\'")
+
+list_of_names <- c("Dot", "Question Mark", "Exclamation Mark",
+                   "Comma", "Colon", "Slash", "Percentage",
+                   "Hyphen", "Left Parenthesis", 
+                   "Right Parenthesis", "Single Quote")
+
+output <- 
+  data.frame(matrix(length(punctuation_marks) * 3, 
+                            nrow = length(punctuation_marks), 
+                            ncol = 3) * 1) %>%
+  `colnames<-`(c("punct", "Android", "iPhone"))
+
+for (i in 1:length(punctuation_marks)) {
+
+  buffer <- train_utf8_no_urls_mentions_hashtags$text
+  
+  buffer <- 
+    str_replace_all(buffer, 
+      paste(punctuation_marks[i], "{2,}", sep = ""),
+      "")
+  
+  pattern <- 
+    paste("(?![:punct:])[\\S]", punctuation_marks[i], 
+          "(?![:punct:])[\\S]", sep = "")
+
+  occurrence_punctuation_mark <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(number = str_count(text, pattern)) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(number = sum(number)) 
+
+  output[[i, 1]] <- list_of_names[i]
+  output[[i, 2]] <- occurrence_punctuation_mark$number[1]
+  output[[i, 3]] <- occurrence_punctuation_mark$number[2] 
+
+}
+
+rm(i, occurrence_punctuation_mark)
+
+# Two presentation graphs according to size in order to 
+# foster readability.
+
+# First graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format  for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] > 1 | .[3] > 1) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+# Parameter values for user-defined graphic_function()
+
+graph_title <- "Single Enclosed Punctuation Mark"
+x_title <- ""
+y_title <- "Number of Tweets"
+angle <- 30
+name1 <- "Punctuation Mark"
+name2 <- "Number of Tweets"
+
+# Running graphic_function()
+
+graphic_function(output_partial, graph_title, x_title, 
+                 y_title, angle, name1, name2)
+
+```
+
+Dot, comma, colon, slash, hyphen could be taken into consideration.
+
+Dot is enclosed dot. Can be enclosed in any non empty character except for dots. Further refinement with numbers, time and date.  
+
+<br>
+
+## Special sequences
+
+```{r Frequency of some special sequences Graph 1}
+
+# For loop to calculate the occurrence of special sequences
+
+special_sequences <- 
+  c("\\\n", 
+    "\\&amp;",  
+    "\\S\\)\\S",
+    "[^[:punct:]]![^[:punct:]]",
+    "[a-zA-Z]-\\s",
+    "\\s-\\s",
+    "[a-zA-Z]-[a-zA-Z]",
+    "[a-z]\\.\\s",
+    "^\\.",
+    "!$", 
+    "\\?$", 
+    "\\.$", 
+    "[:alnum:]$",
+    "\\d+",
+    "[\\s\\$]\\d{1,3},\\d{3}[\\s[:punct:][a-zA-Z]][^\\d]",
+    "[\\s\\$]\\d{1,3},\\d{3},\\d{3}[\\s[:punct:][a-zA-Z]][^\\d]",
+    "\\d+\\.\\d+",
+    "\\d+\\%", 
+    "\\sA.M.|\\sP.M.", 
+    "\\d{1,2}\\:\\d{2}(am|pm)", 
+    "[^\\d]\\d{1,2}/\\d{1,2}/(\\d{2}){1,2}[\\s[a-zA-Z][:punct:]]",
+    "[\\s[:punct:]]U.S.[\\s[:punct:]]", 
+    "U.S.A.",
+    "Lyin\\'|lyin\\'|LYIN\\'", 
+    "Ya\\'|ya\\'|YA\\'", 
+    "Havn\\'t|havn\\'t|HAVN\\'T",
+    "^#1|#1[^\\w]|#1$")
+
+# Reformats special sequences for printing in table.
+
+list_of_names <- 
+  c("\\n", 
+    "&amp",
+    "Right Par. Nested", 
+    "Excl. Mark Left Enc.",
+    "Hyphen Semi-enclosed",
+    "Hyphen Disentangled",
+    "Hyphen Compounded",
+    "Period",
+    "Upfront Dot",
+    "Tweet End = !", 
+    "Tweet End = ?",
+    "Tweet End = .",
+    "Tweet End = Alphanum.",
+    "Digits",
+    "1 Thousand-sep.",
+    "2 Thousand-sep.",
+    "Decimal Number", 
+    "Number in %", 
+    "A.M. or P.M.", 
+    "00:00am/pm",
+    "00/00/00(00)",
+    "U.S.", 
+    "U.S.A.",
+    "lyin'", 
+    "ya'", 
+    "havn't",
+    "#1")
+
+# Receptacle data frame 
+
+output <- 
+  data.frame(matrix(length(special_sequences) * 3, 
+                    nrow = length(special_sequences), 
+                    ncol = 3) * 1) %>%
+  `colnames<-`(c("punct", "Android", "iPhone"))
+
+# For loop
+
+for (i in 1:length(special_sequences)) {
+
+  pattern <- special_sequences[i]
+  
+  # Tweets without URLs mentions hashtags
+  occurrence_special_sequences <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(text, device) %>%
+    mutate(number = str_count(text, pattern)) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(number = sum(number)) 
+
+  output[[i, 1]] <- list_of_names[i]
+  output[[i, 2]] <- occurrence_special_sequences$number[1]
+  output[[i, 3]] <- occurrence_special_sequences$number[2] 
+
+}
+
+rm(i, pattern, occurrence_special_sequences)
+
+# Three presentation graphs according to size in order to 
+# foster readability.
+
+# First graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format  for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] >= 250| .[3] >= 250) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+# Parameter values for user-defined graphic_function()
+
+graph_title <- "Special Sequences - Graph1"
+x_title <- ""
+y_title <- "Number of Tweets"
+angle <- 30
+name1 <- "Special Sequence"
+name2 <- "Number of Tweets"
+
+# Running graphic_function()
+
+graphic_function(output_partial, graph_title, x_title, 
+                 y_title, angle, name1, name2)
+
+```
+
+Proportions are impressive for the last 3, and not bad at all for the first one. In proportions, or disproportion, \n comes first with 726 instances in iPhone tweets and none in Android tweets! 
+
+Percentual numbers show a rather limited imbalance. 
+
+*lyin'* is rather typical of the Android device. The same holds for *ya'* and *havn't*, but occurrence frequency is very limited.
+
+Let's notice that *USA* without dots doesn't show the same imbalance between devices. And *US* can be found in a lot ow words.
+
+We can investigate the frequency of a difference that has also been noticed: the abbreviations of American States are generally with dots in Android tweets and without dots in iPhone tweets. 
+
+```{r Frequency of some special sequences Graph 2}
+
+# Second graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format  for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] < 250 & .[3] < 250) %>%
+  filter(.[2] >= 50 | .[3] >= 50) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+# Parameter values for user-defined graphic_function()
+
+graph_title <- "Special Sequences - Graph 2"
+x_title <- ""
+y_title <- "Number of Tweets"
+angle <- 30
+name1 <- "Special Sequence"
+name2 <- "Number of Tweets"
+
+# Running graphic_function()
+
+graphic_function(output_partial, graph_title, x_title, 
+                 y_title, angle, name1, name2)
+
+```
+
+And now graph 3
+
+```{r Frequency of some special sequences Graph 3}
+
+# Third graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] < 50 & .[3] < 50) %>%
+  filter(.[2] >= 18 | .[3] >= 18) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+# Parameter values for user-defined graphic_function()
+
+graph_title <- "Special Sequences - Graph 3"
+x_title <- ""
+y_title <- "Number of Tweets"
+angle <- 30
+name1 <- "Special Sequence"
+name2 <- "Number of Tweets"
+
+# Running graphic_function()
+
+graphic_function(output_partial, graph_title, x_title, 
+                 y_title, angle, name1, name2)
+
+```
+
+And now graph 4
+
+```{r Frequency of some special sequences Graph 4}
+
+# Fourth graph
+
+# Data wrangling in two steps: 
+# - filtering the highest frequencies,
+# - switching from wide format to tidy format for ggplot2. 
+
+output_partial <- output %>%
+  filter(.[2] < 18 & .[3] < 18) %>%
+  gather(key = device, value = n, "Android":"iPhone") 
+
+# Parameter values for user-defined graphic_function()
+
+graph_title <- "Special Sequences - Graph 4"
+x_title <- ""
+y_title <- "Number of Tweets"
+angle <- 30
+name1 <- "Special Sequence"
+name2 <- "Number of Tweets"
+
+# Running graphic_function()
+
+graphic_function(output_partial, graph_title, x_title, 
+                 y_title, angle, name1, name2)
+
+```
+
+Outside of mentions and hashtags. 
+
+```{r Abbreviations of American States without dots}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(punctuation_marks, list_of_names, output, output_partial, 
+   graph_title, x_title, y_title, angle, name1, names2)
+
+# List of abbreviations of American States without dots
+
+state_abb_without_dots <- state.abb
+
+# Replacing State abbreviations with placeholder.
+
+buffer <- 
+  train_utf8_no_urls_mentions_hashtags$text
+
+for (i in 1:length(state_abb_without_dots)) {
+  
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("(^", state_abb_without_dots[i], 
+            ")([\\s[:punct:]])", sep = ""),
+      "ABBPLACEHOLDER\\2")
+  
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("([\\s[:punct:]])(", state_abb_without_dots[i], 
+            ")([\\s[:punct:]])", sep = ""),
+      "\\1ABBPLACEHOLDER\\3")  
+  
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("([\\s[:punct:]])(", state_abb_without_dots[i], 
+            "$)", sep = ""),
+      "\\1ABBPLACEHOLDER")  
+  
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("([\\s[:punct:]])(", state_abb_without_dots[i], 
+            ")([\\s[:punct:]])", sep = ""),
+      "\\1ABBPLACEHOLDER\\3")
+  
+}
+
+rm(i, state_abb_without_dots)
+
+tab <- 
+  train_utf8_no_urls_mentions_hashtags %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  mutate(n = str_count(text, "ABBPLACEHOLDER")) %>%
+  group_by(device) %>%
+  summarise(n = sum(n)) %>%
+  select(device, n) 
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- 
+  c("Device",
+    "Number of Instances of State Abbreviations without Dots")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette) 
+
+```
+
+Actually, the difference between devices is big for abbreviations without dots.  
+
+Let's count abbreviations with dots. Actually, the number of State abbreviations with dots was checked and is very limited. But the very concept has been extended to other abbreviations as well with two letters and dots. a
+
+These will be 2-letter abbreviations in uppercase with dots after each letter. They will be surrounded by empty space characters or punctuation marks other than dots. They can also stand at the front of the tweet with no character before the abbreviation and an empty space character after it or a punctuation mark other than a dot. Or, last scenario, they can be at the end of a tweet, with no character after it, and before either an empty space character or a punctuation mark other than a dot. 
+
+```{r abbreviations with dots}
+
+# First, abbreviations with empty space character 
+# or punctuation mark other than dot in front of them 
+# and behind them
+
+# Instances of A.M. and P.M. have already been counted.
+# They will be discarded from tweets to only count
+# other abbreviations with dots. 
+ 
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, "\\sA.M.|\\sP.M.", "")
+
+# Discarding instances of U.S. and U.S.A., 
+# which have already been dealt with separately. 
+
+buffer <- 
+  str_replace_all(buffer, "[\\s[:punct:]]U.S.[\\s[:punct:]]", "")
+
+buffer <- str_replace_all(buffer, "U.S.A.", "")
+
+# Identifying abbreviations with dots - 1st iteration
+
+buffer <- 
+  str_replace_all(buffer,
+  "(\\s|(?!\\.)[:punct:])([:upper:]\\.){2,}([\\s[:punct:]])",
+  "\\1ABBPLACEHOLDER\\3")
+
+# Identifying abbreviations with dots - 2nd iteration
+
+buffer <- 
+  str_replace_all(buffer,
+  "(\\s|(?!\\.)[:punct:])([:upper:]\\.){2,}([\\s[:punct:]])",
+  "\\1ABBPLACEHOLDER\\3")
+
+# Second, abbreviations at the very beginning 
+# with behind them an empty space character 
+# or a punctuation mark 
+
+buffer <- 
+  str_replace_all(buffer,
+    "^(([:upper:]\\.){2,})([\\s[:punct:]])",
+    "ABBPLACEHOLDER\\2")
+    
+# Third, abbreviations at the very end of tweets 
+# with in front of them an empty space character 
+# or a punctuation mark other than a dot
+
+buffer <- 
+  str_replace_all(buffer,
+    "(\\s|((?!\\.)[:punct:]))([:upper:]\\.){2,}$",
+    "\\1ABBPLACEHOLDER")
+    
+# Counting the number of instances.
+
+tab <- train_utf8_no_urls_mentions_hashtags %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  mutate(n = str_count(text, "ABBPLACEHOLDER")) %>%
+  select(- text) %>%
+  mutate(device = as.factor(device)) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = sum(n))
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- 
+  c("Device",
+    "Number of Instances of Abbreviations with Dots")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette) 
+
+```
+
+This is a promising candidate predictor, with the Android device producing more than 90% of such abbreviations, in spite of the iPhone having slightly more tweets.
+
+Let's not forget that there are 50 instances of *U.S.* on the Android side and 11 on the iPhone side. This means that for other 2-letter abbreviations with dots there are almost no instances from the iPhone, actually only 4, against 112 for the Android device. It might be worthwhile having two candidate predictors instead of just one, a predictor about *U.S.* and a predictor with the other 2-letter abbreviations with dots. 
+
+<br>
+
+## Short Forms
+
+```{r Short forms}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(tab_global, tab)
+
+# First, let's load a list of stopwords from the packaged stopwords.
+list_stopwords <- 
+  stopwords::stopwords("en", source = "snowball")
+
+# Second, let's extract the short forms from the stopwords.
+
+index <- str_detect(list_stopwords, "[a-z]+\\'[a-z]+")
+index <- which(index == TRUE)
+list_short_forms <- list_stopwords[index]
+rm(index)
+
+# Third, let's add the short form "havn't", which is used 
+# by the Android device. 
+list_short_forms <- append(list_short_forms, "havn't")
+
+list_short_forms_as_pattern <- 
+  paste(list_short_forms, "|", sep = "", collapse = "")
+
+list_short_forms_as_pattern <- 
+  str_replace(list_short_forms_as_pattern, "\\|$", "")
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased. 
+
+tab <- train_utf8_no_urls_mentions_hashtags %>%
+  select(text, device) %>%
+  mutate(text = str_to_lower(text, locale = "en")) %>%
+  mutate(n = str_count(text, list_short_forms_as_pattern)) %>%
+  group_by(device) %>%
+  summarise(n = sum(n)) %>%
+  mutate(n_reg = round(n * comparability_factor, 0)) %>%
+  select(device, n, n_reg) 
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab) <- NULL
+
+# A new vector of column names is created. 
+
+name <- c("Device",
+          "Number of Short Forms",
+          "Number Regularized for Sample Size")
+
+# Assembles tab and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab) 
+rm(name)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE, 
+           color = white, background = deep_blue) %>%
+  row_spec(2, color = white, background = bluish_green) %>%
+  row_spec(3, color = white, background = gray_palette) 
+
+```
+
+Short forms are globally more numerous in Android tweets than in iPhone tweets. The more so if we take into consideration the number of iPhone short forms regularized for sample size, i.e. decreased inn proportion with the greater number of iPhone tweets. 
+
+This might be a productive predictor, coming from function words, i.e. no content words. 
+
+Let's compute the number of each short form for each device. 
+
+Wordclouds
+
+```{r Short forms Wordcloud Android}
+
+# In order to isolate single quotes from apostrophes,
+# we need to discard among others the apostrophes from short forms.
+# A list of short forms can be extracted from stopwords. 
+# There is already a list of stopwords: list_stopwords.
+
+# Second, let's extract the short forms from the stopwords.
+index <- str_detect(list_stopwords, "[a-z]+\\'[a-z]+")
+index <- which(index == TRUE)
+list_short_forms <- list_stopwords[index]
+rm(index)
+
+# Third, let's add the short form "havn't", which is used 
+# by the Android device. 
+list_short_forms <- append(list_short_forms, "havn't")
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Receptacle data frame for numbers of instances of short forms
+
+l <- length(list_short_forms)
+
+output <- 
+  data.frame(matrix(l * 3, nrow = l, ncol = 3) * 1) %>%
+  `colnames<-`(c("word", "a", "i"))
+
+# For loop to collect numbers of instances of short forms
+
+for (i in 1:l) {
+ 
+  temp <- train_utf8_no_urls_mentions_hashtags %>%
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(n = str_count(text, 
+      paste("^", list_short_forms[i],"\\s",
+        "|\\s", list_short_forms[i],"\\s",
+        "|\\s", list_short_forms[i], "\\$",
+        sep = ""))) %>%
+    select(- text) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(n = sum(n)) 
+  
+  output[[i, 1]] <- list_short_forms[i]
+  output[[i, 2]] <- temp$n[1]
+  output[[i, 3]] <- temp$n[2]
+
+}
+
+rm(buffer, l, i, temp)
+
+# Data frame for the Android device
+
+tab_a <- output %>%
+  select(word, a) %>%
+  arrange(desc(a)) %>%
+  head(., 25)
+
+# Creating an interactive wordcloud for the Android device.
+
+set.seed(1)
+
+wordcloud2(tab_a,  shape = "square", gridSize = 30,
+           minRotation = -pi/2, maxRotation = pi/2, rotateRatio = 1/2,
+           color = bluish_green, backgroundColor = light_sky_blue, 
+           shuffle = FALSE, size = 1)
+
+# Keeping ... for next code chunk.
+
+```
+
+*don't*, *doesn't*, *can't*
+
+Prevalence from negational short forms.
+
+And now a wordcloud for the iPhone
+
+```{r Short forms Wordcloud iPhone}
+
+# Data frame for the iPhone
+
+tab_i <- output %>%
+  select("word", "i") %>%
+  arrange(desc(i)) %>%
+  head(., 25)
+
+# Creating an interactive wordcloud for the iPhone device.
+
+set.seed(1)
+
+wordcloud2(tab_i,  shape = "square", gridSize = 30,
+           minRotation = -pi/2, maxRotation = pi/2, rotateRatio = 1/2,
+           color = gray_palette, backgroundColor = light_sky_blue, 
+           shuffle = FALSE, size = 1)
+
+```
+
+Predominance from negational short forms seems less. *doesn't* frequency is sensibly lower, as well as frequency of *don't* and *can't*. Difference with affirmative short forms is less pregnant. *i'm* is more frequent. 
+
+Table
+
+```{r Which short forms}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(output, tab_a, tab_i)
+
+# A list of short forms has been established in the 
+# code chunk above and has been kept.
+
+list_short_forms <- sort(list_short_forms)
+
+# For loop to compute for each short form the number 
+# of instances in Android tweets or in iPhone tweets
+
+# Tweets will be lowercased since the short forms are
+# already lowercased. 
+
+l <- length(list_short_forms)
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Receptacle data frame for numbers of instances of short forms
+
+output <- data.frame(matrix(l * 4, nrow = l, ncol = 4) * 1) 
+
+# Naming columns. Column names will be lodged in variables
+# for coding convenience below.
+
+nc1 <- "Short Form"
+nc2 <- "Instances in Android Tweets"
+nc3 <- "Instances in iPhone Tweets"
+nc4 <- "iPhone Number Size-adjusted"
+
+output <- output %>%
+  `colnames<-`(c(nc1, nc2, nc3, nc4))
+
+# For loop to collect numbers of instances of short forms
+
+for (i in 1:length(list_short_forms)) {
+ 
+  temp <- train_utf8_no_urls_mentions_hashtags %>%
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(n = str_count(text, 
+      paste("^", list_short_forms[i],"\\s",
+        "|\\s", list_short_forms[i],"\\s",
+        "|\\s", list_short_forms[i], "\\$",
+        sep = ""))) %>%
+    select(- text) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(n = sum(n)) 
+  
+  output[[i, 1]] <- list_short_forms[i]
+  output[[i, 2]] <- temp$n[1]
+  output[[i, 3]] <- temp$n[2]
+  output[[i, 4]] <- round(temp$n[2] * comparability_factor[2], 0)
+  
+}
+
+rm(l, buffer, i)
+
+# Sorting data frame on column 2.
+output <- output %>%
+  arrange(desc(.[2]))
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(output, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(output) - 1))),
+         initComplete = JS(initComplete))) %>%
+  formatStyle(nc1, color = white, backgroundColor = deep_blue) %>%
+  formatStyle(nc2, color = white, backgroundColor = bluish_green) %>%
+  formatStyle(nc3, color = white, backgroundColor = gray) %>%
+  formatStyle(nc4, color = white, backgroundColor = gray_palette) 
+
+```
+
+Some short forms show serious imbalance between devices. In favor of the Android device, let's pinpoint *don't*, *doesn't*, or *can't*. In favor of the iPhoe, e.g. *i'm*. For some short forms, the number of instances can be considered as acceptacle candidate predictors. 
+
+But if Android short forms are more numerous, it seems to come from negational short forms, mainly or totally. We are not dealing here, in stylometry, with content, but there seems to be at least that sub-group among short forms. Let's compute numbers of instances.
+
+```{r Negational or affirmative short forms}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(output, nc1, nc2, nc3, nc4, initComplete)
+
+# We already have a list of short forms, which has been kept.
+# Let's split it into negational and affirmative short forms. 
+
+# First a list of negational short forms
+
+index <- str_detect(list_short_forms, "n't$")
+index <- which(index == TRUE)
+
+list_negational_short_forms <- list_short_forms[index]
+rm(index)
+
+list_negational_short_forms_as_pattern <- 
+  paste(list_negational_short_forms, "|", sep = "", collapse = "")
+
+list_negational_short_forms_as_pattern <- 
+  str_replace(list_negational_short_forms_as_pattern, "\\|$", "")
+
+# Second a list of affirmative short forms
+
+index <- str_detect(list_short_forms, "n't$")
+index <- which(index == FALSE)
+
+list_affirmative_short_forms <- list_short_forms[index]
+rm(index)
+
+list_affirmative_short_forms_as_pattern <- 
+  paste(list_affirmative_short_forms, "|", sep = "", collapse = "")
+
+list_affirmative_short_forms_as_pattern <- 
+  str_replace(list_affirmative_short_forms_as_pattern, "\\|$", "")
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Computing numbers of negational short forms
+
+tab1 <- train_utf8_no_urls_mentions_hashtags %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  mutate(n = str_count(text, 
+               list_negational_short_forms_as_pattern)) %>%
+  group_by(device) %>%
+  summarise(n = sum(n)) %>%
+  select(device, n) 
+
+rm(list_negational_short_forms,
+   list_negational_short_forms_as_pattern)
+  
+tab1 <- spread(tab1, device, n) %>%
+  mutate(name = "Negational Short Forms") %>%
+  select(name, everything()) 
+
+tab2 <- train_utf8_no_urls_mentions_hashtags %>%
+  select(device) %>%
+  mutate(text = buffer) %>%
+  mutate(n = str_count(text, 
+               list_affirmative_short_forms_as_pattern)) %>%
+  group_by(device) %>%
+  summarise(n = sum(n)) %>%
+  select(device, n) 
+
+rm(list_affirmative_short_forms)
+rm(list_affirmative_short_forms_as_pattern)
+
+tab2 <- spread(tab2, device, n) %>%
+  mutate(name = "Affirmative Short Forms") %>%
+  select(name, everything()) 
+
+tab_global <- rbind(tab1, tab2[1, ]) %>%
+  mutate(n_reg = round(.[3] * comparability_factor[2], 0)) 
+
+rm(tab1, tab2)
+
+# The next part from this code chunk constructs and prints 
+# a table with a freely customizable header. 
+
+# First, column names from tab are removed.
+
+names(tab_global) <- NULL
+
+# A new vector of column names is created. 
+
+name <- (c("Typology of Short Forms",
+           "Instances from Android",
+           "Instances from iPhone",
+           "iPhone Number Size-adjusted"))
+
+# Assembles output and the vector of column names
+# which becomes the first row and appears 
+# as the new header which is largely customizable.
+
+tab <- rbind(name, tab_global) 
+rm(name, tab_global)
+
+# Prints the table.
+
+knitr::kable(tab, "html", align = "c") %>% 
+  kable_styling(full_width = T, font_size = 16) %>%
+  row_spec(1, bold = TRUE) %>%
+  column_spec(1, color = white, background = deep_blue) %>%
+  column_spec(2, color = white, background = bluish_green) %>%
+  column_spec(3, color = white, background = gray) %>%
+  column_spec(4, color = white, background = gray_palette) %>%
+  row_spec(1, color = white, background = deep_blue) %>% 
+  row_spec(2:3 ,  bold = F, 
+           extra_css = 'vertical-align: middle !important;')
+
+```
+
+Interestingly enough, the table above shows that global imbalance in favor of the Android device is entirely due to negational short forms, and even a little bit more: indeed, there are more affirmative short forms in tweets from the iPhone. 
+
+As a global predictor, the number of negational short forms should be preferred to the number of all short forms. But, maybe short forms should be used separately because of diversity in numbers. Some short forms with imbalance. 
+
+Anyway, this emphasizes a useful notion: negation, which seems more frequent in tweets from the Android device. Irrespective of content words, let's investigate some further, with words such as *no*, *not*, or *never*.
+
+## Other Stopwords
+
+```{r Other stopwords Wordcloud Android}
+
+# A list of short forms and a list of short forms have already 
+# been kept. By difference, a list can be deducted with 
+# stopwords that are no short forms. 
+
+list_other_stopwords <-
+  sort(setdiff(list_stopwords, list_short_forms))
+
+list_other_stopwords_as_pattern <- 
+  paste(list_other_stopwords, "|", sep = "", collapse = "")
+
+list_other_stopwords_as_pattern <- 
+  str_replace(list_other_stopwords_as_pattern, "\\|$", "")
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Receptacle data frame for numbers of instances of short forms
+
+l <- length(list_other_stopwords)
+
+output <- 
+  data.frame(matrix(l * 3, nrow = l, ncol = 3) * 1) %>%
+  `colnames<-`(c("word", "a", "i"))
+
+# For loop to collect numbers of instances of other stopwords
+
+for (i in 1:l) {
+ 
+  temp <- train_utf8_no_urls_mentions_hashtags %>%
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(n = str_count(text, 
+      paste("^", list_other_stopwords[i],"\\s",
+        "|\\s", list_other_stopwords[i],"\\s",
+        "|\\s", list_other_stopwords[i], "\\$",
+        sep = ""))) %>%
+    select(- text) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(n = sum(n)) 
+  
+  output[[i, 1]] <- list_other_stopwords[i]
+  output[[i, 2]] <- temp$n[1]
+  output[[i, 3]] <- temp$n[2]
+
+}
+
+rm(l, buffer, i, temp)
+
+# Correction for I, because everything has been lowercased.
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+
+index <- str_detect(list_other_stopwords, "^i$")
+index <- which(index == TRUE)
+
+temp <- train_utf8_no_urls_mentions_hashtags %>% 
+  select(device) %>%
+  mutate(text = buffer) %>%
+  mutate(n = str_count(text, "^I\\s|\\sI\\s|\\sI\\$")) %>%
+  select(- text) %>%
+  mutate(device = as.factor(device)) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = sum(n)) 
+  
+output[[index, 1]] <- "I"
+output[[index, 2]] <- temp$n[1]
+output[[index, 3]] <- temp$n[2]
+
+rm(index, buffer, temp)
+
+# Data frame for the Android device
+
+tab_a <- output %>%
+  select(word, a) %>%
+  arrange(desc(a)) %>%
+  head(., 40)
+
+# Creating an interactive wordcloud for the Android device.
+
+set.seed(1)
+
+wordcloud2(tab_a,  shape = "square", gridSize = 30,
+           minRotation = -pi/2, maxRotation = pi/2, rotateRatio = 1/2,
+           color = bluish_green, backgroundColor = light_sky_blue, 
+           shuffle = FALSE, size = 1.2)
+
+# Keeping ... for next code chunk.
+
+```
+
+The wordcloud above shows predominance from *the* and *and*. Would they be much more frequent than in tweets sent by the iPhone? 
+
+*the* appears 994 times in tweets sent by the Android device, against 548 times for the iPhone, although there are more iPhone tweets than Android tweets. So, almost 1,000 times against a little bit more than 500! This is interesting information and coming from a very common function word. 
+
+*and* appears 574 times in tweets from the Android device, against 239 times on the iPhone wordcloud. This is sensible imbalance, the more so if we take into consideration the higher number of iPhone tweets. This stopword can help as a candidate predictor. Actually, the iPhone utilized *&amp;* as already seen under special sequences. 
+
+And now a wordcloud for the iPhone
+
+```{r Other stopwords Wordcloud iPhone}
+
+# Data frame for the iPhone
+
+tab_i <- output %>%
+  select("word", "i") %>%
+  arrange(desc(i)) %>%
+  head(., 40)
+
+# Creating an interactive wordcloud for the iPhone device.
+
+set.seed(1)
+
+wordcloud2(tab_i,  shape = "square", gridSize = 30,
+           minRotation = -pi/2, maxRotation = pi/2, rotateRatio = 1/2,
+           color = gray_palette, backgroundColor = light_sky_blue, 
+           shuffle = FALSE, size = 1.2)
+
+
+```
+
+Here, *the* predominates less. 
+
+But *you*, which did not show off on the Android wordcloud, is in second position on the iPhone wordcloud. 377 against 120, which could be revised downwards due to sample size difference. 
+
+On the contray, *I* only appears 265 times on the iPhone wordcloud, against 462 times on the Android wordcloud, imbalance which could be widened in case of size adjustment. 
+
+Among short forms, the first category of stopwords, which has already been analyzed, there were more negational short forms in Android tweets. Would we find such an imbalance here, among the other stopwords? Yes, at least on the basis of the two wordclouds above. Indeed, *not* appears 143 times among Android tweets and 61 times among iPhone tweets. For *no*, 72 against 40, once again ...
+
+
+
+Indeed, there are some instances of *I* enclosed between empty space and punctuation. These statistics are rather marginal in comparison with previous numbers of 462 and 265. Moreover, this does not reduce the imbalance between the Android device and the iPhone, on the contrary rather. 
+
+Of course, this is just one example and it could go the other way with other stopwords. But it seems rather marginal on the basis of generalized observation. And including stopwords enclosed between empty space and punctuation could also lead to include instances that are no stopwords but parts of abbreviations or of short forms. 
+
+This will not be taken on board. Anyway, counting stopwords enclosed between empty space characters is an objective criterion and reflects some stylistic preferences, which are obviously diverging in numerous cases.
+
+Global table about the other stopwords
+
+```{r Table for the other stopwords}
+
+# There is a list, called list_other_stopwords, already available.
+# There is also a data frame called output with the numbers 
+# of instances of the other stopwords by device.
+
+# A column must be added for size adjustment. 
+output <- output %>%
+  mutate(n_reg = round(i * comparability_factor[2], 0)) %>%
+  arrange(desc(a))
+
+# Naming columns. Column names will be lodged in variables
+# for coding convenience below.
+
+nc1 <- "Other Stopword"
+nc2 <- "Instances in Android Tweets"
+nc3 <- "Instances in iPhone Tweets"
+nc4 <- "iPhone Number Size-adjusted"
+
+output <- output %>%
+  `colnames<-`(c(nc1, nc2, nc3, nc4))
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(output, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(output) - 1))),
+         initComplete = JS(initComplete))) %>%
+  formatStyle(nc1, color = white, backgroundColor = deep_blue) %>%
+  formatStyle(nc2, color = white, backgroundColor = bluish_green) %>%
+  formatStyle(nc3, color = white, backgroundColor = gray) %>%
+  formatStyle(nc4, color = white, backgroundColor = gray_palette) 
+
+```
+
+From a code point of view, stopwords have been detected with look-around: 
+
+- stopwords preceded by an empty space chara or a non alphanumeric character 
+- or stopwords at the beginning of a tweet and followed with an empty space character 
+- or stopwords at the end of a tweet and followed with an empty space character. 
+
+There might be some instances missing, e.g. a stopword preceded or followed with a punctuation mark. Let's measure that possibility for *I*: 
+
+- *I* preceded with an empty space character and followed with a punctuation mark
+- or *I* preceded with a punctuation mark and followed with an empty space character.
+
+```{r Missing some stopwords or not}
+
+# Object: tweets without URLs, mentions or hashtags
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Receptacle data frame for numbers of instances of other stopwords
+# defined according to more flexible criteria
+
+l <- length(list_other_stopwords)
+
+output <- 
+  data.frame(matrix(l * 4, nrow = l, ncol = 4) * 1) 
+
+# For loop to collect numbers of instances of other stopwords
+
+for (i in 1:l) {
+ 
+  temp <- train_utf8_no_urls_mentions_hashtags %>%
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(blub = str_count(text, 
+      paste("^", list_other_stopwords[i], "\\s|^", 
+      list_other_stopwords[i], "[^\\.\\'][:punct:]|\\s", 
+      list_other_stopwords[i], "\\s|\\s",
+      list_other_stopwords[i], "[^\\.\\'][:punct:]|[^\\.\\'][:punct:]",
+      list_other_stopwords[i], "\\s|[^\\.\\'][:punct:]",       
+      list_other_stopwords[i], "[^\\.\\'][:punct:]|\\s", 
+      list_other_stopwords[i], "\\$|[^\\.\\'][:punct:]",
+      list_other_stopwords[i], "\\$", sep = ""))) %>%
+    select(- text) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(n = sum(blub)) %>%
+    mutate(device = as.character(device))
+  
+  output[[i, 1]] <- list_other_stopwords[i]
+  output[[i, 2]] <- temp$n[1]
+  output[[i, 3]] <- temp$n[2]
+  output[[i, 4]] <- round(temp$n[2] * comparability_factor[2], 0)
+  
+}
+
+rm(l, buffer, i, temp)
+
+# Correction for I, because everything has been lowercased.
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+
+index <- str_detect(list_other_stopwords, "^i$")
+index <- which(index == TRUE)
+
+temp <- train_utf8_no_urls_mentions_hashtags %>% 
+  select(device) %>%
+  mutate(text = buffer) %>%
+  mutate(blub = str_count(text, 
+    "^I\\s|^I[^\\.\\'][:punct:]|\\sI\\s|\\sI[^\\.\\'][:punct:]|[^\\.\\'][:punct:]I\\s|[^\\.\\'][:punct:]I[^\\.\\'][:punct:]|\\sI\\$|[^\\.\\'][:punct:]I\\$")) %>%
+  select(- text) %>%
+  mutate(device = as.factor(device)) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = sum(blub)) %>%
+    mutate(device = as.character(device))
+  
+output[[index, 1]] <- "I"
+output[[index, 2]] <- temp$n[1]
+output[[index, 3]] <- temp$n[2]
+output[[index, 4]] <- round(temp$n[2] * comparability_factor[2], 0)
+
+rm(index, temp)
+
+# Naming columns. Column names will be lodged in variables
+# for coding convenience below.
+
+nc1 <- "Other Stopword - Looser Definition"
+nc2 <- "Instances in Android Tweets"
+nc3 <- "Instances in iPhone Tweets"
+nc4 <- "iPhone Number Size-adjusted"
+
+output <- output %>% 
+  `colnames<-`(c(nc1, nc2, nc3, nc4))
+
+# Sorting on column 2.
+output <- output %>%
+  arrange(desc(.[2]))
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(output, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(output) - 1))),
+         initComplete = JS(initComplete))) %>%
+  formatStyle(nc1, color = white, backgroundColor = deep_blue) %>%
+  formatStyle(nc2, color = white, backgroundColor = bluish_green) %>%
+  formatStyle(nc3, color = white, backgroundColor = gray) %>%
+  formatStyle(nc4, color = white, backgroundColor = gray_palette) 
+
+
+```
+
+A little bit more instances. 
+
+Same conclusions: more *the*, *and*, *I* on the Android side, *you* on the iPhone side. Moreover, other stopwords could be mentioned, e.g. on the Android side *against*, *were*, *because*, *that*, etc. 
+
+By the way, globally, measurements have pointed towards more other stopwords on the Android side, despite the smaller number of tweets. Same for short forms? 
+
+Among short forms had been noticed Android predominance in negational short forms. What about negational other stopwords?
+
+```{r Negationnal stopwords other than negational short forms}
+
+# Removes from previous code chunk here in ordder to avoid
+# additional tag in HTML document.
+rm(output, tab, tab_a, tab_i, nc1, nc2, nc3, nc4, initComplete)
+
+# List of negational stopwords other than negational short forms 
+# with no leading nor trailing alphanumeric characters
+
+# Negational stopwords are lowercased and so will be all tweets.
+ 
+negational_stopwords <- c("no", "not", "never", "cannot")
+
+output <- 
+  data.frame(matrix(length(negational_stopwords) * 3, 
+                           nrow = length(negational_stopwords), 
+                           ncol = 3) * 1) %>%
+  `colnames<-`(c("punct", "Android", "iPhone"))
+
+for (i in 1:length(negational_stopwords)) {
+  
+  # URLS are excluded because they can contain punctuation marks,
+  # as well as mentions and hashtags because they can contain
+  # underscores. 
+  buffer <- train_utf8_no_urls_mentions_hashtags$text
+  
+  # Negational stopwords must be surrounded by empty space
+  # characters or non empty characters except for alphanumeric.
+  pattern <- 
+    paste("(\\s|((?![:alnum:])\\S))", negational_stopwords[i], 
+          "(\\s|((?![:alnum:])\\S))", sep = "")
+  
+  # Looking for pattern by device. 
+  occurrence_negational_stopword <- 
+    train_utf8_no_urls_mentions_hashtags %>% 
+    select(device) %>%
+    mutate(text = buffer) %>%
+    mutate(number = str_count(text, pattern)) %>%
+    mutate(device = as.factor(device)) %>%
+    group_by(device, .drop = FALSE) %>%
+    summarise(number = sum(number)) %>%
+    mutate(n_reg = round(number * comparability_factor, 0)) 
+
+  # Inserting results from iteration i into output data frame.
+  output[[i, 1]] <- negational_stopwords[i]
+  output[[i, 2]] <- occurrence_negational_stopword$number[1]
+  output[[i, 3]] <- occurrence_negational_stopword$number[2] 
+
+}
+
+rm(negational_stopwords, pattern, occurrence_negational_stopword)
+
+# Converts output from wide format to tidy format for ggplot2.
+
+output <- output %>%
+  gather(key = device, value = n, `Android`:`iPhone`) %>%
+  select(punct, device, n)
+
+# Parameter values for user-defined graphic_function()
+
+graph_title <- "Negational Stopwords"
+x_title <- ""
+y_title <- "Number of Tweets"
+angle <- 0
+name1 <- "Negational Stopword"
+name2 <- "Number of Tweets"
+
+graphic_function(output, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+  
+
+```
+
+The first three negational stopwords can be considered interesting candidate predictors. The fourth one shows imbalance but low frequency. 
+
+We are going to terminate here with our looking for punctuation marks, special characters and special sequences as candidate predictors, not because our search has been exhaustive, which it is not, but we already have harvested some strong candidate predictors in the spirit of stylometry. These strong candidate predictors will constitute a data set, more specifically a data frame. 
+
+## URLs
+
+```{r Getting operational presentations of URLs}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(output, graph_title, x_title, y_title, angle, name1, name2)
+
+# Table: statistics about URLs 
+
+tab <- 
+  data.frame(a = 1, b = 2) %>%
+  mutate(a = sum(urls_count), b = length(urls)) %>%
+  mutate(a = format(a, big.mark = " "), 
+         b = format(b, big.mark = " ")) %>%
+  `colnames<-`(c("Number of URL Insertions",
+                 "Number of Unique URLs"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Now, let's move to URLs by device. 
+
+```{r URLs 2 URLS by device, class.output = "bg-primary"}
+
+# Swapping data frames because URLs are needed.
+
+# Vector of URLs from ANDROID per training set observation  
+
+v_a <- 
+  train_utf8 %>%
+  select(device, text) %>%
+  filter(device == "Android") %>%
+  mutate(urls = str_extract_all(text, urls_as_pattern)) %>%
+  select(urls)
+
+tab_a <- 
+  data.frame(urls = unlist(v_a)) %>%
+  mutate(urls = as.factor(urls)) %>%
+  group_by(urls, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(v_a)
+
+# Vector of URLs from iPhone per training set observation  
+
+v_i <- train_utf8 %>%
+  select(device, text) %>%
+  filter(device == "iPhone") %>%
+  mutate(urls = str_extract_all(text, urls_as_pattern)) %>%
+  select(urls)
+
+tab_i <- data.frame(urls = unlist(v_i)) %>%
+  mutate(urls = as.factor(urls)) %>%
+  group_by(urls, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(v_i)
+
+# Joins both tables.
+
+j <- full_join(tab_a, tab_i, by = "urls")
+j <- j %>%
+  filter(n.x >= 1 | n.y >= 1) %>%
+  arrange(desc(n.y))
+
+rm(tab_a, tab_i)
+
+# Naming columns. Column names will be lodged in
+# variables for coding convenience in datatable() below. 
+
+nc1 <- "URLs"
+nc2 <- "Instances from Android"
+nc3 <- "Instances from iPhone"
+
+names(j) <- c(nc1, nc2, nc3)
+
+# Creates an interactive data table, using the DT package. 
+
+# Coloring and background coloring header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(j, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(j) - 1))),
+         initComplete = JS(initComplete))) %>%
+  formatStyle(nc1, color = white, backgroundColor = deep_blue) %>%
+  formatStyle(nc2, color = white, backgroundColor = bluish_green) %>%
+  formatStyle(nc3, color = white, backgroundColor = gray_palette) 
+
+```
+
+Repeating URLs has only been done by the iPhone. But numbers are limited. This could be tried as a candidate predictor. Tweets with URLs mentioned twice or more have been tweeted by the iPhone. 
+
+Moreover, is the number of URLs per tweet a promising candidate predictor? Let's have a look at the next table.
+
+```{r URL dispersion by device}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(tab, j, nc1, nc2, nc3, initComplete)
+
+temp <- train_utf8_no_urls_mentions_hashtags %>%
+  select(device) %>%
+  mutate(device = as.factor(device)) %>%
+  mutate(urls_count = urls_count) 
+
+# Counts number of tweets with no mention.
+
+tab0 <- temp %>%
+  filter(urls_count == 0) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of tweets with 1 URL.
+
+tab1 <- temp %>%
+  filter(urls_count == 1) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of iPhone tweets with 2 URLs.
+
+tab2 <- temp %>%
+  filter(urls_count == 2) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of tweets with 3 or more URLs.
+
+tab3 <- temp %>%
+  filter(urls_count >= 3) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(temp)
+
+# Assembles the 5 sub-tables into a global one and
+# converts tab from wide format to tidy format for ggplot2.
+
+tab <- cbind(tab0, tab1$n, tab2$n, tab3$n) %>%
+  `colnames<-`(c("device", "0", "1", "2", ">= 3")) %>%
+  gather(key = punct, value = n, `0`:`>= 3`) %>%
+  select(punct, device, n)
+
+rm(tab0, tab1, tab2, tab3)
+
+graph_title <- "Dispersion of URLs"
+x_title <- "Number of URLs per Tweet"
+y_title <- "Number of Tweets"
+angle <- 0
+name1 <- "Number of URLs per Tweet"
+name2 <- "Number of Tweets"
+
+graphic_function(tab, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+```
+
+That is definitely a powerful predictor: the presence of URL in tweets. Indeed, there are almost no URLs in Android tweets and numerous among iPhone tweets. 
+
+Should we add one or two binary predictors? One predictor would refer to the third column: has the tweet got at least one URL? Almost all 1s would be for the iPhone. 
+
+With two predictors, we would have two binary variables: first variable indicates whether the tweet has exactly one variable or not, the second binary variable indicates whether the tweet has 2 or more URLs. The second predictor would only have 1s for the iPhone. 
+
+Let's deal with mentions.
+
+<br>
+
+## Mentions
+
+Mentions have been identified as strings beginning with @ or .@ and comprised of letters, digits or the underscore mark. 
+
+The distinction between mentions beginning with @ or with .@ even although the dot does not change the account referred to. Actually, using a leading dot or no leading dot can differentiate not the account referred to but the stylistic patterns of the user inserting or not inserting a leading dot in front of the mentions she or he uses in her or his tweets. The presence or absence of leading dot can be a predictive pattern in tweet attribution.
+
+```{r Mentions 1}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(tab, graph_title, x_title, y_title, angle, name1, name2)
+
+# Table: statistics about mention instances from
+# pre-existing vectors
+
+tab <- data.frame(a = 1, b = 2) %>%
+  mutate(a = sum(mentions_count), 
+         b = length(mentions)) %>%
+  `colnames<-`(c("Number of Mentions",
+                 "Number of Unique Mentions"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Many repetitions. We'll investigate.  
+
+```{r Mentions 2, class.output = "bg-primary"}
+
+# Recalling data frame with mention info.
+
+# Vector with count for each Android mention
+
+v_a <- train_utf8_no_urls %>%
+  select(device, text) %>%
+  filter(device == "Android") %>%
+  mutate(v = str_extract_all(text, mentions_as_pattern)) %>%
+  .$v
+
+tab_a <- data.frame(mentions = unlist(v_a)) %>%
+  mutate(mentions = as.factor(mentions)) %>%
+  group_by(mentions, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(v_a)
+
+# Vector with count for each Android mention  
+
+v_i <- train_utf8_no_urls %>%
+  select(device, text) %>%
+  filter(device == "iPhone") %>%
+  mutate(v = str_extract_all(text, mentions_as_pattern)) %>%
+  .$v
+
+tab_i <- data.frame(mentions = unlist(v_i)) %>%
+  mutate(mentions = as.factor(mentions)) %>%
+  group_by(mentions, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(buffer, v_i)
+
+# Assembles both tables into a global one.
+
+j <- full_join(tab_a, tab_i, by = "mentions") %>%
+  arrange(desc(n.x))
+
+rm(tab_a, tab_i)
+
+# Naming columns. Column names will be lodged in
+# variables for coding convenience in datatable() below. 
+
+nc1 <- "Mentions"
+nc2 <- "Instances from Android"
+nc3 <- "Instances from iPhone"
+
+names(j) <- c(nc1, nc2, nc3)
+
+# Creates an interactive data table, using the DT package. 
+
+# Coloring and background coloring header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(j, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(j) - 1))),
+         initComplete = JS(initComplete))) %>%
+  formatStyle(nc1, color = white, backgroundColor = deep_blue) %>%
+  formatStyle(nc2, color = white, backgroundColor = bluish_green) %>%
+  formatStyle(nc3, color = white, backgroundColor = gray_palette) 
+
+```
+
+For some mentions, imbalance is substantial in favor of the Android device for a few mentions, e.g. @CNN or @nytimes. These mentions can be used as candidate predictors when predicting in tweet attribution. 
+
+Leading dot usage can help differentiate devices in some cases: e.g. .@CNN is only used by the Android device (12 times) while @CNN is also used by the iPhone, much less though. Let's keep the distinction between @ and .@ . 
+
+It is not uninteresting to notice the importance of capitalization. Some mentions are written in different ways, once with all or some capitalization and once with less or no capitalization. This is the case for @Mike_Pence and @mike_pence. This will not be harmonized, even if both refer to the same username. Indeed, frequency can differ between the two versions. For @Mike_Pence, the iPhone has 8 instances and the Android device none; for @mike_pence, the numbers of instances are 4 and 2. In other words, the Android device never capitalizes Mike Pence's name. If we keep the two versions separated, we have got a clear-cut divergence between the two devices for @Mike_Pence.
+
+Now, let's examine how many mentions tweets are comprised of by device. 
+
+```{r Mentions 3}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(j, nc1, nc2, nc3, initComplete)
+
+temp <- train_utf8_no_urls %>%
+  select(device) %>%
+  mutate(device = as.factor(device)) %>%
+  mutate(mentions_count = mentions_count) 
+
+# Counts number of tweets with no mention.
+
+tab0 <- temp %>%
+  filter(mentions_count == 0) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of tweets with 1 mention.
+
+tab1 <- temp %>%
+  filter(mentions_count == 1) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of iPhone tweets with 2 mentions.
+
+tab2 <- temp %>%
+  filter(mentions_count == 2) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of tweets with 3 or more mentions.
+
+tab3 <- temp %>%
+  filter(mentions_count >= 3) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(temp)
+
+# Assembles the 5 sub-tables into a global one and
+# converts tab from wide format to tidy format for ggplot2.
+
+tab <- cbind(tab0, tab1$n, tab2$n, tab3$n) %>%
+  `colnames<-`(c("device", "0", "1", "2", ">= 3")) %>%
+  gather(key = punct, value = n, `0`:`>= 3`) %>%
+  select(punct, device, n)
+
+rm(tab0, tab1, tab2, tab3)
+
+graph_title <- "Dispersion of Mentions"
+x_title <- "Number of Mentions per Tweet"
+y_title <- "Number of Tweets"
+angle <- 0
+name1 <- "Number of Mentions per Tweet"
+name2 <- "Number of Tweets"
+
+graphic_function(tab, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+```
+
+The picture is completely different from the URL picture. The Android device predominates but imbalance is limited. Proportional imbalance is the biggest for 2 mentions per tweet. We'll keep the number of mentions per tweet as a candidate predictor. 
+
+Last, let's switch to the hashtags.
+
+<br>
+
+## Hashtags
+
+The hashtags have been identified as string beginning with # and comprised of letters, digits and underscore marks. Consequently, #'s has been considered as meaning "numbers". It has been automatically eliminated by the code below.
+
+The strings #1 and #2 have not been counted as mentions if they are followed neither by a letter, or a digit or an underscore mark. They seem to mean *number 1* or *number 2*. #1 or #2 seem meant as quantifiers and not as hashtags. 
+
+On the contrary, the string #2A has been kept: *this hashtag indicated the user's intention to direct the posting to the attention of Twitter users in the context of the Second Amendment, which refers to citizens' right to bear arms* according to https://www.google.com/search?client=firefox-b-d&q=meaning+of+hashtag+%232A .
+
+```{r Number of hashtags and unique hashtags}
+
+# Table: statistics about hashtags from pre-existing vectors
+
+tab <- data.frame(a = 1, b = 2) %>%
+  mutate(a = format(sum(hashtags_count), big.mark = " "), 
+         b = length(hashtags)) %>%
+  `colnames<-`(c("Number of Hashtags",
+                 "Number of Unique Hashtags"))
+
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Many repetitions. It will be interesting to differentiate per device. For each device, which are the favorite hashtags? 
+
+```{r Hashtags 2, class.output = "bg-primary"}
+
+# Vector with count for each Android hashtag  
+
+v_a <- train_utf8_no_urls %>%
+  select(device, text) %>%
+  filter(device == "Android") %>%
+  mutate(v = str_extract_all(text, "#\\w+")) %>%
+  select(v)
+
+tab_a <- data.frame(hashtags = unlist(v_a)) %>%
+  mutate(hashtags = as.factor(hashtags)) %>%
+  group_by(hashtags, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(v_a)
+
+# Vector with count for each iPhone hashtag   
+
+v_i <- train_utf8_no_urls %>%
+  select(device, text) %>%
+  filter(device == "iPhone") %>%
+  mutate(v = str_extract_all(text, "#\\w+")) %>%
+  select(v)
+
+tab_i <- data.frame(hashtags = unlist(v_i)) %>%
+  mutate(hashtags = as.factor(hashtags)) %>%
+  group_by(hashtags, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(v_i)
+
+# Assembles both tables into a global one.
+
+j <- full_join(tab_a, tab_i, by = "hashtags") %>%
+  arrange(desc(n.y)) 
+
+rm(tab_a, tab_i)
+
+# Naming columns. Column names will be lodged in
+# variables for coding convenience in datatable() below. 
+
+nc1 <- "Hashtags"
+nc2 <- "Instances from Android"
+nc3 <- "Instances from iPhone"
+
+names(j) <- c(nc1, nc2, nc3)
+
+# Creates an interactive data table, using the DT package. 
+
+# Coloring and background coloring header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(j, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(j) - 1))),
+         initComplete = JS(initComplete))) %>%
+  formatStyle(nc1, color = white, backgroundColor = deep_blue) %>%
+  formatStyle(nc2, color = white, backgroundColor = bluish_green) %>%
+  formatStyle(nc3, color = white, backgroundColor = gray_palette) 
+
+```
+
+There is predominance of the iPhone for almost all hashtags. The number of hashtags per tweet looks like a very promising candidate predictor. Should we also add candidate predictors for hashtags with the heaviest imbalances? 
+
+Let's quantify the global imbalance between the two devices. 
+
+```{r Hashtags 3}
+
+temp <- train_utf8_no_urls %>%
+  select(device) %>%
+  mutate(device = as.factor(device)) %>%
+  mutate(hashtags_count = hashtags_count) 
+
+# Counts number of tweets with no mention.
+
+tab0 <- temp %>%
+  filter(hashtags_count == 0) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of tweets with 1 URL.
+
+tab1 <- temp %>%
+  filter(hashtags_count == 1) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of iPhone tweets with 2 URLs.
+
+tab2 <- temp %>%
+  filter(hashtags_count == 2) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+# Counts number of tweets with 3 or more URLs.
+
+tab3 <- temp %>%
+  filter(hashtags_count >= 3) %>%
+  group_by(device, .drop = FALSE) %>%
+  summarise(n = n()) 
+
+rm(temp)
+
+# Assembles the 5 sub-tables into a global one and
+# converts tab from wide format to tidy format for ggplot2.
+
+tab <- cbind(tab0, tab1$n, tab2$n, tab3$n) %>%
+  `colnames<-`(c("device", "0", "1", "2", ">= 3")) %>%
+  gather(key = punct, value = n, `0`:`>= 3`) %>%
+  select(punct, device, n)
+
+rm(tab0, tab1, tab2, tab3)
+
+graph_title <- "Dispersion of Hashtags"
+x_title <- "Number of Hashtags per Tweet"
+y_title <- "Number of Hashtags"
+angle <- 0
+name1 <- "Number of Hashtags per Tweet"
+name2 <- "Number of Tweets"
+
+graphic_function(tab, graph_title, x_title, y_title, 
+                 angle, name1, name2)
+
+```
+
+Picture very much indeed like the one with URLs: huge predominance from iPhone. Same question: one or two binary predictors? But undoubtedly a very promising predictor.
+
+```{r Cleaning RAM}
+
+# Removes from previous code here in order to avoid
+# additional tag in HTML document.
+rm(tab, graph_title, x_title, y_title, angle, name1, name2,
+   j, nc1, nc2, nc3, initComplete)
+
+```
+
+<br>
+
+# Stylometric Predictors
+
+Let's build a data frame with all candidate predictors originating in the stylometric Exploratory Data Analysis conducted above. 
+
+The preselected candidate predictors will first be assembled in blocks: 
+- punctuation,
+- enclosed punctuation,
+- special sequences,
+- short forms,
+- other stopwords,
+- URLs,
+- mentions,
+- hashtags.
+
+In each block, selection criteria will be used. The total number of instances of a stylometric element, e.g. a specific punctuation mark, is not enough. Will the candidate predictor have discriminatory power between the two devices when predicting? Proportion between Android instances and iPhone instances? Difference in absolute numbers? Concentration per tweet: three instances of a specific element per tweet can be typical of one of the two devices. In some cases, dispersion per tweet has been visualized and it was often revealing and surprising as well. The machine learning algorithm that will be used can extract such information and make the most of it. What will be done is preselect candidate predictors on the basis of number os instances: at least 10 for at least one device. A few exceptions will be made when usage of a specific element is thought to be typical of one device. 
+
+This modular approach is meant to facilitate adaptation while adjusting the predictive model.
+
+Then all blocks will be temporarily assembled for a first run of the predictive model.
+
+## Emoji Predictor
+
+``` {r Emoji predictor}
+
+emoji_predictor <- ji_count(train_utf8$text)
+
+# This predictor will join the punctuation block of predictors later on.
+
+```
+
+## Punctuation Predictors
+
+These punctuation marks are looked for outside of URLs ..., which are dealt with separately.
+
+Dots will be dealt with among special sequences, because we will differentiate single dots and dots in a row???
+
+The percentage mark will also be dealt with among special sequences where we will look for sequences that are comprised of numbers and the percentage mark. 
+
+A separate code chunk will be dedicated to the punctuation mark ' because it can be either a single quote or an apostrophe. Disentangling is somewhat challenging and requires a *sui generis* approach. 
+
+& ...
+
+```{r Preparing stylometric predictors from single punctuation}
+
+# Vector of punctuation marks to be detected
+ 
+single_punctuation_marks <- 
+  c(".", "?", "!", ",", ":", "/", "+", "=", "$", 
+    "_", "-", "–", "—", "(", ")", '"', "'")
+
+column_names_single_punctuation <- 
+  c("dot", "quest_mark", "ex_mark", "comma",
+    "colon", "slash", "plus", "equal", "dollar", 
+    "underscore", "hyphen", "endash", "emdash", 
+    "left_par", "right_par",
+    "doub_quot", "apostrophe")
+
+# Vector of multiple punctuation marks that will be first 
+# discarded before counting single punctuation marks.
+
+to_be_discarded <- 
+  c("\\.", "\\?", "!", ",", ":", "/", "\\+", "=", "\\$", 
+    "_", "-", "–", "—", "\\(", "\\)", '\\"', "\\'")
+
+to_be_discarded <- 
+  paste(to_be_discarded, "{2,}", "|", sep = "", collapse = "")
+
+# Are discarded as well two special sequences: numbers followed 
+# with percentage mark and &amp; both will be treated 
+# with other special sequences below. 
+
+to_be_discarded <- 
+  paste(to_be_discarded, "\\d+%|&amp;", sep = "", collapse = "")
+
+# Discards multiple punctuation marks from tweets 
+# just for counting single punctuation marks. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, to_be_discarded, "")
+
+# Constructing a data frame as receptacle 
+# for top enclosed punctuation mark predictors. 
+
+l <- length(single_punctuation_marks)
+n <- nrow(train_utf8_no_urls_mentions_hashtags)
+
+block_punctuation <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(column_names_single_punctuation)
+
+# Counting instances of single punctuation marks.
+
+for (i in 1:length(single_punctuation_marks)) {
+
+  block_punctuation[, i] <- 
+    str_count(buffer, fixed(single_punctuation_marks[i]))
+
+}
+
+rm(single_punctuation_marks, column_names_single_punctuation,
+   to_be_discarded, buffer, l, n)
+
+# Adding the emoji predictor.
+block_punctuation$emojis_count <- emoji_predictor
+rm(emoji_predictor)
+
+```
+
+
+*&* would be a goo candidate predictor as well, but actually it is the sequence *&amp*. There is exactly the same number of instances. This will be taken care of under special sequences. 
+
+What have we got left?
+
+- dot,
+- question mark,
+- exclamation mark,
+- comma,
+- colon,
+- slash,
+- plus,
+- equal,
+- dollar,
+- underscore,
+- hyphen,
+- en dash,
+- em dash,
+- left parenthesis,
+- right parenthesis,
+- double quotation mark,
+- single quotation mark.
+
+The predictor based on exclamation mark has been changed since EDA, for performance reasons. Instead of taking all single exlamation marks, searching by trial and error has delivered another predictor with much more imbalance between the two devices: exclamation marks surrounded by anything but punctuation: 166/858. That means that in a lot of cases, exlamation mark was followed by punctuation in Android tweets. That is sheer serendipity. Well also some work. 
+
+Refinement will be brought to the statistics of single quotation quotations. Actually, the mark ' can be a single quotation mark, as often seen in iPhone tweets, or an apostrophe. The two marks will be separated. 
+
+The number of instances of single quotation marks will be calculated per tweet, kept in another predictor column, and subtracted from the column of apostrophes.
+
+```{r Predictors from single quotes}
+
+# Single quotes will be disentangled from apostrophes
+# by discarding apostrophes from tweets. 
+
+# In order to facilitate text mining about quotation marks,
+# let's lower case the tweets since the short forms are
+# already lowercased in the package stopwords. 
+
+text <- train_utf8_no_urls_mentions_hashtags$text 
+
+text <- str_to_lower(text, locale = "en")
+
+# Let's also remove 
+# - the possessive forms 's,
+# - plural forms such as $'s,
+# - enclosed apostrophes in short forms or 
+# - in e.g. some family names like O'Reilly,
+# - apostrophes in abbreviated millenial figures,
+# - trailing apostrophes at the end of two colloquialisms,
+#   i.e. "ya'" and "lyin'", used by the Android device,
+# - apostrophes in #'s and $'s .
+
+# By the way, we do not eliminate apostrophes from 
+# the possessive forms s' because at the same time
+# we would eliminate much more quotation marks. 
+# We'll tackle that later on, in a completely different way. 
+
+text <- str_replace_all(text, "([^\\s])(\\')(s)", "\\1\\3")
+text <- str_replace_all(text, 
+          "([A-Za-z])(\\')([A-Za-z])", "\\1\\3")
+text <- str_replace_all(text, "(\\')(\\d{2})", "\\2")
+text <- str_replace_all(text, "(ya)(\\')", "\\1")
+text <- str_replace_all(text, "(lyin)(\\')", "\\1")
+text <- str_replace_all(text, "(#)(\\')(s)", "\\1\\3")
+text <- str_replace_all(text, "(\\$)(\\')(s)", "\\1\\3")
+
+# There can still remain apostrophes, irrespective of single 
+# quotation marks, even if their number is probably very 
+# limited. The number of single quotation marks should be 
+# an even number. bal number 
+# of "'" should be an odd number. In such a case, let's 
+# decrease the number of instances with one. 
+
+# Of course, this wouldn't solve the problem if there were 
+# two or three apostrophes left, but this is not very probable.
+ 
+single_quot <- str_count(text, "\\'")
+
+for (i in 1:nrow(train_utf8_no_urls_mentions_hashtags)) {
+  
+  # If the number of ' is an odd number ...
+  if ((single_quot[i] %% 2) > 0) {
+    
+    # ... then the number is reduced with 1.
+    single_quot[[i]] <- single_quot[i] - 1
+    
+  }
+  
+}
+
+# single_quot will join the predictors from block_punctuation
+# and will be deducted from the predictor "apostrophe".
+ 
+block_punctuation$single_quot <- single_quot
+
+block_punctuation$apostrophe <- 
+  block_punctuation$apostrophe - single_quot
+
+rm(text, i, single_quot)
+
+```
+
+``` {r Predictor based on the number of curly quotes and apostrophes}
+
+temp <- 
+  train_no_utf8 %>%
+  mutate(text = str_replace_all(text, 
+                                urls_as_pattern, 
+                                "URLPLACEHOLDER")) %>%
+  .$text
+
+block_punctuation$curliewurlies_count <- str_count(temp, "’|‘|“|”")
+
+rm(temp)
+
+````
+
+
+Then predictors from repetitive punctuation
+
+```{r Predictors from repetitive punctuation marks in a row}
+
+column_names_repetitive_punctuation <- 
+  c("doub_hyphen", "trip_hyphen", "ellipsis", "quad_dot")
+
+# Constructing a data frame as receptacle for repetitive 
+# punctuation mark predictors, double, triple or more:
+# one column for double hyphen, one for ellipsis,
+# one for triple hyphen and one for quadruple dot.
+
+l <- length(column_names_repetitive_punctuation)
+n <- nrow(train_utf8_no_urls_mentions_hashtags)
+
+block_repetitive_punctuation <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(column_names_repetitive_punctuation)
+
+# First, double hyphen
+
+# Discards triple (or more) hyphen from tweets 
+# just for counting double punctuation marks. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, "-{3,}", "")
+
+# Counting instances of double hyphen.
+block_repetitive_punctuation[, 1] <- str_count(buffer, "--")
+
+# Second, counting triple hyphen and ellipses.
+
+# Discards quadruple hyphens or dots from tweets 
+# just for counting triple hyphen or ellipses.
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, "-{4,}|\\.{4,}", "")
+
+# Counting instances of triple hyphen.
+block_repetitive_punctuation[, 2] <- str_count(buffer, "---")
+
+# Counting instances of ellipses.
+block_repetitive_punctuation[, 3] <- str_count(buffer, "\\.{3}")
+
+# Third, counting quadruple hyphen.
+
+# Discards quintuple dot for counting quadruple dot.
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_replace_all(buffer, "\\.{5,}", "")
+
+# Counting instances of quadruple dot.
+block_repetitive_punctuation[, 4] <- str_count(buffer, "----")
+
+# Joining with existing block_punctuation predictors.
+
+block_punctuation <-
+  cbind(block_punctuation, block_repetitive_punctuation)
+
+rm(column_names_repetitive_punctuation,
+   block_repetitive_punctuation, buffer, l, n)
+
+```
+
+## Enclosed Punctuation
+
+Now enclosed punctuation marks.
+
+```{r Preparing predictors from single enclosed punctuation marks}
+
+# Selecting frequent punctuation marks. 
+
+single_enclosed_punctuation <- 
+  c("\\.", "-", ":", ",", "/")
+
+column_names_single_enclosed_punctuation <- 
+  c("dot_enc", "enc_hyphen", "enc_colon", "enc_comma", 
+    "enc_slash")
+
+# Constructing a data frame as receptacle 
+# for top enclosed punctuation mark predictors. 
+
+l <- length(single_enclosed_punctuation)
+n <- nrow(train_utf8_no_urls_mentions_hashtags)
+
+block_single_enclosed_punctuation <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(column_names_single_enclosed_punctuation)
+
+# Counting instances of top punctuation marks.
+
+for (i in 1:length(single_enclosed_punctuation)) {
+  
+  # With this pattern, repetitions of one punctuation mark
+  # cannot be selected. 
+  
+  pattern <- 
+    paste("(?![:punct:])\\S", single_enclosed_punctuation[i], 
+          "(?![:punct:])\\S", sep = "")
+
+  block_single_enclosed_punctuation[, i] <- 
+    str_count(train_utf8_no_urls_mentions_hashtags$text, 
+              pattern)
+
+}
+
+block_punctuation <- 
+  cbind(block_punctuation, block_single_enclosed_punctuation)
+
+# Deducting numbers of enclosed hyphen from existing
+# more general predictor related to the same punctuation mark.
+
+block_punctuation$comma <- 
+  block_punctuation$comma - block_punctuation$enc_comma
+
+block_punctuation$hyphen <- 
+  block_punctuation$hyphen - block_punctuation$enc_hyphen
+
+block_punctuation$colon <- 
+  block_punctuation$colon - block_punctuation$enc_colon
+
+block_punctuation$slash <- 
+  block_punctuation$slash - block_punctuation$enc_slash
+
+# Predictors related to other punctuation marks will be 
+# adjusted later on with additional information.
+
+rm(single_enclosed_punctuation,
+   column_names_single_enclosed_punctuation, 
+   block_single_enclosed_punctuation, l, n, i, pattern)
+
+```
+
+## Special sequences
+
+```{r Predictors from special sequences}
+
+# For loop to calculate the occurrence of special sequences
+# One is dropped: ya' with one instance.
+
+special_sequences <- 
+  c("\\\n", 
+    "\\&amp;",  
+    "\\S\\)\\S",
+    "[^[:punct:]]![^[:punct:]]",
+    "[a-zA-Z]-\\s",
+    "\\s-\\s",
+    "[a-zA-Z]-[a-zA-Z]",
+    "[a-z]\\.\\s",
+    "^\\.",
+    "!$", 
+    "\\?$", 
+    "\\.$", 
+    "[:alnum:]$",
+    "[\\s\\$]\\d{1,3},\\d{3},\\d{3}[\\s[:punct:][a-zA-Z]][^\\d]",
+    "\\d+\\.\\d+",
+    "\\d+[^\\.%]",    
+    "\\sA.M.|\\sP.M.", 
+    "\\d{1,2}\\:\\d{2}(am|pm)", 
+    "[^\\d]\\d{1,2}/\\d{1,2}/(\\d{2}){1,2}[\\s[a-zA-Z][:punct:]]",
+    "\\'\\d{2}[\\s[:punct:]]",
+    "[\\s[:punct:]]U.S.[\\s[:punct:]]", 
+    "U.S.A.",
+    "Lyin\\'|lyin\\'|LYIN\\'", 
+    "Havn\\'t|havn\\'t|HAVN\\'T",
+    "^#1[^\\w]|#1[^\\w]|#1$")
+
+# Reformats special sequences for printing in table.
+
+column_names_special_sequences <- 
+  c("newline", 
+    "ampersand",
+    "spec_enc_right_par", 
+    "semi_enc_ex_mark", 
+    "semi_enc_hyphen",
+    "free_hyphen",
+    "compounded_hyphen",
+    "period", 
+    "dot_upfront",
+    "tweet_end_ex_mark", 
+    "tweet_end_quest_mark",
+    "dot_tweet_end",
+    "tweet_end_alphanum",
+    "thousand_sep_2",
+    "dot_decimal_part", 
+    "percentual_number", 
+    "A.M._or_P.M.", 
+    "time_num_colon_ampm",
+    "date_num_slashes",
+    "abb_millenial",
+    "U.S.", 
+    "U.S.A.",
+    "lyin_apostrophe", 
+    "havnt_apostrophe",
+    "number_one")
+
+# Constructing a data frame as receptacle 
+# for top enclosed punctuation mark predictors. 
+
+l <- length(special_sequences)
+n <- nrow(train_utf8_no_urls_mentions_hashtags)
+
+block_special_sequences <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(column_names_special_sequences)
+
+# Counting instances of special sequences.
+
+for (i in 1:length(special_sequences)) {
+
+  block_special_sequences[, i] <- 
+    str_count(train_utf8_no_urls_mentions_hashtags$text, 
+              special_sequences[i])
+
+}
+
+block_punctuation <- 
+  cbind(block_punctuation, block_special_sequences)
+
+# Special sequence predictors will be subtracted 
+# from more general ones.
+
+block_punctuation$quest_mark <-
+  block_punctuation$quest_mark - 
+  block_punctuation$tweet_end_quest_mark
+
+block_punctuation$apostrophe <-
+  block_punctuation$apostrophe - 
+  block_punctuation$abb_millenial
+
+# The predictor right_par will be reduced by substacting
+# the predictor spec_enc_right_par, which is enclosed 
+# on both sides with all non empty characters, including 
+# punctuation marks contrary to other enclosed predictors
+# and is comprised of much more precise information. 
+block_punctuation$right_par <-
+  block_punctuation$right_par - 
+  block_punctuation$spec_enc_right_par 
+
+# The predictor left_par, which contains the same information
+# as right_par, will be discarded.
+block_punctuation$left_par <- NULL
+
+# Special sequences will be subtracted from enclosed ones.
+
+block_punctuation$enc_comma <-
+  block_punctuation$enc_comma - 
+  block_punctuation$thousand_sep_2
+
+block_punctuation$enc_colon <-
+  block_punctuation$enc_colon - 
+  block_punctuation$time_num_colon_ampm
+
+block_punctuation$enc_slash <-
+  block_punctuation$enc_slash - 
+  (2 * block_punctuation$date_num_slashes)
+
+# Some predictors will be deleted because some special 
+# sequences provide more precise information about subgroups.
+
+# E.g., the predictors dot and dot_enc are replaced with the 
+# predictors period, dot_upfront, dot_tweet_end, 
+# A.M._or_P.M., U.S., U.S.A. and dot_decimal_part.
+
+block_punctuation$dot <- NULL
+block_punctuation$dot_enc <- NULL
+
+# The predictor hyphen and enc_hyphen are replaced 
+# with the predictors semi_enc_hyphen, free_hyphen
+# and compounded_hyphen.
+
+block_punctuation$hyphen <- NULL
+block_punctuation$enc_hyphen <- NULL
+
+# The predictor ex_mark and enc_ex_mark are replaced with 
+# the predictors semi_enc_ex_mark and tweet_end_ex_mark.
+block_punctuation$ex_mark <- NULL
+block_punctuation$enc_ex_mark <- NULL
+
+rm(special_sequences, column_names_special_sequences, 
+   block_special_sequences, l, n, i)
+
+```
+
+
+## State Abbreviations
+
+State abbreviations to be added to special sequences. 
+
+```{r Predictors from State abbreviations}
+
+# List of abbreviations of American States without dots
+
+state_abb_without_dots <- state.abb
+
+# Replacing State abbreviations with placeholder.
+
+buffer <- 
+  train_utf8_no_urls_mentions_hashtags$text
+
+for (i in 1:length(state_abb_without_dots)) {
+  
+  # If State abbreviation is in front of tweet.
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("(^", state_abb_without_dots[i], 
+            ")([\\s[:punct:]])", sep = ""),
+      "ABBPLACEHOLDER\\2")
+  
+  # If State abbreviation is in the "middle" of tweet.
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("([\\s[:punct:]])(", state_abb_without_dots[i], 
+            ")([\\s[:punct:]])", sep = ""),
+      "\\1ABBPLACEHOLDER\\3")  
+  
+  # If State abbreviation is at the end of tweet.
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("([\\s[:punct:]])(", state_abb_without_dots[i], 
+            "$)", sep = ""),
+      "\\1ABBPLACEHOLDER")  
+  
+  # Second iteration for a State abbreviation 
+  # in the "middle" of tweet
+  buffer <- 
+    str_replace_all(buffer, 
+      paste("([\\s[:punct:]])(", state_abb_without_dots[i], 
+            ")([\\s[:punct:]])", sep = ""),
+      "\\1ABBPLACEHOLDER\\3")
+  
+}
+
+# Counting State abbreviations without dots.
+
+State_abb <- str_count(buffer, "ABBPLACEHOLDER")
+
+# Adding count to block_punctuation
+
+block_punctuation$State_abb <- State_abb
+
+rm(state_abb_without_dots, buffer, i, State_abb)
+
+```
+
+## Other Abbreviations
+
+```{r Predictors from other abbreviations}
+
+# Extracting all abbreviations uppercased and with dots
+# and counting number of dots.
+
+blub <- 
+  str_extract_all(train_utf8_no_urls_mentions_hashtags$text,
+    "^([:upper:]\\.){2,}|[^[:alpha:]]([:upper:]\\.){2,}")
+
+# Unlisting & collapsing each row in order to get a vector
+# of abbreviations for each row. 
+
+for (i in 1:length(blub)) {
+
+   blub[[i]] <- paste(unlist(blub[i]), sep = "", collapse = " ")
+   
+}
+
+# Eliminating a possible dot in front of an abbreviation.
+blub <- str_replace_all(blub, "(\\s)(\\.)([:upper:])", "\\1,\\3")
+
+# Counts number of dots per row.
+block_punctuation$dot_abb <- str_count(blub, "\\.")
+
+# Concerting block_punctuation$A.M._or_P.M. into number of dots 
+# instead of number of abbreviations in order to subtract from 
+# block_punctuation$dot_abb. block_punctuation$A.M._or_P.M. is 
+# kept because of strong imbalance with zero cases for iPhone.
+
+block_punctuation$A.M._or_P.M. <- 2 * block_punctuation$A.M._or_P.M.
+
+block_punctuation$dot_abb <- 
+  block_punctuation$dot_abb - block_punctuation$A.M._or_P.M.
+  
+rm(blub, i)
+
+# In order to avoid double counting in other dot statistics,
+# abbreviations will be neutralized.
+
+# Neutralizing abbreviations with dots in the "middle" of tweets.  
+# Comma replaces dot in order to keep a punctuation mark and 
+# preserve relationships with surrounding characters. 
+
+buffer <- 
+  str_replace_all(train_utf8_no_urls_mentions_hashtags$text,
+                 "([^[:alpha:]])(([:upper:]\\.){2,})",
+                 "\\1ABBPLACEHOLDER,")
+
+# Neutralizing abbreviations with dots in front of tweets.
+
+buffer <- str_replace_all(buffer, 
+                          "^([:upper:]\\.){2,}",
+                          "ABBPLACEHOLDER,")
+
+# Buffer information is a starting point to rationalize 
+# the whole set of predictors relating to dots, avoiding 
+# unnecessary splitting, double counting and gaps. 
+
+# Some previous subgroups will be dropped because they
+# have been regrouped in dot_abb .
+
+block_punctuation$U.S. <- NULL
+block_punctuation$U.S.A. <- NULL
+
+# Registers repetitions of dots and isolates them from buffer.
+
+block_punctuation$dot_three_plus <- str_count(buffer, "(\\.){3,}")
+buffer <- str_replace_all(buffer, "(\\.){3,}", ",")
+
+buffer <- str_replace_all(buffer, "(\\.){2}", ",")
+
+block_punctuation$quad_dot <- NULL
+
+# The rest from this code chunk spots specific 
+# subgroups of enclosed dots with substantial imbalance.
+
+# Dots enclosed between alphabetic characters
+block_punctuation$dot_enc_alpha <- 
+  str_count(buffer, "[:alpha:]\\.[:alpha:]") 
+
+buffer <- str_replace_all(buffer, 
+                          "([:alpha:])(\\.)([:alpha:])", 
+                          "\\1,\\3")
+
+block_punctuation$dot_enc <- NULL
+
+# Dots enclosed between digits
+block_punctuation$dot_decimal_part <- str_count(buffer, "\\d\\.\\d")   
+buffer <- str_replace_all(buffer, "(\\d)(\\.)(\\d)", "\\1,\\3")
+
+# Dots enclosed between letter and double quotation marks
+block_punctuation$dot_enc_alpha_doub_quot <- 
+  str_count(buffer, "[:alpha:]\\.\"")   
+buffer <- str_replace_all(buffer, "([:alpha:])(\\.)(\")", "\\1,\\3")
+
+# Dots enclosed in other combinations are just removed.
+buffer <- str_replace_all(buffer, "(\\S)(\\.)(\\S)", "\\1,\\3")
+
+# Dots left enclosed between hashtags and ...
+block_punctuation$dot_left_enc_hashtag <- 
+  str_count(buffer, "HASHTAGPLACEHOLDER\\.")
+
+buffer <- str_replace_all(buffer,
+                          "HASHTAGPLACEHOLDER\\.",
+                          "HASHTAGPLACEHOLDER,")
+
+# Dots left enclosed between mentions and ...
+block_punctuation$dot_left_enc_mention <- 
+  str_count(buffer, "MENTIONPLACEHOLDER\\.")
+
+buffer <- str_replace_all(buffer,
+                          "MENTIONPLACEHOLDER\\.",
+                          "MENTIONPLACEHOLDER,")
+
+# Dots left enclosed between URLs and ... are just removed. 
+buffer <- str_replace_all(buffer,
+                          "URLPLACEHOLDER\\.",
+                          "URLPLACEHOLDER,")
+
+# Recalculates number of dots at the end of tweets. 
+block_punctuation$dot_tweet_end <- str_count(buffer, "\\.$")
+buffer <- str_replace_all(buffer, "\\.$", ",")
+
+# Recalculates number of dots at the beginning of tweets.
+block_punctuation$dot_upfront <- str_count(buffer, "^\\.")
+buffer <- str_replace_all(buffer, "^\\.", ",")
+
+# Dots left enclosed between upper letter and empty space
+block_punctuation$dot_left_enc_upper <- 
+  str_count(buffer, "[:upper:]\\.\\s") 
+
+# Dots left enclosed between lower letter or digit and empty space
+block_punctuation$dot_left_enc_lower_digit <- 
+  str_count(buffer, "[[:lower:]\\d]\\.\\s")
+
+# Dots left enclosed between punctuation and empty space
+block_punctuation$dot_left_enc_punct <- 
+  str_count(buffer, "[:punct:]\\.\\s")
+
+# Neutralizing the 3 previous series of dots.
+buffer <- 
+  str_replace_all(buffer, 
+                  "([[:alpha:]\\d[:punct:]])(\\.)(\\s)", "\\1,\\3")
+
+# Dots left enclosed in other combinations are just removed. 
+buffer <- str_replace_all(buffer, "(\\S)(\\.)(\\s)", "\\1,\\3")
+block_punctuation$dot <- NULL
+
+```
+
+Short forms
+
+```{r Predictors from short forms}
+
+# Short forms will be added as predictors if and only if 
+# the number of instances in tweet is at least 10.
+
+# In order to facilitate text mining, let's lower case 
+# the tweets since the short forms are already lowercased. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Counting the instances in tweets.
+
+l <- length(list_short_forms)
+
+output <- 
+  data.frame(matrix(l * 2, nrow = l, ncol = 2) *1) %>%
+  `colnames<-`(c("short_form", "n"))
+
+for (i in 1:l) {
+
+df <- 
+  data.frame(buffer) %>% 
+  mutate(n = str_count(buffer, list_short_forms[i])) %>%
+  summarise(n = sum(n))
+
+output$short_form[[i]] <- list_short_forms[i]
+output$n[[i]] <- df$n
+
+} 
+
+# Identifying short forms with at least 10 instances.
+
+output <- output %>% filter(n >= 10) 
+
+top_short_forms <- output$short_form
+
+column_names_top_short_forms <- 
+  str_replace_all(top_short_forms, "\\'", "_")
+
+# Data frame as receptacle for top short form predictors
+
+l <- length(top_short_forms)
+n <- nrow(train_utf8_no_urls_mentions_hashtags)
+
+block_top_short_forms <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(column_names_top_short_forms)
+
+# Counting instances of top punctuation marks.
+
+for (i in 1:length(top_short_forms)) {
+
+  block_top_short_forms[, i] <- 
+    str_count(train_utf8_no_urls_mentions_hashtags$text, 
+              top_short_forms[i])
+
+}
+
+rm(buffer, output, top_short_forms, 
+   column_names_top_short_forms, df, l, n, i)
+
+```
+
+Other stopwords
+
+```{r Predictors from other stopwords}
+
+# Other stopwords will be added as predictors if and only if 
+# the number of instances in all tweets is at least 10.
+
+# In order to facilitate text mining, let's lower case 
+# the tweets since the short forms are already lowercased. 
+
+buffer <- train_utf8_no_urls_mentions_hashtags$text
+buffer <- str_to_lower(buffer, locale = "en")
+
+# Counting the instances in tweets.
+
+l <- length(list_other_stopwords)
+
+output <- 
+  data.frame(matrix(l * 2, nrow = l, ncol = 2) *1) %>%
+  `colnames<-`(c("other_stopword", "n"))
+
+for (i in 1:l) {
+
+df <- 
+  data.frame(buffer) %>%
+  mutate(n = 
+    str_count(buffer, 
+      paste("^", list_other_stopwords[i], "[^[:alnum:]-]",
+        "|[^[:alnum:]-]", list_other_stopwords[i], "[^[:alnum:]-]",
+        "|[^[:alnum:]-]", list_other_stopwords[i], "\\$",
+        sep = ""))) %>%
+  summarise(n = sum(n))
+
+output$other_stopword[[i]] <- list_other_stopwords[i]
+output$n[[i]] <- df$n
+
+} 
+
+# Identifying short forms with at least 10 instances.
+
+output <- output %>% filter(n >= 10) 
+
+top_other_stopwords <- output$other_stopword
+
+column_names_top_other_stopwords <- 
+  str_replace_all(top_other_stopwords, "\\'", "_")
+
+# Data frame as receptacle for top other stopword predictors
+
+l <- length(top_other_stopwords)
+n <- nrow(train_utf8_no_urls_mentions_hashtags)
+
+block_top_other_stopwords <- 
+  data.frame(matrix(n * l, nrow = n, ncol =  l) * 1) %>%
+  `colnames<-`(column_names_top_other_stopwords)
+
+# Counting instances of top other stopwords.
+
+for (i in 1:length(top_other_stopwords)) {
+
+  block_top_other_stopwords[, i] <- 
+    str_count(buffer, 
+      paste("^", top_other_stopwords[i], "[^[:alnum:]-]",
+        "|[^[:alnum:]]", top_other_stopwords[i], "[^[:alnum:]-]",
+        "|[^[:alnum:]]", top_other_stopwords[i], "\\$",
+        sep = "")) 
+
+}
+
+rm(top_other_stopwords, column_names_top_other_stopwords, 
+   output, l, n, i, df)
+
+# Building up one single block for all stopwords. 
+
+block_stopwords <- 
+  cbind(block_top_short_forms, block_top_other_stopwords)
+
+rm(block_top_short_forms, block_top_other_stopwords)
+
+```
+
+## URL Predictors
+
+2 paths:
+
+- one predictor with the total number of URLs per tweet,
+- predictors for every URLs having at least 3 instances. 
+
+Why the second group? There are no URLs used by both devices. The Android device uses very few URLs and only once for each of the URLs it uses. 
+
+```{r URL predictors}
+
+# Keeping just tweets.
+
+buffer <- train_utf8$text
+
+# First predictor: total number of URLs per tweet
+# already exists in urls_count.
+
+# Predictors from URLs having at least 3 instances.
+
+output <- data.frame(url = urls, n = 1:length(urls))
+
+for (i in 1:length(urls)) {
+  
+  output$n[[i]] <- sum(str_count(buffer, urls[i]))
+
+}
+
+# Keeping URLs with at least 3 instances.
+
+output <- output %>% filter(n >=3)
+
+# Making predictors out of them.
+
+l <- length(buffer)
+n <- length(output$n)
+
+block_urls <- 
+  data.frame(matrix(l * n, nrow = l, ncol = n) * 1) %>%
+  `colnames<-`(output$url)
+
+for (i in 1:length(output$n)) {
+  
+  block_urls[, i] <- str_count(buffer, urls[i])
+  
+}
+
+# Adding the general total.
+
+block_urls <- cbind(block_urls, urls_count)
+
+rm(buffer, output, i, l, n)
+
+```
+
+
+## Mention Predictors
+
+Then come the top mentions, with one count variable for each of them. 
+
+```{r Predictors from mentions}
+
+# Keeping just tweets.
+
+buffer <- train_utf8_no_urls$text
+
+# First predictor: total number of tweets per tweet
+# already exists in mentions_count in mentions_count.
+
+# Other predictors from mentions having at least 10 instances.
+
+# Length of existing vector mentions.
+
+l <- length(mentions)
+
+# Receptacle data frame to pick up top mentions
+
+output <- data.frame(mention = mentions, n = 1:l)
+
+for (i in 1:l) {
+
+  output$n[[i]] <- sum(str_count(buffer, mentions[i]))
+
+}
+
+# Keeping URLs with at least 10 instances.
+
+output <- output %>% filter(n >= 10)
+
+# Making predictors out of them.
+
+l <- length(buffer)
+n <- length(output$n)
+
+block_mentions <- 
+  data.frame(matrix(l * n, nrow = l, ncol = n) * 1) 
+
+for (i in 1:n) {
+
+  block_mentions[, i] <- str_count(buffer, output$mention[i])
+  
+}
+
+# Making column names R friendly.
+names(block_mentions) <- make.names(output$mention, unique = TRUE)
+
+# Adding the general total.
+
+block_mentions <- cbind(block_mentions, mentions_count)
+
+rm(buffer, l, n, output, i)
+
+```
+
+## Hashtag Predictors
+
+Then come the top hashtags, with one count variable for each of them. 
+
+```{r Preparing stylometric predictors from hashtags}
+
+# Keeping just tweets.
+
+buffer <- train_utf8_no_urls$text
+
+# First predictor: total number of tweets per tweet
+# already exists in hashtags_count.
+
+# Other predictors from mentions having at least 10 instances.
+
+# Length of existing vector hashtags.
+
+l <- length(hashtags)
+
+# Receptacle data frame to pick up top hashtags
+
+output <- data.frame(hashtag = hashtags, n = 1:l)
+
+for (i in 1:l) {
+
+  output$n[[i]] <- sum(str_count(buffer, hashtags[i]))
+
+}
+
+# Keeping URLs with at least 10 instances.
+
+output <- output %>% filter(n >= 10)
+
+# Making predictors out of them.
+
+l <- length(buffer)
+n <- length(output$n)
+
+block_hashtags <- 
+  data.frame(matrix(l * n, nrow = l, ncol = n) * 1) 
+
+for (i in 1:n) {
+
+  block_mentions[, i] <- str_count(buffer, output$hashtag[i])
+  
+}
+
+# Making column names R friendly.
+names(block_hashtags) <- make.names(output$hashtag, unique = TRUE)
+
+# Adding the general total.
+
+block_hashtags <- cbind(block_hashtags, hashtags_count)
+
+rm(buffer, l, n, output, i)
+
+# Assembling predictors from URLs, mentions, and hashtags.
+
+block_entities <- 
+  cbind(block_urls, block_mentions, block_hashtags)
+
+rm(block_urls, block_mentions, block_hashtags)
+
+```
+
+## All Predictors
+
+Assembling all stylometric predictors.
+
+```{r Creating data frame receptacle for all stylometric predictors}
+
+# All predictors
+block_stylo <-
+  cbind(block_punctuation, block_stopwords, block_entities)
+
+rm(block_punctuation, block_stopwords, block_entities)
+
+```
+
+# Attribution Model
+
+``` {r tweet attribution on training set}
+
+# In the function train() from the package caret, the target 
+# variable needs to be a numerical or factor vector. It will
+# be made numerical and then factor with 1 representing 
+# the iPhone (the main class) and 2 representing the Android device. 
+
+target <- train_no_utf8$device
+target <- str_replace_all(target, "Android", "2")
+target <- str_replace_all(target, "iPhone", "1") 
+target <- as.factor(target)
+
+# Keeping 3 versions of tweets for later results decoding
+# and removing data frames for reasons of RAM management
+
+memo <- 
+  data.frame(tweets_no_utf8 = train_no_utf8$text,
+             tweets_utf8 = train_utf8$text,
+             tweets_utf8_no_urls = 
+               train_utf8_no_urls$text,
+             tweets_utf8_no_urls_mentions_hashtags =                                           train_utf8_no_urls_mentions_hashtags$text)
+
+rm(train_no_utf8, 
+   train_utf8, 
+   train_utf8_no_urls,
+   train_utf8_no_urls_mentions_hashtags)
+
+# Running algorithm xgbTree.
+
+attribution_model <- train(block_stylo, target, 
+                     method = "xgbTree", 
+                     tuneLength = 5,
+                     metric = "Accuracy")
+
+# Predicting on training set.
+pred <- predict(attribution_model)
+
+# Accuracy
+acc <- mean(pred == target)
+
+# Table with accuracy
+
+tab <- data.frame(acc) %>%
+  `colnames<-`("Tweet Attribution Model on Training Set - 1st Run") %>%
+  `rownames<-`("Accuracy")
+
+# Prints table.
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+Running the algorithm eXtreme Gradient Boosting on the training set delivers an accuracy level of nearly 94 %. False negatives and false positives will be shown in the table below. 
+
+``` {r False negative tweets}
+
+# Detecting false negatives and printing corresponding tweets. 
+
+# Index of all wrong predictions
+index <- which(! pred == target)
+
+# Table of all wrong predictions
+tab <- data.frame(text = memo$tweets_no_utf8, device = target) 
+
+tab <- tab[index, ]
+
+# Table of false negatives 
+tab_fn <- tab %>%
+  filter(device == 1) %>%
+  select(text) %>%
+  `colnames<-`("False Negative: iPhone Tweet Wrongly Attributed")
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#999999',
+            row.style.color = 'white';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab_fn, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab_fn) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```
+
+Now the false positives: the tweets that have been sent by the Android device but that have been wrongly attributed to the iPhone. 
+
+``` {r False positive tweets}
+
+# Table of false negatives 
+tab_fp <- tab %>%
+  filter(device == 2) %>%
+  select(text) %>%
+  `colnames<-`("False Negative: Android Tweet Wrongly Attributed")
+
+# Creating an interactive data table, using the DT package. 
+
+# Will color and background color header.
+
+initComplete <- 
+  c("function(settings, json) {
+        ", 
+        "$(this.api().table().header()).css({
+            'background-color': '#0072B2', 'color': 'White'
+            });", 
+        "}
+    ")
+
+# Will color and background color body text.
+
+rowCallback <-
+  c("function(row, data, index, rowId) {
+        ",
+        "console.log(rowId)", 
+        "if(rowId >= 0) {
+            ",
+            "row.style.backgroundColor = '#0072B2',
+            row.style.color = 'white';",
+            "}",
+        "}
+    ")
+
+# Prints datatable. 
+
+datatable(tab_fp, rownames = FALSE, filter = "top", 
+  options = 
+    list(pageLength = 5, scrollX = T,
+         columnDefs = list(list(className = 'dt-center', 
+                                targets = 0:(ncol(tab_fp) - 1))),
+         initComplete = JS(initComplete),
+         rowCallback = JS(rowCallback)))
+
+```
+
+As shown in the two tables above, there are much more false negatives than false positives. In other words, wrong attribution has mainly struck the tweets that have actually been sent by the iPhone but that have been attributed to the Android device. 
+
+Attention will be paid to the numerous false negatives. Additional patterns will be looked for in order to better detect them. 
+
+By perusing the two tables above, the following additional patterns will be introduced and tested in a second run of the attributive model. For each candidate predictor, the imbalance between the two devices has been measured. These measurements are not publicized here for reasons of brevity. 
+
+``` {r Additional predictors to better detect iPhone tweets}
+
+# Removing previous objects.
+rm(index, tab, tab_fn, tab_fp)
+
+text <- 
+  str_replace_all(memo$tweets_utf8_no_urls_mentions_hashtags, 
+    "URLPLACEHOLDER|MENTIONPLACEHOLDER|HASHTAGPLACEHOLDER", "")
+
+w_slash <- str_count(text, "w/|\\sw\\s")
+r_apostrophe_s <- str_count(text, "R's")
+re_colon <- str_count(text, "re:")
+digit_slash_digit_within_par <- str_count(text, "\\(\\d/\\d\\)")
+digits_ampm <- str_count(text, "[^\\d:]\\dam|[^\\d:]\\dpm")
+words_lowercased <- str_count(text, "[:lower:]{2,}")
+MAGA <- str_count(text, "MAKE AMERICA GREAT AGAIN")
+GOP <- str_count(text, "GOP")
+CNN <- str_count(text, "CNN")
+yrs <- str_count(text, "yrs")
+
+block_addendum <- 
+  cbind(words_lowercased, MAGA, GOP, CNN, w_slash, 
+        r_apostrophe_s, yrs, digit_slash_digit_within_par,
+        re_colon, digits_ampm)
+rm(words_lowercased, MAGA, GOP, CNN, w_slash, 
+        r_apostrophe_s, yrs, digit_slash_digit_within_par,
+        re_colon, digits_ampm)
+
+block_stylo <- cbind(block_stylo, block_addendum)
+rm(block_addendum)
+
+block_stylo$dash <- block_stylo$endash + block_stylo$emdash
+block_stylo$endash <- NULL
+block_stylo$emdash <- NULL
+
+block_stylo$ampm <- block_stylo$time_num_colon_ampm +
+                    block_stylo$digits_ampm
+block_stylo$time_num_colon_ampm <- NULL
+block_stylo$digits_ampm <- NULL
+
+block_stylo$top_urls <- block_stylo$`https://t.co/3KWOl20zMm` +
+                        block_stylo$`https://t.co/3KWOl2ibaW` +
+                        block_stylo$`https://t.co/ANvTcZqfOq` +
+                        block_stylo$`https://t.co/PVB6QX7VpK`
+block_stylo$`https://t.co/3KWOl20zMm` <- NULL
+block_stylo$`https://t.co/3KWOl2ibaW` <- NULL 
+block_stylo$`https://t.co/ANvTcZqfOq` <- NULL 
+block_stylo$`https://t.co/PVB6QX7VpK` <- NULL
+
+```
+
+``` {r 2nd run}
+
+# Running algorithm xgbTree.
+
+attribution_model <- train(block_stylo, target, 
+                     method = "xgbTree", 
+                     tuneLength = 5,
+                     metric = "Accuracy")
+
+# Predicting on training set.
+pred <- predict(attribution_model)
+
+# Accuracy
+acc <- mean(pred == target)
+
+# Table with accuracy
+
+tab <- data.frame(acc) %>%
+  `colnames<-`("Tweet Attribution Model on Training Set - 1st Run") %>%
+  `rownames<-`("Accuracy")
+
+# Prints table.
+knitr::kable(tab, align = "c",  
+             table.attr = "class=\'bg-primary\'") %>% 
+  kableExtra::kable_styling()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------
+
+STYLOMETRY
+
+STYLO PACKAGE
+
+le package �stylo� a �t� compil� avec la version R 4.0.5
+### stylo version: 0.7.4 ###
+
+If you plan to cite this software (please do!), use the following reference:
+    Eder, M., Rybicki, J. and Kestemont, M. (2016). Stylometry with R:
+    a package for computational text analysis. R Journal 8(1): 107-121.
+    <https://journal.r-project.org/archive/2016/RJ-2016-007/index.html>
+
+To get full BibTeX entry, type: citation("stylo")
+
+https://www.kmworld.com/Articles/Editorial/Features/How-Do-Function-Words-Function-in-Text-Analytics-(Video)-131862.aspx
+
+---------------------------------------------------------------------------
+
+COLORS
+
+The first two references deal with color-blind-friendly issues. 
+
+http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/
+
+https://venngage.com/blog/color-blind-friendly-palette/#2
+
+http://www.sthda.com/english/wiki/ggplot2-themes-and-background-colors-the-3-elements
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+
+---------------------------------------------------------------------
+
+Donald Trump and Twitter – 2009 / 2021 analysis
+
+https://www.tweetbinder.com/blog/trump-twitter/
+
+------------------------------------------------------------------
+
+BASIC TEXT ANALYSIS IN R
+
+https://sicss.io/2018/materials/day3-text-analysis/basic-text-analysis/rmarkdown/Basic_Text_Analysis_in_R.html
+
+------------------------------------------------------------------
+
+tidytext package
+https://www.tidytextmining.com/
+janeaustenr package !!!!
+https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html
+
+REGEX
+
+https://bookdown.org/rdpeng/rprogdatascience/regular-expressions.html
+
+Removing unwanted characters from a corpus with tm package
+
+https://community.rstudio.com/t/tm-package-removing-unwanted-characters-works-in-r-but-not-knitr/26734
+
+Extracting the 12 hour interval as am/pm values has been done using a piece of advice of Jaap's on Stack Overflow. This is interesting. But this solution has proven unstable in my workenvironnement and I have opted out of this solution and have opted into something simpler (see above).
+
+https://stackoverflow.com/questions/37896824/grouping-time-and-counting-instances-by-12-hour-bins-in-r
+
+Since you are using fixed strings, not regular expressions, you need to tell the regex engine to use the patterns as plain, literal text. With fixed().
+
+https://stackoverflow.com/questions/45828985/error-in-stri-detect-regex-in-r
+
+https://www.petefreitag.com/cheatsheets/regex/character-classes/
+
+---------------------------------------------------------------------
+
+NLP
+
+https://cran.r-project.org/web/views/NaturalLanguageProcessing.html
+https://stackoverflow.com/questions/21533899/in-r-use-gsub-to-remove-all-punctuation-except-period/39745610
+The \\1 is syntax for the last capture in a regular expression using the () 
+It says whatever was matched, replace it with that. 
+I put only the "." and "-" in the group (), so \\1 will replace .- 
+(by the same vale), so it keeps them here. – agstudy Feb 3 '14 at 20:02
+
+https://stackoverflow.com/questions/25485298/how-to-get-words-that-end-with-certain-characters-within-each-string-r
+
+Extracting hashtags
+https://stackoverflow.com/questions/13762868/how-do-i-extract-hashtags-from-tweets-in-r
+There are two levels of parsing going on here. 
+Before the low level regexp function within str_extract 
+gets the pattern you want to search for (i.e. "#\S+") 
+it is first parsed by R. R does not recognize \S 
+as a valid escape character and throws an error. 
+By escaping the slash with \\ you tell R to pass the \ and S 
+as two normal characters to the regexp function, 
+instead of interpreting it as one escape character.
+v <- str_extract_all(train_utf8$text, "#\\S+")
+
+SPLITTING BETWEEN LOWER CASE AND UPPER CASE
+
+https://stackoverflow.com/questions/43706474/splitting-string-between-capital-and-lowercase-character-in-r
+We can use regex lookaround to match lower case letters 
+(positive lookbehind - (?<=[a-z])) followed by upper case letters 
+(positive lookahead -(?=[A-Z]))
+
+Not used but ...
+https://cran.r-project.org/web/packages/textclean/textclean.pdf
+
+---
+
+Sorting in case insensitive way
+mentions <- mentions[order(tolower(mentions))]
+https://stackoverflow.com/questions/29890303/case-insensitive-sort-of-vector-of-string-in-r
+Thanks to lukeA
+
+---
+
+STOPWORDS PACKAGE
+
+https://www.rdocumentation.org/packages/stopwords/versions/2.2
+
+---------------------------------------------------------------------
+
+https://blog.datazar.com/first-debate-2016-sentimental-analysis-of-candidates-58d87092fc6a
+twitter authentication
+web scraping
+sentiment analysis
+simplistic in comments?
+
+https://www.kaggle.com/erikbruin/text-mining-the-clinton-and-trump-election-tweets
+awesome!
+
+LIMITS OF LEXICONS
+https://hoyeolkim.wordpress.com/2018/02/25/the-limits-of-the-bing-afinn-and-nrc-lexicons-with-the-tidytext-package-in-r/
+
+Pas moyen d'ouvrir nrc
+https://github.com/juliasilge/tidytext/issues/146
+
+Vocabulary
+
+https://www.vocabulary.com/dictionary/wrath
+
+https://www.fluentu.com/blog/english/american-english-slang-words-esl/
+This one refers to other lists. 
+
+President Trum linguistically is unadorned, oddly adolescent.
+https://www.youtube.com/watch?v=phsU1vVHOQI
+Professor John McWhorter
+He uses tags at the end of a sentence: "believe me"
+and enforcers 
+more than ever before
+more than we've seen before
+
+Informal English
+https://www.engvid.com/english-resource/formal-informal-english/
+
+Teen slang
+https://www.verywellfamily.com/a-teen-slang-dictionary-2610994
+
+---------------------------------------------------------------------
+
+STUDY ITSELF - BOOK FROM RAF
+https://books.google.be/books?id=62K-DwAAQBAJ&pg=PA459&lpg=PA459&dq=str_replace_all(text,+https://t.co/%5BA-Za-z%5C%5Cd%5D%2B%7C%26amp;,+)&source=bl&ots=bDWhUw2slL&sig=ACfU3U3Kvhh-parwC0mYLod1HL_yvlWLnQ&hl=en&sa=X&ved=2ahUKEwiGycS7pNHpAhXElqQKHR7RDvcQ6AEwAHoECAoQAQ#v=onepage&q=str_replace_all(text%2C%20https%3A%2F%2Ft.co%2F%5BA-Za-z%5C%5Cd%5D%2B%7C%26amp%3B%2C%20)&f=false
+
+Todd Vaziri
+https://twitter.com/tvaziri/status/762005541388378112
+
+David Robinson
+http://varianceexplained.org/r/trump-tweets/
+
+Introduction to automated text analysis of other Trump's tweets
+Pablo Barbera
+July 2, 2018
+http://pablobarbera.com/social-media-upf/code/01-text-intro.html
+
+---------------------------------------------------------------------
+
+TWITTER SENTIMENT ANALYSIS
+
+https://towardsdatascience.com/twitter-sentiment-analysis-and-visualization-using-r-22e1f70f6967
+
+---------------------------------------------------------------------
+
+WORDCLOUDS
+
+Retrieving, unnesting and building up wordclouds
+https://www.littlemissdata.com/blog/wordclouds
+
+---
+
+Focused on wordclouds, with Twitter logo!
+https://cran.r-project.org/web/packages/wordcloud2/vignettes/wordcloud.html
+
+---
+
+Focused on wordclouds
+https://www.r-graph-gallery.com/196-the-wordcloud2-library.html
+
+---
+
+Wordclouds and DRACULA gutenbergr
+https://www.learningrfordatascience.com/post/dynamic-wordclouds-with-wordcloud2/
+
+----------------------------------------------------------------------
+
+GGPLOT2 IN GENERAL 
+
+http://www.sthda.com/english/wiki/ggplot2-essentials
+
+----------------------------------------------------------------------
+
+GGPLOT2 datetime scales with breaks_width() and breaks_pretty() 
+
+https://bookdown.org/Maxine/ggplot2-maps/posts/2019-11-27-using-scales-package-to-modify-ggplot2-scale/
+
+https://scales.r-lib.org/reference/breaks_pretty.html
+
+----------------------------------------------------------------------
+
+TICKS ON A DISCRETE NUMERIC X AXIS
+
+https://stackoverflow.com/questions/47794265/changing-x-axis-ticks-in-ggplot2
+
+ID is a numeric column, so ggplot2 uses a continuous scale, not a discrete scale:
+
+----------------------------------------------------------------------
+
+GGPLOT2 SUBTITLES
+
+hrbrmstr
+https://stackoverflow.com/questions/11724311/how-to-add-a-ggplot2-subtitle-with-different-size-and-colour
+
+----------------------------------------------------------------------
+
+GGPLOT2 SIZE OF DOT SYMBOLS
+ialm
+
+https://stackoverflow.com/questions/20251119/increase-the-size-of-variable-size-points-in-ggplot2-scatter-plot
+
+----------------------------------------------------------------------
+
+GGPLOT2 SUPPRESSING LEGEND RELATED TO geom_point(aes(size = n))
+Brandon Bertelsen
+https://stackoverflow.com/questions/4207518/how-can-i-hide-the-part-of-the-legend-using-ggplot2
+
+Actually didn't work because size grading disappeated with legend.
+
+But
+Didzis Elferts
+https://stackoverflow.com/questions/14604435/turning-off-some-legends-in-a-ggplot
+
+https://ggplot2.tidyverse.org/reference/scale_manual.html
+it's recommended to use a named vector
+----------------------------------------------------------------------
+
+GGPLOT2 adding border.panel without losing everything inside
+
+https://stackoverflow.com/questions/26191833/add-panel-border-to-ggplot2
+
+----------------------------------------------------------------------
+
+https://stackoverflow.com/questions/12977073/how-to-find-the-difference-between-two-dates-in-hours-in-r
+How to find the difference between two dates in hours in R?
+Thank you Andrie
+
+----------------------------------------------------------------------
+
+PLOTLY with GGPLOT2
+
+https://stackoverflow.com/questions/45801389/disable-hover-information-for-a-specific-layer-geom-of-plotly
+
+Example of modifying hover information
+
+----------------------------------------------------------------------
+
+PLOTLY with GGPLOT2
+
+https://stackoverflow.com/questions/54695153/fix-plotly-legend-position-and-disable-plotly-panel-for-shiny-in-rmarkdown
+
+Fixing plotly legend position at the bottom
+
+----------------------------------------------------------------------
+
+KNITR::KABLE()
+
+https://stackoverflow.com/questions/51418946/how-to-align-column-title-and-content-in-knitr
+
+----------------------------------------------------------------------
+
+WATERMARK
+
+http://freerangestats.info/blog/2017/09/09/rmarkdown
+
+----------------------------------------------------------------------
+
+TWITTER
+
+https://www.techwalla.com/articles/what-characters-are-allowed-in-a-twitter-name
+
+https://stackoverflow.com/questions/8451846/actual-twitter-format-for-hashtags-not-your-regex-not-his-code-the-actual
+
+https://advicemedia.com/blog/social-media/hashtags-101/
+
+https://www.hashtags.org/featured/what-characters-can-a-hashtag-include/
+
+----------------------------------------------------------------------
+
+UNDERSTAND YOUR DATA SET WITH XGBOOST
+
+https://cran.r-project.org/web/packages/xgboost/vignettes/discoverYourData.html#feature-importance
+
+----------------------------------------------------------------------
+
+PUNCTUATION
+
+https://www.thepunctuationguide.com/
+
+https://www.grammarly.com/blog/hyphens-and-dashes/
+
+https://blog.esllibrary.com/2014/09/24/punctuation-rules-parentheses/
+
+
+----------------------------------------------------------------------
+
+DATATABLE
+
+Good and rather comprehensive
+https://rstudio.github.io/DT/
+
+https://datatables.net/forums/discussion/60924/how-to-remove-a-border
+
+https://stackoverflow.com/questions/35749389/column-alignment-in-dt-datatable
+
+https://rstudio.github.io/DT/functions.html
+
+
+----------------------------------------------------------------------
+
+WORDCLOUD2
+
+https://cran.r-project.org/web/packages/wordcloud2/vignettes/wordcloud.html
+
+----------------------------------------------------------------------
+
+KNITR::KABLE
+
+https://stackoverflow.com/questions/59958254/vertically-align-column-name-using-kable-and-rendering-with-rmarkdown-into-html
+
+
+----------------------------------------------------------------------
+
+R PLOTLY
+
+https://plotly.com/r/hover-text-and-formatting/
+
+I have used the next ones
+
+https://stackoverflow.com/questions/59959385/how-to-change-the-hover-background-color-in-ggplotly-for-bar-chart
+
+https://stackoverflow.com/questions/49494121/plotly-change-hover-popup-styling
+
+https://plotly.com/r/reference/#box-hoverlabel-bordercolorsrc
+
+https://plotly.com/r/text-and-annotations/
+
+https://plotly-r.com/
+
+----------------------------------------------------------------------
+
+EMOJI
+
+https://www.smashingmagazine.com/2016/11/character-sets-encoding-emoji/
+
+https://rdrr.io/github/hadley/emo/man/ji_extract.html
+
+----------------------------------------------------------------------
+
+githubinstall
+
+https://cran.r-project.org/web/packages/githubinstall/vignettes/githubinstall.html
+
+----------------------------------------------------------------------
+
+devtools
+
+https://www.r-project.org/nosvn/pandoc/devtools.html
+
+----------------------------------------------------------------------
+
+
+https://community.rstudio.com/t/issue-with-installed-packages/9458/3
+
+----------------------------------------------------------------------
+
+PUNCTUATION CURLY 
+
+https://practicaltypography.com/straight-and-curly-quotes.html
+
+----------------------------------------------------------------------
+
+UTF_8
+
+https://rdrr.io/cran/utf8/man/utf8_normalize.html
+
+----------------------------------------------------------------------
+
+
