@@ -18,16 +18,10 @@ Will be used as tools:
 Cleaning tweets, removing URLs, punctuation, etc. Expanding hashtags (and mentions),
 which would otherwise not match entries in existing sentiment analysis dictionaries.
 
-Tokenization, word frequencies and wordclouds per device, with or without proper nouns,
-with or without hashtag expansion, etc. 
-
-#### 2. Exploratory Data Analysis of other characteristics of tweets
-Is it possible to separate tweets based on timing, number of words, number of retweets ?
-
-#### 3. Sentiment Analysis
-Matching tokens with existing sentiment analysis dictionaries.
-
 #### 4. Machine learning
 
 #### 5. Tweet Atribution per device
+
+https://dev-p-l.github.io/Tweet_Attribution_Stylometry/Tweet_Attribution_Stylometry.html
+
 
