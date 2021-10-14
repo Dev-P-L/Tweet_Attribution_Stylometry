@@ -4,7 +4,7 @@
 
 * **Tweet_Attribution_Stylometry.html** is the output in HTML. 
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;For readers' convenience, Tweet_Attribution_Stylometry.html is an HTML document with interactive layout: the table of contents, the wordclouds, the graphs, and many tables are interactive; moreover, code can be visualized by pushing tag buttons on the right-hand-side of the HTML document.
+  * For readers' convenience, Tweet_Attribution_Stylometry.html is an HTML document with interactive layout: the table of contents, the wordclouds, the graphs, and many tables are interactive; moreover, code can be visualized by pushing tag buttons on the right-hand-side of the HTML document.
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Furthermore, for everyone’s convenience, I have tried using, when possible, colors that are clearly distinguishable to take into account alternative color perception, following pieces of advice given in [Cookbook R](http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/). As far as code visualization is concerned — when pushing tag buttons on the right-hand-side of the HTML document —, I hope the theme espresso, which I have chosen, is satisfactory.
 
