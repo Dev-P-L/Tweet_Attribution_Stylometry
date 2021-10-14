@@ -3,6 +3,7 @@
 ## What are the files included in this repository?
 
 * Tweet_Attribution_Stylometry.html is the output in HTML. 
+
 For your convenience, the final document Tweet_Attribution_Stylometry.html is an HTML document with interactive layout: the table of contents, the wordclouds, the graphs, and many tables are interactive; moreover, code can be visualized by pushing tag buttons on the right-hand-side of the HTML document.
 Furthermore, for everyone’s convenience, I have tried using, when possible, colors that are clearly distinguishable to take into account alternative color perception, following pieces of advice given in Cookbook R. As far as code visualization is concerned — when pushing tag buttons on the right-hand-side of the HTML document —, I hope the theme espresso, which I have chosen, is satisfactory.
 
