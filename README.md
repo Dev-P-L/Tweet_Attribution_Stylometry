@@ -2,7 +2,7 @@
 
 ## What are the files included in this repository?
 
-* Tweet_Attribution_Stylometry.html is the output in HTML. 
+* **Tweet_Attribution_Stylometry.html** is the output in HTML. 
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;For readers' convenience, Tweet_Attribution_Stylometry.html is an HTML document with interactive layout: the table of contents, the wordclouds, the graphs, and many tables are interactive; moreover, code can be visualized by pushing tag buttons on the right-hand-side of the HTML document.
 
@@ -12,23 +12,23 @@
 
 <br>
 
-* Tweet_Attribution_Stylometry.rmd contains all code in R Markdown. 
+* **Tweet_Attribution_Stylometry.rmd** contains all code in R Markdown. 
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You are most welcome to knit the file Tweet_Attribution_Stylometry.Rmd to produce the document Tweet_Attribution_Stylometry.html. If you wish to run or knit the file Tweet_Attribution_Stylometry.Rmd on your computer, I suggest placing the files Tweet_Attribution_Stylometry.Rmd and styles.css in the same folder.
 
 <br>
 
-* styles.css contains most layout specificities of the file Tweet_Attribution_Stylometry.html.
+* **styles.css** contains most layout specificities of the file Tweet_Attribution_Stylometry.html.
 
-* train_tweets.csv contains all data from the training set.
+* **train_tweets.csv** contains all data from the training set.
 
-* val_tweets.csv contains all data from the validation set.
+* **val_tweets.csv** contains all data from the validation set.
 
 <br>
 
 ## What is this project?
 
-* Executive Summary
+* **Executive Summary**
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;An accuracy level of 92 % has been reached in attributing tweets on the validation set with 212 stylometric predictors, while a baseline model would predict with an accuracy level of 53 % (percentage of the main class). This is deemed to be of valuable predictive quality on very short texts.
 
@@ -44,18 +44,18 @@
 
 <br>
 
-* TAGS
+* **TAGS**
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stylometry, tweet attribution, Natural Language Processing, Text Mining, Regex, interactive wordcloud, interactive graph, interactive table, Machine Learning, eXtreme Gradient Boosting Tree
 
 <br>
 
-* GITHUB
+* **GitHub**
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://github.com/Dev-P-L/Tweet_Attribution_Stylometry
 
 <br>
 
-* Requirements
+* **Requirements**
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This project is based on the dataset trump_tweets from the R package dslabs. This means that usage of this project must strictly comply with all requirements imposed by dslabs and by all dslabs sources.
