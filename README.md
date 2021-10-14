@@ -1,4 +1,4 @@
-## This README explains files and project.answers 2 questions: what is this project? what are the included files? 
+# This README explains files and project.
 
 ## What are the files included in this repository?
 
