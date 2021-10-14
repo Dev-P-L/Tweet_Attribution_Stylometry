@@ -59,24 +59,3 @@
 * Requirements
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This project is based on the dataset trump_tweets from the R package dslabs. This means that usage of this project must strictly comply with all requirements imposed by dslabs and by all dslabs sources.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-https://dev-p-l.github.io/Tweet_Attribution_Stylometry/Tweet_Attribution_Stylometry.html
-
-
-## What is this project?
-
-
-
