@@ -1,0 +1,144 @@
+
+
+/* Coloring and background-coloring (deep blue) floating TOC */  
+h1, #TOC ul>li {
+  color: White;
+  background-color: #0072B2;
+  font-style: oblique;
+}
+
+
+/* Coloring (sky blue) and background-coloring floating TOC when hovered upon */
+h1, #TOC ul>li:hover {
+  color: #56B4E9;
+  background-color: White;
+  font-style: oblique;
+}
+
+
+/* Coloring (deep blue) and background-coloring floating TOC when clicked upon */
+h1, #TOC ul>li:active {
+  color: #0072B2;
+  background-color: White;
+  font-weight: bold;
+  font-style: oblique;
+}
+
+
+/* Color (deep blue) and font in main title */ 
+h1.title {
+  color: #0072B2;
+  background-color: White;
+  font-size: 44px;
+}
+
+
+/* Color (deep blue) and font in subtitle */
+h3.subtitle {
+  color: #0072B2;
+  background-color: White;
+  font-size: 24px;
+}
+
+
+/* Color (deep blue) and other characteristics of text in headers of level 1 */
+h1 {
+  color: #0072B2;
+  background-color: White;
+  font-family: Sans-Serif;
+  font-size: 32px;
+  font-weight: bold;
+  text-align: left;
+  font-style: normal !important;
+  line-height: 2em;
+}
+
+
+/* Color (deep blue) and other characteristics of text in headers of level 2 */
+h2 {
+  color: #0072B2;
+  background-color: White;
+  font-family: Sans-Serif;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: left;
+  line-height: 1.5em;
+}
+
+
+/* Color (deep blue) and other characteristics of text in headers of level 3 */
+h3 {
+  color: #0072B2;
+  background-color: White;
+  font-family: Sans-Serif;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: left;
+  line-height: 1.25em;
+}
+
+
+/* Family, size and double justification of body text */
+body {
+  font-family: Sans-Serif;
+  font-size: 1.8em;
+  text-align: justify
+}
+
+
+/* Color (sky blue) and other characteristics of font in links and URLs */
+a {
+ color: #56B4E9;                  
+ font-family: Sans-Serif; 
+ font-weight: 700;
+ font-style: oblique;
+}
+
+
+/* Color (deep blue) and other characteristics of font in links and URLs when visited */
+a:visited {
+ color: #0072B2;                  
+ font-family: Sans-Serif; 
+ font-weight: 700;
+ font-style: oblique;
+}
+
+
+/* Color (white) and background color (sky blue) and other characteristics of font in links and URLs when hovered upon */
+a:hover {
+ color: White;
+ background-color: #56B4E9;
+ font-family: Sans-Serif; 
+ font-weight: 700;
+ font-style: oblique;
+}
+
+
+/* Color (white) and background color (deep blue) and other characteristics of font in links and URLs when activated */
+a:active {
+  color: White;
+  background-color: #0072B2;
+  font-family: Sans-Serif; 
+  font-weight: 700;
+  font-style: oblique;
+}
+
+
+/* Font size of code */
+code.r {
+  font-size: 20px;
+}
+
+
+/* Preventing link repetition in PDF conversion */
+@media print {
+    a[href]::after {
+        content: none !important;
+    }
+}
+
+
+/* In datatable removes bottom line */
+table.dataTable thead th {
+    border-bottom: none ;
+}
