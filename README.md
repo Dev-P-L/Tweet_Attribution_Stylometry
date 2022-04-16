@@ -1,6 +1,6 @@
 # This README explains files and project.
 
-## What are the files included in this repository?
+## Which are the files included in this repository?
 
 * **Tweet_Attribution_Stylometry.html** is the output in HTML. 
 
