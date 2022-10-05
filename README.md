@@ -1,4 +1,12 @@
-# This README explains files and project.
+# Acces to HTML Output Document
+
+https://github.com/Dev-P-L/Tweet_Attribution_Stylometry
+
+<br>
+<br>
+
+# Presentation of Projet with Source Code
+# on Tweet Attribution through Stylometry
 
 ## Which are the files included in this repository?
 
