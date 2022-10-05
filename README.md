@@ -28,6 +28,8 @@ https://github.com/Dev-P-L/Tweet_Attribution_Stylometry
 
 * **val_tweets.csv** contains all data from the validation set.
 
+<br>
+
 ## What is this project?
 
 * **Executive Summary**
