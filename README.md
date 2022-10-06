@@ -5,7 +5,7 @@ https://github.com/Dev-P-L/Tweet_Attribution_Stylometry
 <br>
 <br>
 
-# Presentation of Projet on
+# Presentation of Machine Learning Project on
 # Tweet Attribution through Stylometry
 
 <br>
