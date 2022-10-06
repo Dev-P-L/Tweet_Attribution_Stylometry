@@ -5,8 +5,8 @@ https://github.com/Dev-P-L/Tweet_Attribution_Stylometry
 <br>
 <br>
 
-# Presentation of Projet with Source Code
-# on Tweet Attribution through Stylometry
+# Presentation of Projet on
+# Tweet Attribution through Stylometry
 
 <br>
 
