@@ -1,6 +1,6 @@
 # Acces to HTML Output Document
 
-https://github.com/Dev-P-L/Tweet_Attribution_Stylometry
+https://dev-p-l.github.io/Tweet_Attribution_Stylometry/Tweet_Attribution_Stylometry.html
 
 <br>
 <br>
